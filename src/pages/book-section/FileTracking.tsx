@@ -276,7 +276,26 @@ export default function FileTracking() {
   const handleCfoDiarySearch = async () => {
     if (!cfoDiarySearchQuery.trim()) return;
     setIsCfoDiarySearching(true);
+    const q = cfoDiarySearchQuery.trim().toLowerCase();
     try {
+      // 1️⃣ Search local Dexie first (works offline & for unsynced records)
+      const allLocal = await db.records.filter(r =>
+        !r.deleted_locally &&
+        (
+          (r.cfo_diary_number || '').toLowerCase().includes(q) ||
+          (r.receiving_number || '').toLowerCase().includes(q) ||
+          (r.subject || '').toLowerCase().includes(q)
+        )
+      ).first();
+
+      if (allLocal) {
+        setRecordToEdit(allLocal);
+        setIsEditModalOpen(true);
+        setCfoDiarySearchQuery('');
+        return;
+      }
+
+      // 2️⃣ Fallback: search Supabase (for records not yet pulled locally)
       const { data, error } = await supabase
         .from('file_tracking_records' as any)
         .select('*')
@@ -289,15 +308,16 @@ export default function FileTracking() {
       if (data) {
         setRecordToEdit(data);
         setIsEditModalOpen(true);
-        setCfoDiarySearchQuery("");
+        setCfoDiarySearchQuery('');
       } else {
-        toast.error("No record found with this CFO Diary / Receiving Number.");
+        toast.error('No record found with this CFO Diary / Receiving Number.');
       }
     } catch (err: any) {
-      toast.error(err.message || "Search failed");
+      toast.error(err.message || 'Search failed');
     } finally {
       setIsCfoDiarySearching(false);
     }
+
   };
 
   const handleEditRecordAuth = () => {
@@ -336,8 +356,9 @@ export default function FileTracking() {
     setIsEditingMode(true);
     setEditingRecordId(recordToEdit.id);
     setIsForwardingMode(false);
-    // Load existing image if available
-    setFileImage(recordToEdit.file_image || "");
+    // Load existing image if available (from root or history)
+    const existingImage = recordToEdit.file_image || (recordToEdit.history && recordToEdit.history.length > 0 && [...recordToEdit.history].reverse().find(h => h.file_image)?.file_image) || "";
+    setFileImage(existingImage);
     toast.info(`Editing record: ${recordToEdit.subject}`);
   };
 
@@ -806,7 +827,8 @@ export default function FileTracking() {
         date: new Date().toISOString(),
         processed_by: sections.find(s => s.id === currentRole)?.name,
         action: isEditingMode ? "EDITED" : (isForwardingMode ? "FORWARDED" : "REGISTERED"),
-        amount: formData.amount
+        amount: formData.amount,
+        file_image: fileImage || undefined
       };
 
       if (isEditingMode) {
@@ -830,15 +852,20 @@ export default function FileTracking() {
           vehicle_no: formData.vehicle_no,
           additional_mark_to: formData.additional_mark_to,
           print_date: formData.print_date || getLocalDateString(),
-          file_image: fileImage || undefined,
           created_at: formData.registration_date
             ? new Date(formData.registration_date + 'T00:00:00').toISOString()
             : undefined,
         };
 
+        // For local Dexie only, keep file_image on root for easy access
+        const localUpdatePayload = {
+          ...updatePayload,
+          file_image: fileImage || undefined
+        };
+
         // Update locally
         await db.records.where('id').equals(editingRecordId as string).modify({
-          ...updatePayload,
+          ...localUpdatePayload,
           is_dirty: true
         });
 
@@ -890,13 +917,17 @@ export default function FileTracking() {
           voucher_code: formData.voucher_code,
           vehicle_no: formData.vehicle_no,
           additional_mark_to: formData.additional_mark_to,
-          file_image: fileImage || undefined,
           history: newHistory
+        };
+
+        const localUpdatePayload = {
+          ...updatePayload,
+          file_image: fileImage || undefined
         };
 
         // Update locally
         await db.records.where('receiving_number').equals(formData.receiving_number).modify({
-          ...updatePayload,
+          ...localUpdatePayload,
           is_dirty: true
         });
 
@@ -964,16 +995,20 @@ export default function FileTracking() {
           vehicle_no: formData.vehicle_no,
           additional_mark_to: formData.additional_mark_to,
           print_date: formData.print_date || getLocalDateString(),
-          file_image: fileImage || undefined,
           history: [snapshot],
           created_at: formData.registration_date
             ? new Date(formData.registration_date + 'T00:00:00').toISOString()
             : new Date().toISOString()
         };
 
+        const localNewEntry = {
+          ...newEntry,
+          file_image: fileImage || undefined
+        };
+
         // Insert locally
         await db.records.add({
-          ...newEntry,
+          ...localNewEntry,
           is_dirty: true,
           deleted_locally: false
         });
@@ -1062,51 +1097,71 @@ export default function FileTracking() {
   const fetchRecords = async (page = 0) => {
     setIsLoading(true);
     
-    // Load from IndexedDB immediately
-    try {
-      const localData = await db.records
-        .filter(r => !r.deleted_locally)
-        .toArray();
-      if (localData.length > 0) {
-        let mapped = localData.map((d: any) => ({
-          ...d,
-          mainCategory: d.main_category || d.mainCategory,
-          subCategory: d.sub_category || d.subCategory,
-        }));
+    const applyLocalFilters = (rawRecords: any[]) => {
+      let mapped = rawRecords.map((d: any) => ({
+        ...d,
+        mainCategory: d.main_category || d.mainCategory,
+        subCategory: d.sub_category || d.subCategory,
+      }));
 
-        // Filter local IndexedDB records according to the active tab
-        if (activeTab === 'tray' || activeTab === 'timeline' || activeTab === 'returned_files') {
-          const effectiveRole = effectiveViewingRole;
-          if (!(currentRole === 'cfo' || isAdmin)) {
-            if (activeTab === 'tray') {
-              mapped = mapped.filter(r => r.mark_to === effectiveRole);
-            } else if (activeTab === 'returned_files') {
-              mapped = mapped.filter(r => r.additional_mark_to === currentRole);
-            } else {
-              const procName = sections.find(s => s.id === effectiveRole)?.name;
-              mapped = mapped.filter(r => r.mark_to === effectiveRole || (r.history && r.history.some((h: any) => h.processed_by === procName)));
-            }
-          } else if (currentRole === 'cfo' || isAdmin) {
-            if (activeTab === 'tray') {
-              mapped = mapped.filter(r => r.mark_to === effectiveRole);
-            } else if (activeTab === 'returned_files') {
-              if (viewingRole === 'cfo' || viewingRole === 'admin') {
-                mapped = mapped.filter(r => r.additional_mark_to && r.additional_mark_to.trim() !== '');
-              } else {
-                mapped = mapped.filter(r => r.additional_mark_to === effectiveRole);
-              }
-            }
-          }
-        } else if (activeTab === 'cfo_all_files') {
-          if (filterStatus === 'exited') {
-            mapped = mapped.filter(r => r.mark_to === 'exited');
+      // 1. Tab & Role Filters
+      if (activeTab === 'tray' || activeTab === 'timeline' || activeTab === 'returned_files') {
+        const effectiveRole = effectiveViewingRole;
+        if (!(currentRole === 'cfo' || isAdmin)) {
+          if (activeTab === 'tray') {
+            mapped = mapped.filter(r => r.mark_to === effectiveRole);
+          } else if (activeTab === 'returned_files') {
+            mapped = mapped.filter(r => r.additional_mark_to === currentRole);
           } else {
-            mapped = mapped.filter(r => r.mark_to !== 'exited');
+            const procName = sections.find(s => s.id === effectiveRole)?.name;
+            mapped = mapped.filter(r => r.mark_to === effectiveRole || (r.history && r.history.some((h: any) => h.processed_by === procName)));
+          }
+        } else if (currentRole === 'cfo' || isAdmin) {
+          if (activeTab === 'tray') {
+            mapped = mapped.filter(r => r.mark_to === effectiveRole);
+          } else if (activeTab === 'returned_files') {
+            if (viewingRole === 'cfo' || viewingRole === 'admin') {
+              mapped = mapped.filter(r => r.additional_mark_to && r.additional_mark_to.trim() !== '');
+            } else {
+              mapped = mapped.filter(r => r.additional_mark_to === effectiveRole);
+            }
           }
         }
+      } else if (activeTab === 'cfo_all_files') {
+        if (filterStatus === 'exited') {
+          mapped = mapped.filter(r => r.mark_to === 'exited');
+        } else {
+          mapped = mapped.filter(r => r.mark_to !== 'exited');
+        }
+      }
 
-        setRecords(mapped);
-        setTotalRecords(mapped.length);
+      // 2. Category & Section Filters
+      if (filterCategory !== 'all') mapped = mapped.filter(r => r.mainCategory === filterCategory);
+      if (filterSubCategory !== 'all') mapped = mapped.filter(r => r.subCategory === filterSubCategory);
+      if (filterSection !== 'all') mapped = mapped.filter(r => r.mark_to === filterSection);
+
+      // 3. Search Filter
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        mapped = mapped.filter(r => 
+          (r.cfo_diary_number && r.cfo_diary_number.toLowerCase().includes(q)) ||
+          (r.receiving_number && r.receiving_number.toLowerCase().includes(q)) ||
+          (r.subject && r.subject.toLowerCase().includes(q)) ||
+          (r.received_from && r.received_from.toLowerCase().includes(q)) ||
+          (r.tracking_id && r.tracking_id.toLowerCase().includes(q))
+        );
+      }
+
+      return mapped;
+    };
+
+    // Load from IndexedDB immediately
+    try {
+      const localData = await db.records.filter(r => !r.deleted_locally).toArray();
+      if (localData.length > 0) {
+        const filteredLocal = applyLocalFilters(localData);
+        setRecords(filteredLocal);
+        setTotalRecords(filteredLocal.length);
       }
     } catch (localErr) {
       console.error("IndexedDB load error:", localErr);
@@ -1118,10 +1173,7 @@ export default function FileTracking() {
 
       let query = supabase
         .from('file_tracking_records' as any)
-        .select(
-          'id, tracking_id, cfo_diary_number, inward_date, received_from, receiving_number, main_category, sub_category, subject, mark_to, additional_mark_to, outward_date, remarks, amount, created_at, history, employee_number, voucher_code, vehicle_no, print_date, date_of_sign, signature_data',
-          { count: 'exact' }
-        );
+        .select('*', { count: 'exact' });
 
       // Apply Role-based filtering at the DB level
       if (activeTab === 'tray' || activeTab === 'timeline' || activeTab === 'returned_files') {
@@ -1219,19 +1271,37 @@ export default function FileTracking() {
           mainCategory: d.main_category,
           subCategory: d.sub_category,
         }));
-        setRecords(mappedData);
-        setTotalRecords(count || 0);
-        setCurrentPage(page);
         
         // ── Save to IndexedDB for offline access ──
         try {
           await db.records.bulkPut(mappedData.map((r: any) => ({
             ...r,
             is_dirty: false,
-            deleted_locally: false,
+            deleted_locally: false
           })));
-          localStorage.setItem('kwsc_cached_records', JSON.stringify(mappedData));
-        } catch(e) {}
+        } catch (bulkErr) {
+          console.error("bulkPut error:", bulkErr);
+        }
+
+        // MERGE: Retrieve local unsynced records that aren't in the mappedData yet
+        const rawLocalDirtyRecords = await db.records.filter(r => r.is_dirty && !r.deleted_locally).toArray();
+        const filteredDirtyRecords = applyLocalFilters(rawLocalDirtyRecords);
+        const mergedData = [...mappedData];
+        
+        filteredDirtyRecords.forEach(localRecord => {
+          const idx = mergedData.findIndex(d => d.receiving_number === localRecord.receiving_number);
+          if (idx === -1) {
+            // It's a new unsynced record, add it to the top
+            mergedData.unshift(localRecord);
+          } else {
+            // It's an updated unsynced record, override the Supabase one in UI
+            mergedData[idx] = localRecord;
+          }
+        });
+
+        setRecords(mergedData);
+        setTotalRecords((count || 0) + filteredDirtyRecords.length);
+        setCurrentPage(page);
       }
     } catch (err) {
       console.error("Fetch error:", err);
@@ -2176,15 +2246,15 @@ export default function FileTracking() {
                             <TableCell className="font-semibold text-sm">
                               <div className="flex items-center gap-2">
                                 <span>{file.subject}</span>
-                                {file.file_image && (
+                                {(file.file_image || (file.history && file.history.length > 0 && [...file.history].reverse().find(h => h.file_image)?.file_image)) && (
                                   <img
-                                    src={file.file_image}
+                                    src={file.file_image || [...file.history].reverse().find(h => h.file_image)?.file_image}
                                     alt="doc"
                                     title="Document photo attached"
                                     className="w-7 h-7 object-cover rounded border border-teal-500/40 cursor-pointer hover:scale-150 transition-transform"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      window.open(file.file_image, '_blank');
+                                      window.open(file.file_image || [...file.history].reverse().find(h => h.file_image)?.file_image, '_blank');
                                     }}
                                   />
                                 )}
