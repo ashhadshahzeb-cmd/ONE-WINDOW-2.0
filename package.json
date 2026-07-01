@@ -53,6 +53,8 @@
     "cmdk": "^1.1.1",
     "csv-parse": "^6.2.1",
     "date-fns": "^3.6.0",
+    "dexie": "^4.4.4",
+    "dexie-react-hooks": "^4.4.0",
     "dotenv": "^17.4.2",
     "embla-carousel-react": "^8.6.0",
     "googleapis": "^173.0.0",

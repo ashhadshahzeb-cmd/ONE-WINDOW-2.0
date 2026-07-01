@@ -8,6 +8,11 @@ export default function NotificationListener() {
   const { userRole, userName } = useAuth();
 
   useEffect(() => {
+    // Request browser notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
     // If no user is logged in, do not subscribe
     if (!userRole) return;
 
@@ -84,6 +89,14 @@ export default function NotificationListener() {
       duration: 6000,
       position: 'top-right',
     });
+
+    // Also trigger browser push notification if permitted
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification(`New File ${action === 'forwarded' ? 'Forwarded' : 'Received'}!`, {
+        body: `${record.receiving_number || 'N/A'}\n${record.subject || 'No subject'}`,
+        icon: '/favicon.ico',
+      });
+    }
   };
 
   return null; // This component doesn't render anything visible directly

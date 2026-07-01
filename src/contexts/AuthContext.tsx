@@ -10,6 +10,7 @@ export interface DepartmentUser {
   password: string;
   roleId: string;
   displayName: string;
+  allowOverrideDates?: boolean;
 }
 
 export const DEFAULT_DEPARTMENT_USERS: DepartmentUser[] = [
@@ -34,6 +35,7 @@ export const DEFAULT_DEPARTMENT_USERS: DepartmentUser[] = [
   { email: 'asst.cfo2@kwsb.gov.pk',        password: 'acfo2@12345',  roleId: 'sub_cfo_2',         displayName: 'ASST. CFO-2' },
   { email: 'asst.cfo3@kwsb.gov.pk',        password: 'acfo3@12345',  roleId: 'sub_cfo_3',         displayName: 'ASST. CFO-3' },
   { email: 'asst.cfo4@kwsb.gov.pk',        password: 'acfo4@12345',  roleId: 'sub_cfo_4',         displayName: 'ASST. CFO-4' },
+  { email: 'asst.cfo5@kwsb.gov.pk',        password: 'acfo5@12345',  roleId: 'sub_cfo_5',         displayName: 'ASST. CFO-5' },
   { email: 'mdoffice@kwsb.gov.pk',         password: 'md@12345',      roleId: 'md_office',         displayName: 'MD OFFICE' },
   { email: 'emp1@kwsb.gov.pk',             password: 'emp1@12345',    roleId: 'emp_operator',      displayName: 'EMPLOYEE REGISTRY 1' },
   { email: 'emp2@kwsb.gov.pk',             password: 'emp2@12345',    roleId: 'emp_operator',      displayName: 'EMPLOYEE REGISTRY 2' },
@@ -52,6 +54,7 @@ interface AuthContextType {
   localSignIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   isLocalAuth: boolean;
   verifyPassword: (password: string) => boolean;
+  allowOverrideDates: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -85,6 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
   const [isLocalAuth, setIsLocalAuth] = useState(false);
+  const [allowOverrideDates, setAllowOverrideDates] = useState(false);
 
   useEffect(() => {
     // 1) Check for local department auth first
@@ -96,6 +100,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUserName(parsed.displayName);
         setIsLocalAuth(true);
         setIsAdmin(parsed.roleId === 'cfo' || parsed.roleId === 'admin');
+        const usersList = getDepartmentUsers();
+        const match = usersList.find(u => u.email === parsed.email);
+        setAllowOverrideDates(match?.allowOverrideDates || parsed.roleId === 'cfo' || parsed.roleId === 'admin');
         setLoading(false);
         return; // skip Supabase if local auth is active
       } catch {
@@ -114,12 +121,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (match) {
            setUserRole(match.roleId);
            setUserName(match.displayName);
+           setAllowOverrideDates(match.allowOverrideDates || match.roleId === 'cfo' || match.roleId === 'admin');
         } else {
            const prefix = session.user.email?.split('@')[0].toLowerCase() || '';
            const fallbackMatch = usersList.find(u => u.roleId === prefix || u.roleId.replace('_', '') === prefix);
            if (fallbackMatch) {
               setUserRole(fallbackMatch.roleId);
               setUserName(fallbackMatch.displayName);
+              setAllowOverrideDates(fallbackMatch.allowOverrideDates || fallbackMatch.roleId === 'cfo' || fallbackMatch.roleId === 'admin');
            }
         }
       } else {
@@ -137,6 +146,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (match) {
            setUserRole(match.roleId);
            setUserName(match.displayName);
+           setAllowOverrideDates(match.allowOverrideDates || match.roleId === 'cfo' || match.roleId === 'admin');
         } else {
            // Default fallback based on email prefix if not exactly matched
            const prefix = session.user.email?.split('@')[0].toLowerCase() || '';
@@ -144,6 +154,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
            if (fallbackMatch) {
               setUserRole(fallbackMatch.roleId);
               setUserName(fallbackMatch.displayName);
+              setAllowOverrideDates(fallbackMatch.allowOverrideDates || fallbackMatch.roleId === 'cfo' || fallbackMatch.roleId === 'admin');
            }
         }
       } else {
@@ -201,6 +212,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUserName(match.displayName);
     setIsLocalAuth(true);
     setIsAdmin(match.roleId === 'cfo' || match.roleId === 'admin');
+    setAllowOverrideDates(match.allowOverrideDates || match.roleId === 'cfo' || match.roleId === 'admin');
 
     // Log login activity
     logActivity({
@@ -287,6 +299,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localSignIn,
       isLocalAuth,
       verifyPassword,
+      allowOverrideDates,
     }}>
       {children}
     </AuthContext.Provider>

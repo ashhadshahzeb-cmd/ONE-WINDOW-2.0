@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { db } from '@/lib/db';
 
 export interface AppConfigItem {
   id: string;
@@ -32,9 +33,30 @@ export function useAppConfig(): AppConfigState {
   const [error, setError]                   = useState<string | null>(null);
 
   const fetchConfig = useCallback(async (bustCache = false) => {
-    if (bustCache) cachedConfig = null;
+    if (bustCache) {
+      cachedConfig = null;
+      // Clear IndexedDB configs on force refresh
+      await db.configs.clear();
+    }
 
-    if (cachedConfig) {
+    // ── STEP 1: Load instantly from IndexedDB (works offline) ──
+    const localConfigs = await db.configs.toArray();
+    if (localConfigs.length > 0) {
+      const mc = localConfigs.filter(r => r.config_type === 'main_category') as AppConfigItem[];
+      const sc = localConfigs.filter(r => r.config_type === 'sub_category') as AppConfigItem[];
+      const se = localConfigs.filter(r => r.config_type === 'section') as AppConfigItem[];
+      setMainCategories(mc);
+      setSubCategories(sc);
+      setSections(se);
+      setIsLoading(false);
+      setError(null);
+      // Still try to refresh from Supabase in background (don't await)
+      refreshFromSupabase();
+      return;
+    }
+
+    // ── STEP 2: Nothing in local DB, try in-memory cache ──
+    if (cachedConfig && !bustCache) {
       setMainCategories(cachedConfig.mainCategories);
       setSubCategories(cachedConfig.subCategories);
       setSections(cachedConfig.sections);
@@ -53,6 +75,7 @@ export function useAppConfig(): AppConfigState {
       return;
     }
 
+    // ── STEP 3: Fetch from Supabase (first time or bust cache) ──
     setIsLoading(true);
     cachePromise = (async () => {
       try {
@@ -65,6 +88,8 @@ export function useAppConfig(): AppConfigState {
         if (dbErr) throw dbErr;
 
         const all = (data || []) as AppConfigItem[];
+        await saveConfigsToIndexedDB(all);
+
         const mc = all.filter(r => r.config_type === 'main_category');
         const sc = all.filter(r => r.config_type === 'sub_category');
         const se = all.filter(r => r.config_type === 'section');
@@ -100,6 +125,33 @@ export function useAppConfig(): AppConfigState {
 
   return { mainCategories, subCategories, sections, isLoading, error, refetch };
 }
+
+// Background refresh from Supabase without blocking the UI
+async function refreshFromSupabase() {
+  try {
+    const { data, error } = await supabase
+      .from('app_config' as any)
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
+
+    if (error || !data) return;
+    await saveConfigsToIndexedDB(data as AppConfigItem[]);
+    const mc = (data as AppConfigItem[]).filter(r => r.config_type === 'main_category');
+    const sc = (data as AppConfigItem[]).filter(r => r.config_type === 'sub_category');
+    const se = (data as AppConfigItem[]).filter(r => r.config_type === 'section');
+    cachedConfig = { mainCategories: mc, subCategories: sc, sections: se };
+  } catch (_) {
+    // Silent: offline refresh failed, that's okay
+  }
+}
+
+// Save configs to IndexedDB (upsert all)
+async function saveConfigsToIndexedDB(items: AppConfigItem[]) {
+  await db.configs.clear();
+  await db.configs.bulkAdd(items as any);
+}
+
 
 /**
  * Helper: given a main_category key, returns the sub-categories for it

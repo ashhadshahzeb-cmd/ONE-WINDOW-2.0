@@ -40,7 +40,10 @@ import {
   Users,
   RefreshCw,
   Network,
-  ScanLine
+  ScanLine,
+  Wifi,
+  WifiOff,
+  CloudOff
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useState, useEffect, useRef } from "react";
@@ -66,6 +69,8 @@ import { useAppConfig, getSubCategoriesFor, sectionsToLegacy } from "@/hooks/use
 import { logActivity } from "@/hooks/useActivityLog";
 import { addToOfflineQueue } from "@/lib/offlineSync";
 import JourneyMapModal from "@/components/JourneyMapModal";
+import { db } from "@/lib/db";
+import { useSyncManager } from "@/hooks/useSyncManager";
 
 const getSubCatLabel = (val: string | null) => {
   if (!val) return "---";
@@ -143,12 +148,17 @@ export default function FileTracking() {
   const [selectedBill, setSelectedBill] = useState<any>(null);
   const [coveringSlipPrintDate, setCoveringSlipPrintDate] = useState(getLocalDateString());
   const [coveringSlipCreatedDate, setCoveringSlipCreatedDate] = useState(getLocalDateString());
-
+  const [isDuplicatePrint, setIsDuplicatePrint] = useState(false);
+  
   // Auth-based role detection
-  const { userRole, userName, signOut, isAdmin, verifyPassword } = useAuth();
+  const { userRole, userName, signOut, isAdmin, verifyPassword, allowOverrideDates } = useAuth();
   const currentRole = userRole || 'cfo';
   const isFileViewer = currentRole === 'file_viewer';
   const [viewingRole, setViewingRole] = useState(currentRole);
+
+  // Offline-first sync manager
+  const { isOnline, pendingCount, syncStatus, enqueue } = useSyncManager();
+
 
   useEffect(() => {
     // Sub-CFO and Asst-CFOs behave as department users for the CFO section
@@ -163,6 +173,10 @@ export default function FileTracking() {
 
   // New Form State
   const [isSavingForm, setIsSavingForm] = useState(false);
+  const [fileImage, setFileImage] = useState<string>("");
+  const [mobileUploadSessionId, setMobileUploadSessionId] = useState<string>("");
+  const [showMobileUploadQR, setShowMobileUploadQR] = useState(false);
+  const [isMobileListening, setIsMobileListening] = useState(false);
   const [formData, setFormData] = useState({
     cfo_diary_number: `CFO-${new Date().getFullYear()}-${String(Math.floor(1 + Math.random() * 9999)).padStart(4, '0')}`,
     inward_date: getLocalDateString(),
@@ -182,6 +196,11 @@ export default function FileTracking() {
     employee_number: "",
     voucher_code: "",
     vehicle_no: "",
+    department_number: "",
+    no_amount: false,
+    subject_prefix: "",
+    fuel_station: "",
+    additional_mark_to: "",
   });
 
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -207,15 +226,19 @@ export default function FileTracking() {
     if (!recordToDelete) return;
 
     try {
-      const { error } = await supabase
-        .from('file_tracking_records' as any)
-        .delete()
-        .eq('id', recordToDelete);
-
-      if (error) throw error;
-      
-      // Log delete activity
+      // Delete from local IndexedDB immediately
       const deletedRecord = records.find(r => r.id === recordToDelete);
+      await db.records.where('id').equals(recordToDelete).modify({ deleted_locally: true });
+
+      // Enqueue for remote deletion
+      await enqueue({
+        action: 'delete',
+        table: 'file_tracking_records',
+        payload: { id: recordToDelete },
+        record_id: deletedRecord?.receiving_number,
+      });
+
+      // Log delete activity
       logActivity({
         userRole: currentRole || 'unknown',
         userName: userName || sections.find(s => s.id === currentRole)?.name || currentRole || 'Unknown',
@@ -226,7 +249,7 @@ export default function FileTracking() {
         subject: deletedRecord?.subject,
       });
 
-      toast.success("Record deleted successfully.");
+      toast.success(isOnline ? "Record deleted successfully." : "Deleted locally. Will sync when online.");
       setIsDeleteModalOpen(false);
       setDeletePassword("");
       setRecordToDelete(null);
@@ -235,6 +258,7 @@ export default function FileTracking() {
       toast.error(err.message || "Failed to delete record");
     }
   };
+
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [recordToEdit, setRecordToEdit] = useState<any>(null);
@@ -307,40 +331,53 @@ export default function FileTracking() {
       vehicle_no: recordToEdit.vehicle_no || "",
       date_of_sign: recordToEdit.date_of_sign || getLocalDateString(),
       outward_date: recordToEdit.outward_date || getLocalDateString(),
+      additional_mark_to: recordToEdit.additional_mark_to || "",
     });
     setIsEditingMode(true);
     setEditingRecordId(recordToEdit.id);
     setIsForwardingMode(false);
+    // Load existing image if available
+    setFileImage(recordToEdit.file_image || "");
     toast.info(`Editing record: ${recordToEdit.subject}`);
   };
 
   const fetchNextDiaryNumber = async () => {
-    const year = new Date().getFullYear();
+    const year = "2627";
+
+    // Extract numeric suffix from role — ASST CFO-4 (sub_cfo_4) → 4, CFO/Admin → no suffix
+    const role = (currentRole || 'cfo').toLowerCase();
+    let userId = '';
+    if (role === 'cfo' || role === 'admin') {
+      userId = ''; // CFO/Admin: CFO-2627-XXXX (no middle number)
+    } else {
+      const match = role.match(/(\d+)$/);
+      userId = match ? match[1] : '0'; // sub_cfo_4 → 4, sub_cfo → 0
+    }
+    const prefix = userId ? `CFO-${year}-${userId}` : `CFO-${year}`;
+
     const { data, error } = await supabase
       .from('file_tracking_records' as any)
       .select('cfo_diary_number, created_at')
-      .like('cfo_diary_number', `CFO-${year}-%`)
+      .like('cfo_diary_number', `${prefix}-%`)
       .order('created_at', { ascending: false })
-      .limit(10);
+      .limit(20);
 
     if (!error && data && data.length > 0) {
-      // Extract numeric parts and find the actual maximum to handle string sorting edge cases
       const numericParts = data
         .map(d => {
           const parts = d.cfo_diary_number.split('-');
-          return parts.length >= 3 ? parseInt(parts[2]) : 0;
+          return parseInt(parts[parts.length - 1]) || 0;
         })
         .filter(n => !isNaN(n));
 
       if (numericParts.length > 0) {
         const maxNo = Math.max(...numericParts);
-        const nextNo = `CFO-${year}-${String(maxNo + 1).padStart(4, '0')}`;
-        setFormData(prev => ({ ...prev, cfo_diary_number: nextNo }));
+        setFormData(prev => ({ ...prev, cfo_diary_number: `${prefix}-${String(maxNo + 1).padStart(4, '0')}` }));
       } else {
-        setFormData(prev => ({ ...prev, cfo_diary_number: `CFO-${year}-0001` }));
+        setFormData(prev => ({ ...prev, cfo_diary_number: `${prefix}-0001` }));
       }
     } else {
-      setFormData(prev => ({ ...prev, cfo_diary_number: `CFO-${year}-0001` }));
+      setFormData(prev => ({ ...prev, cfo_diary_number: `${prefix}-0001` }));
     }
   };
 
@@ -584,7 +621,7 @@ export default function FileTracking() {
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [isJourneyMapOpen, setIsJourneyMapOpen] = useState(false);
-  const [qrFullScreen, setQrFullScreen] = useState<{ diary: string, receiving: string, print_date?: string, created_date?: string } | null>(null);
+  const [qrFullScreen, setQrFullScreen] = useState<{ diary: string, receiving: string, print_date?: string, created_date?: string, subject?: string, mark_to?: string, additional_mark_to?: string, history?: any[] } | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
 
@@ -705,6 +742,9 @@ export default function FileTracking() {
     setSelectedEmpProfile(null);
     setEmpSuggestions([]);
     setShowEmpSuggestions(false);
+    setFileImage("");
+    setShowMobileUploadQR(false);
+    setMobileUploadSessionId("");
   };
 
   const handleEmployeeNumberChange = async (val: string) => {
@@ -760,43 +800,7 @@ export default function FileTracking() {
     }
     setIsSavingForm(true);
 
-    if (!navigator.onLine) {
-      const snapshot = {
-        ...formData,
-        date: new Date().toISOString(),
-        processed_by: sections.find(s => s.id === currentRole)?.name,
-        action: isEditingMode ? "EDITED" : (isForwardingMode ? "FORWARDED" : "REGISTERED"),
-        amount: formData.amount
-      };
-
-      if (isEditingMode) {
-        addToOfflineQueue('file_tracking_records', 'UPDATE', { id: editingRecordId, ...formData });
-      } else if (isForwardingMode) {
-        const existingLocal = records.find(r => r.receiving_number === formData.receiving_number);
-        const newHistory = existingLocal ? [...(existingLocal.history || []), snapshot] : [snapshot];
-        addToOfflineQueue('file_tracking_records', 'UPDATE', { receiving_number: formData.receiving_number, ...formData, history: newHistory });
-      } else {
-        const trackingId = `FT-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
-        const newEntry = { ...formData, tracking_id: trackingId, history: [snapshot], created_at: new Date().toISOString() };
-        addToOfflineQueue('file_tracking_records', 'INSERT', newEntry);
-      }
-      toast.success("Saved offline! Will sync when internet is restored.");
-      handleFormReset();
-      setIsSavingForm(false);
-      return;
-    }
-
-    let dbError = null;
     try {
-      // 1. Fetch existing record from DB directly (to handle pagination)
-      const { data: existingRecord, error: fetchError } = await supabase
-        .from('file_tracking_records' as any)
-        .select('*')
-        .eq('receiving_number', formData.receiving_number)
-        .maybeSingle();
-
-      if (fetchError) throw fetchError;
-
       const snapshot = {
         ...formData,
         date: new Date().toISOString(),
@@ -806,120 +810,141 @@ export default function FileTracking() {
       };
 
       if (isEditingMode) {
-        const { error } = await supabase
-          .from('file_tracking_records' as any)
-          .update({
-            cfo_diary_number: formData.cfo_diary_number,
-            inward_date: formData.inward_date,
-            received_from: formData.received_from,
-            receiving_number: formData.receiving_number,
-            main_category: formData.mainCategory,
-            sub_category: formData.subCategory,
-            subject: formData.subject,
-            date_of_sign: formData.date_of_sign,
-            signature_data: formData.signature_data,
-            mark_to: formData.mark_to,
-            outward_date: formData.outward_date,
-            remarks: formData.remarks,
-            amount: formData.amount,
-            employee_number: formData.employee_number,
-            voucher_code: formData.voucher_code,
-            vehicle_no: formData.vehicle_no,
-            print_date: formData.print_date || getLocalDateString(),
-            created_at: formData.registration_date
-              ? new Date(formData.registration_date + 'T00:00:00').toISOString()
-              : undefined,
-          })
-          .eq('id', editingRecordId);
-          
-        dbError = error;
-        if (error) {
-          toast.error(`Database Error: Data could not be updated. ${error.message || ""}`);
-        } else {
-          logActivity({
-            userRole: currentRole || 'unknown',
-            userName: userName || sections.find(s => s.id === currentRole)?.name || currentRole || 'Unknown',
-            action: 'EDIT',
-            recordId: editingRecordId || undefined,
-            diaryNumber: formData.cfo_diary_number,
-            receivingNumber: formData.receiving_number,
-            subject: formData.subject,
-            details: { updated_fields: ['multiple'] }
-          });
-          toast.success("Record updated successfully!");
-          setQrFullScreen({ diary: formData.cfo_diary_number, receiving: formData.receiving_number, print_date: formData.print_date });
-          handleFormReset();
-          fetchRecords(0);
-        }
+        // ── 1. Edit Existing Record ──
+        const updatePayload = {
+          cfo_diary_number: formData.cfo_diary_number,
+          inward_date: formData.inward_date,
+          received_from: formData.received_from,
+          receiving_number: formData.receiving_number,
+          main_category: formData.mainCategory,
+          sub_category: formData.subCategory,
+          subject: formData.subject,
+          date_of_sign: formData.date_of_sign,
+          signature_data: formData.signature_data,
+          mark_to: formData.mark_to,
+          outward_date: formData.outward_date,
+          remarks: formData.remarks,
+          amount: formData.amount,
+          employee_number: formData.employee_number,
+          voucher_code: formData.voucher_code,
+          vehicle_no: formData.vehicle_no,
+          additional_mark_to: formData.additional_mark_to,
+          print_date: formData.print_date || getLocalDateString(),
+          file_image: fileImage || undefined,
+          created_at: formData.registration_date
+            ? new Date(formData.registration_date + 'T00:00:00').toISOString()
+            : undefined,
+        };
+
+        // Update locally
+        await db.records.where('id').equals(editingRecordId as string).modify({
+          ...updatePayload,
+          is_dirty: true
+        });
+
+        // Enqueue sync task
+        await enqueue({
+          action: 'update',
+          table: 'file_tracking_records',
+          payload: { id: editingRecordId, ...updatePayload },
+          record_id: formData.receiving_number,
+        });
+
+        logActivity({
+          userRole: currentRole || 'unknown',
+          userName: userName || sections.find(s => s.id === currentRole)?.name || currentRole || 'Unknown',
+          action: 'EDIT',
+          recordId: editingRecordId || undefined,
+          diaryNumber: formData.cfo_diary_number,
+          receivingNumber: formData.receiving_number,
+          subject: formData.subject,
+          details: { updated_fields: ['multiple'] }
+        });
+
+        toast.success(isOnline ? "Record updated successfully!" : "Saved locally. Will sync when online.");
+        setQrFullScreen({ diary: formData.cfo_diary_number, receiving: formData.receiving_number, print_date: formData.print_date, subject: formData.subject, mark_to: formData.mark_to, additional_mark_to: formData.additional_mark_to });
+        handleFormReset();
+        fetchRecords(0);
+
       } else if (isForwardingMode) {
+        // ── 2. Forward Existing Record ──
+        const existingRecord = await db.records.where('receiving_number').equals(formData.receiving_number).first();
+        
         if (!existingRecord) {
-          toast.error("Original record not found for forwarding. Please verify the receiving number.");
+          toast.error("Original record not found locally for forwarding. Try syncing first.");
           setIsSavingForm(false);
           return;
         }
 
-        // Appending to existing file history
-        const newHistory = [...((existingRecord as any).history || []), snapshot];
+        const newHistory = [...(existingRecord.history || []), snapshot];
+        
+        const updatePayload = {
+          mark_to: formData.mark_to,
+          remarks: formData.remarks,
+          subject: formData.subject,
+          main_category: formData.mainCategory,
+          sub_category: formData.subCategory,
+          received_from: formData.received_from,
+          amount: formData.amount,
+          employee_number: formData.employee_number,
+          voucher_code: formData.voucher_code,
+          vehicle_no: formData.vehicle_no,
+          additional_mark_to: formData.additional_mark_to,
+          file_image: fileImage || undefined,
+          history: newHistory
+        };
 
-        const { error } = await supabase
-          .from('file_tracking_records' as any)
-          .update({
-            mark_to: formData.mark_to,
-            remarks: formData.remarks,
-            subject: formData.subject,
-            main_category: formData.mainCategory,
-            sub_category: formData.subCategory,
-            received_from: formData.received_from,
-            amount: formData.amount,
-            employee_number: formData.employee_number,
-            voucher_code: formData.voucher_code,
-            vehicle_no: formData.vehicle_no,
-            history: newHistory
-          })
-          .eq('receiving_number', formData.receiving_number);
+        // Update locally
+        await db.records.where('receiving_number').equals(formData.receiving_number).modify({
+          ...updatePayload,
+          is_dirty: true
+        });
 
-        dbError = error;
-        if (error) {
-          toast.error(`Database Error: Data could not be saved. ${error.message || ""}`);
-        } else {
-          logActivity({
-            userRole: currentRole || 'unknown',
-            userName: userName || sections.find(s => s.id === currentRole)?.name || currentRole || 'Unknown',
-            action: 'FORWARD',
-            recordId: (existingRecord as any)?.id,
-            diaryNumber: formData.cfo_diary_number,
-            receivingNumber: formData.receiving_number,
-            subject: formData.subject,
-            details: { mark_to: formData.mark_to }
-          });
-          toast.success(`Detailed log entry added and file forwarded to ${formData.mark_to}`);
-          setQrFullScreen({ diary: formData.cfo_diary_number, receiving: formData.receiving_number, print_date: formData.print_date });
-          handleFormReset();
-          fetchRecords(0); // Fresh data from Supabase
-        }
+        // Enqueue sync task
+        await enqueue({
+          action: 'update',
+          table: 'file_tracking_records',
+          payload: updatePayload,
+          record_id: formData.receiving_number,
+        });
+
+        logActivity({
+          userRole: currentRole || 'unknown',
+          userName: userName || sections.find(s => s.id === currentRole)?.name || currentRole || 'Unknown',
+          action: 'FORWARD',
+          recordId: existingRecord.id,
+          diaryNumber: formData.cfo_diary_number,
+          receivingNumber: formData.receiving_number,
+          subject: formData.subject,
+          details: { mark_to: formData.mark_to }
+        });
+
+        toast.success(isOnline ? `File forwarded to ${formData.mark_to}` : "Forwarded locally. Will sync when online.");
+        setQrFullScreen({ diary: formData.cfo_diary_number, receiving: formData.receiving_number, print_date: formData.print_date, subject: formData.subject, mark_to: formData.mark_to, additional_mark_to: formData.additional_mark_to });
+        handleFormReset();
+        fetchRecords(0);
+
       } else {
-        // Creating fresh record
-        // Check for duplicate CFO Diary Number
-        const { data: diaryExists, error: diaryError } = await supabase
-          .from('file_tracking_records' as any)
-          .select('id')
-          .eq('cfo_diary_number', formData.cfo_diary_number)
-          .limit(1);
-
-        if (diaryExists && diaryExists.length > 0) {
-          toast.error(`CFO Diary Number ${formData.cfo_diary_number} already exists! Please use a unique number.`);
+        // ── 3. Register New Record ──
+        // Check local duplicate
+        const diaryExists = await db.records.where('cfo_diary_number').equals(formData.cfo_diary_number).count();
+        if (diaryExists > 0) {
+          toast.error(`CFO Diary Number ${formData.cfo_diary_number} already exists locally!`);
           setIsSavingForm(false);
           return;
         }
 
-        if (existingRecord) {
-          toast.error("This Receiving Number already exists! Please use a unique number for new registration.");
+        const receivingExists = await db.records.where('receiving_number').equals(formData.receiving_number).count();
+        if (receivingExists > 0) {
+          toast.error("This Receiving Number already exists locally!");
           setIsSavingForm(false);
           return;
         }
 
         const trackingId = `FT-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
+        const tempId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
         const newEntry = {
+          id: tempId,
           tracking_id: trackingId,
           cfo_diary_number: formData.cfo_diary_number,
           inward_date: formData.inward_date,
@@ -937,52 +962,50 @@ export default function FileTracking() {
           employee_number: formData.employee_number,
           voucher_code: formData.voucher_code,
           vehicle_no: formData.vehicle_no,
+          additional_mark_to: formData.additional_mark_to,
           print_date: formData.print_date || getLocalDateString(),
+          file_image: fileImage || undefined,
           history: [snapshot],
           created_at: formData.registration_date
             ? new Date(formData.registration_date + 'T00:00:00').toISOString()
             : new Date().toISOString()
         };
 
-        const { error } = await supabase.from('file_tracking_records' as any).insert(newEntry);
-        dbError = error;
+        // Insert locally
+        await db.records.add({
+          ...newEntry,
+          is_dirty: true,
+          deleted_locally: false
+        });
 
-        if (error) {
-          toast.error(`Database Error: Entry could not be saved. ${error.message || ""}`);
-        } else {
-          // Local state ONLY updated if DB insert was successful
-          const fullEntry = {
-            ...newEntry,
-            mainCategory: formData.mainCategory,
-            subCategory: formData.subCategory,
-            id: Math.random().toString(36).substr(2, 9),
-          };
-          setRecords([fullEntry, ...records]);
+        // Enqueue sync
+        await enqueue({
+          action: 'insert',
+          table: 'file_tracking_records',
+          payload: newEntry,
+          record_id: formData.receiving_number,
+        });
 
-          logActivity({
-            userRole: currentRole || 'unknown',
-            userName: userName || sections.find(s => s.id === currentRole)?.name || currentRole || 'Unknown',
-            action: 'REGISTER',
-            recordId: undefined, // Freshly created, but we don't have UUID back easily without extra select
-            diaryNumber: formData.cfo_diary_number,
-            receivingNumber: formData.receiving_number,
-            subject: formData.subject,
-            details: { mark_to: formData.mark_to, amount: formData.amount }
-          });
+        logActivity({
+          userRole: currentRole || 'unknown',
+          userName: userName || sections.find(s => s.id === currentRole)?.name || currentRole || 'Unknown',
+          action: 'REGISTER',
+          recordId: undefined,
+          diaryNumber: formData.cfo_diary_number,
+          receivingNumber: formData.receiving_number,
+          subject: formData.subject,
+          details: { mark_to: formData.mark_to, amount: formData.amount }
+        });
 
-          toast.success(`File registered and initial audit log created`);
-          setQrFullScreen({ diary: formData.cfo_diary_number, receiving: formData.receiving_number, print_date: formData.print_date });
-          handleFormReset();
-          fetchRecords(0); // Fresh data Supabase se
-        }
+        toast.success(isOnline ? `File registered successfully` : "Registered offline. Will sync when online.");
+        setQrFullScreen({ diary: formData.cfo_diary_number, receiving: formData.receiving_number, print_date: formData.print_date, subject: formData.subject, mark_to: formData.mark_to, additional_mark_to: formData.additional_mark_to });
+        handleFormReset();
+        fetchRecords(0);
       }
 
-      if (dbError) {
-        console.warn("Table file_tracking_records sync issue:", dbError);
-      }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      toast.error("Error saving record");
+      toast.error(err.message || "Error saving record locally");
     } finally {
       setIsSavingForm(false);
     }
@@ -991,7 +1014,7 @@ export default function FileTracking() {
   const [isPrintingQR, setIsPrintingQR] = useState(false);
   const [isPrintingQRMinimal, setIsPrintingQRMinimal] = useState(false);
   const [isPrintingCovering, setIsPrintingCovering] = useState(false);
-
+  
   const handlePrintQR = () => {
     setIsPrintingQR(true);
     document.body.classList.add('printing-qr-ticket');
@@ -1039,19 +1062,54 @@ export default function FileTracking() {
   const fetchRecords = async (page = 0) => {
     setIsLoading(true);
     
-    // Check if offline to load from cache immediately
-    if (!navigator.onLine) {
-      try {
-        const cached = localStorage.getItem('kwsc_cached_records');
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          setRecords(parsed);
-          setTotalRecords(parsed.length);
-          toast.info('Loaded offline cached data');
+    // Load from IndexedDB immediately
+    try {
+      const localData = await db.records
+        .filter(r => !r.deleted_locally)
+        .toArray();
+      if (localData.length > 0) {
+        let mapped = localData.map((d: any) => ({
+          ...d,
+          mainCategory: d.main_category || d.mainCategory,
+          subCategory: d.sub_category || d.subCategory,
+        }));
+
+        // Filter local IndexedDB records according to the active tab
+        if (activeTab === 'tray' || activeTab === 'timeline' || activeTab === 'returned_files') {
+          const effectiveRole = effectiveViewingRole;
+          if (!(currentRole === 'cfo' || isAdmin)) {
+            if (activeTab === 'tray') {
+              mapped = mapped.filter(r => r.mark_to === effectiveRole);
+            } else if (activeTab === 'returned_files') {
+              mapped = mapped.filter(r => r.additional_mark_to === currentRole);
+            } else {
+              const procName = sections.find(s => s.id === effectiveRole)?.name;
+              mapped = mapped.filter(r => r.mark_to === effectiveRole || (r.history && r.history.some((h: any) => h.processed_by === procName)));
+            }
+          } else if (currentRole === 'cfo' || isAdmin) {
+            if (activeTab === 'tray') {
+              mapped = mapped.filter(r => r.mark_to === effectiveRole);
+            } else if (activeTab === 'returned_files') {
+              if (viewingRole === 'cfo' || viewingRole === 'admin') {
+                mapped = mapped.filter(r => r.additional_mark_to && r.additional_mark_to.trim() !== '');
+              } else {
+                mapped = mapped.filter(r => r.additional_mark_to === effectiveRole);
+              }
+            }
+          }
+        } else if (activeTab === 'cfo_all_files') {
+          if (filterStatus === 'exited') {
+            mapped = mapped.filter(r => r.mark_to === 'exited');
+          } else {
+            mapped = mapped.filter(r => r.mark_to !== 'exited');
+          }
         }
-      } catch (e) {}
-      setIsLoading(false);
-      return;
+
+        setRecords(mapped);
+        setTotalRecords(mapped.length);
+      }
+    } catch (localErr) {
+      console.error("IndexedDB load error:", localErr);
     }
 
     try {
@@ -1061,22 +1119,30 @@ export default function FileTracking() {
       let query = supabase
         .from('file_tracking_records' as any)
         .select(
-          'id, tracking_id, cfo_diary_number, inward_date, received_from, receiving_number, main_category, sub_category, subject, mark_to, outward_date, remarks, amount, created_at, history, employee_number, voucher_code, vehicle_no, print_date, date_of_sign, signature_data',
+          'id, tracking_id, cfo_diary_number, inward_date, received_from, receiving_number, main_category, sub_category, subject, mark_to, additional_mark_to, outward_date, remarks, amount, created_at, history, employee_number, voucher_code, vehicle_no, print_date, date_of_sign, signature_data',
           { count: 'exact' }
         );
 
       // Apply Role-based filtering at the DB level
-      if (activeTab === 'tray' || activeTab === 'timeline') {
+      if (activeTab === 'tray' || activeTab === 'timeline' || activeTab === 'returned_files') {
         const effectiveRole = effectiveViewingRole;
         if (!(currentRole === 'cfo' || isAdmin)) {
           if (activeTab === 'tray') {
             query = query.eq('mark_to', effectiveRole);
+          } else if (activeTab === 'returned_files') {
+            query = query.eq('additional_mark_to', currentRole);
           } else {
             query = query.or(`mark_to.eq.${effectiveRole},history.cs.[{"processed_by":"${sections.find(s => s.id === effectiveRole)?.name}"}]`);
           }
         } else if (currentRole === 'cfo' || isAdmin) {
           if (activeTab === 'tray') {
             query = query.eq('mark_to', effectiveRole);
+          } else if (activeTab === 'returned_files') {
+            if (viewingRole === 'cfo' || viewingRole === 'admin') {
+              query = query.not('additional_mark_to', 'is', null).neq('additional_mark_to', '');
+            } else {
+              query = query.eq('additional_mark_to', effectiveRole);
+            }
           }
         }
       } else if (activeTab === 'cfo_all_files') {
@@ -1156,11 +1222,20 @@ export default function FileTracking() {
         setRecords(mappedData);
         setTotalRecords(count || 0);
         setCurrentPage(page);
-        try { localStorage.setItem('kwsc_cached_records', JSON.stringify(mappedData)); } catch(e) {}
+        
+        // ── Save to IndexedDB for offline access ──
+        try {
+          await db.records.bulkPut(mappedData.map((r: any) => ({
+            ...r,
+            is_dirty: false,
+            deleted_locally: false,
+          })));
+          localStorage.setItem('kwsc_cached_records', JSON.stringify(mappedData));
+        } catch(e) {}
       }
     } catch (err) {
       console.error("Fetch error:", err);
-
+      // ── Offline fallback already handled at start of function ──
     } finally {
       setIsLoading(false);
       setIsInitialLoading(false);
@@ -1311,7 +1386,6 @@ export default function FileTracking() {
     }
   };
 
-  // Specific record ki history fetch karo (timeline / journey view ke liye)
   const fetchRecordHistory = async (receiving_number: string) => {
     try {
       const { data, error } = await supabase
@@ -1321,12 +1395,18 @@ export default function FileTracking() {
         .single();
 
       if (!error && data) {
+        const historyData = (data as any).history || [];
         setRecords(prev =>
           prev.map(r =>
             r.receiving_number === receiving_number
-              ? { ...r, history: (data as any).history || [] }
+              ? { ...r, history: historyData }
               : r
           )
+        );
+        setSelectedBill(prev => 
+          prev && prev.receiving_number === receiving_number
+            ? { ...prev, history: historyData }
+            : prev
         );
       }
     } catch (err) {
@@ -1481,12 +1561,16 @@ export default function FileTracking() {
       amount: file.amount || 0,
       remarks: ``, // Clear remarks for new entry
       mark_to: "cfo", // Defaulting back to CFO
+      additional_mark_to: file.additional_mark_to || "",
       signature_data: "" // Clear signature for new person to sign
     });
     setIsForwardingMode(true);
     toast.info(`Now processing: ${file.subject}. Review the journey below before signing.`);
   };
 
+  const [additionalMarkTo, setAdditionalMarkTo] = useState("");
+  const [exitRemarks, setExitRemarks] = useState("");
+  
   const handleExitFile = async (file: any) => {
     setIsExitingFile(true);
     try {
@@ -1504,7 +1588,9 @@ export default function FileTracking() {
       const { error } = await supabase
         .from('file_tracking_records' as any)
         .update({
-          mark_to: 'exited',
+          mark_to: additionalMarkTo || 'exited',
+        additional_mark_to: additionalMarkTo,
+        remarks: exitRemarks ? (file.remarks ? file.remarks + ' | ' + exitRemarks : exitRemarks) : file.remarks,
           history: newHistory
         })
         .eq('id', file.id);
@@ -1565,8 +1651,23 @@ export default function FileTracking() {
     }
   };
 
-  const handleQRClick = (diary: string, receiving: string, print_date?: string, created_date?: string) => {
-    setQrFullScreen({ diary, receiving, print_date, created_date });
+  const handleQRClick = async (diary: string, receiving: string, print_date?: string, created_date?: string) => {
+    let ticketData = records.find(r => r.cfo_diary_number === diary || r.receiving_number === receiving);
+    
+    if (!ticketData) {
+      ticketData = await db.records.where('receiving_number').equals(receiving).first();
+    }
+    
+    setQrFullScreen({ 
+      diary, 
+      receiving, 
+      print_date: print_date || ticketData?.print_date, 
+      created_date: created_date || ticketData?.created_at,
+      subject: ticketData?.subject,
+      mark_to: ticketData?.mark_to,
+      additional_mark_to: ticketData?.additional_mark_to,
+      history: ticketData?.history
+    });
   };
 
   const totalPages = Math.ceil(totalRecords / DB_PAGE_SIZE) || 1;
@@ -1589,18 +1690,37 @@ export default function FileTracking() {
     <div className="space-y-6 animate-fade-in pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-[#0f1115]/80 p-6 rounded-[32px] border border-white/5 backdrop-blur-xl shadow-2xl">
         <div className="space-y-1">
-          <h1 className="text-2xl font-black flex items-center gap-3 text-white tracking-tighter">
-            <div className="w-10 h-10 rounded-xl bg-[#14b8a6]/10 flex items-center justify-center border border-[#14b8a6]/20">
-              <FileSearch className="w-6 h-6 text-[#14b8a6]" />
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-black flex items-center gap-3 text-white tracking-tighter">
+              <div className="w-10 h-10 rounded-xl bg-[#14b8a6]/10 flex items-center justify-center border border-[#14b8a6]/20">
+                <FileSearch className="w-6 h-6 text-[#14b8a6]" />
+              </div>
+              Centralized Tracking & Workflow
+            </h1>
+            
+            {/* Sync Status Badge */}
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-widest ${
+              !isOnline ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 
+              pendingCount > 0 ? 'bg-blue-500/10 text-blue-500 border-blue-500/20 animate-pulse' : 
+              'bg-[#14b8a6]/10 text-[#14b8a6] border-[#14b8a6]/20'
+            }`}>
+              {!isOnline ? <WifiOff className="w-3.5 h-3.5" /> : 
+               pendingCount > 0 ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : 
+               <Wifi className="w-3.5 h-3.5" />}
+              <span>
+                {!isOnline ? 'Offline Mode' : 
+                 pendingCount > 0 ? `${pendingCount} Pending Sync` : 
+                 'Online & Synced'}
+              </span>
             </div>
-            Centralized Tracking & Workflow
+            
             {isInitialLoading && (
-              <Badge variant="outline" className="ml-2 bg-[#14b8a6]/10 text-[#14b8a6] border-[#14b8a6]/20 animate-pulse text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full">
+              <Badge variant="outline" className="bg-[#14b8a6]/10 text-[#14b8a6] border-[#14b8a6]/20 animate-pulse text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full">
                 <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
-                Syncing
+                Loading
               </Badge>
             )}
-          </h1>
+          </div>
           <p className="text-xs text-white/40 italic font-medium ml-14">Real-time file movement across KW&SB Finance Sections</p>
         </div>
 
@@ -1723,6 +1843,13 @@ export default function FileTracking() {
                       {inboxCount}
                     </span>
                   )}
+                </TabsTrigger>
+
+                <TabsTrigger
+                  value="returned_files"
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl data-[state=active]:bg-[#14b8a6] data-[state=active]:text-[#0f1115] text-white/50 hover:text-white transition-all font-black text-sm relative"
+                >
+                  <RefreshCw className="w-4 h-4" /> Returned Files
                 </TabsTrigger>
 
                 <TabsTrigger
@@ -2046,7 +2173,23 @@ export default function FileTracking() {
                                 </div>
                               )}
                             </TableCell>
-                            <TableCell className="font-semibold text-sm">{file.subject}</TableCell>
+                            <TableCell className="font-semibold text-sm">
+                              <div className="flex items-center gap-2">
+                                <span>{file.subject}</span>
+                                {file.file_image && (
+                                  <img
+                                    src={file.file_image}
+                                    alt="doc"
+                                    title="Document photo attached"
+                                    className="w-7 h-7 object-cover rounded border border-teal-500/40 cursor-pointer hover:scale-150 transition-transform"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      window.open(file.file_image, '_blank');
+                                    }}
+                                  />
+                                )}
+                              </div>
+                            </TableCell>
                             <TableCell>
                               <div className="flex flex-col gap-1">
                                 <Badge variant="outline" className="text-[10px] uppercase">{mainCatReadable(file.mainCategory)}</Badge>
@@ -2150,6 +2293,177 @@ export default function FileTracking() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="returned_files" className="animate-fade-in">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* List Panel */}
+            <div className="lg:col-span-2">
+              <Card className="glass-card border-none shadow-xl">
+                <CardHeader>
+                  <CardTitle className="text-xl font-bold flex items-center gap-2">
+                    <RefreshCw className="w-6 h-6 text-primary animate-spin-slow" />
+                    Returned / Additional Mark Tray
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">Files assigned to your section as an additional department</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="rounded-md border border-border/50 overflow-hidden">
+                      <Table>
+                        <TableHeader className="bg-muted/50">
+                          <TableRow>
+                            <TableHead className="text-xs uppercase font-bold">Diary No</TableHead>
+                            <TableHead className="text-xs uppercase font-bold text-center">Track QR</TableHead>
+                            <TableHead className="text-xs uppercase font-bold">Subject</TableHead>
+                            <TableHead className="text-xs uppercase font-bold">Category</TableHead>
+                            <TableHead className="text-xs uppercase font-bold">Amount</TableHead>
+                            <TableHead className="text-xs uppercase font-bold text-center">Action</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {records.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                                No files found in additional tray
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            records.map((file, i) => (
+                              <TableRow key={i} className="hover:bg-primary/5 transition-colors group">
+                                <TableCell className="font-mono text-xs font-bold text-primary">{file.cfo_diary_number}</TableCell>
+                                <TableCell className="text-center">
+                                  <div
+                                    className="cursor-zoom-in transition-transform hover:scale-110"
+                                    onClick={() => handleQRClick(file.cfo_diary_number, file.receiving_number)}
+                                  >
+                                    <img
+                                      src={`https://api.qrserver.com/v1/create-qr-code/?size=35x35&data=${encodeURIComponent(`${window.location.origin}/public-track/${file.cfo_diary_number}/${file.receiving_number}`)}&color=0ea5e9`}
+                                      alt="QR"
+                                      className="w-8 h-8 mx-auto rounded border border-border bg-white"
+                                    />
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="font-semibold text-sm">{file.subject}</div>
+                                  <div className="text-[10px] text-muted-foreground">{file.receiving_number}</div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex flex-col gap-1">
+                                    <Badge variant="outline" className="text-[9px] uppercase">{mainCatReadable(file.mainCategory)}</Badge>
+                                    {file.subCategory && (
+                                      <span className="text-[8px] text-muted-foreground uppercase font-bold italic">
+                                        {file.subCategory.replace(/_/g, " ")}
+                                      </span>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="font-bold text-xs text-primary">{formatCurrency(file.amount || 0)}</TableCell>
+                                <TableCell className="text-center">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-8 gap-2 border-primary/20 hover:bg-primary hover:text-white"
+                                    onClick={() => {
+                                      setSelectedBill({
+                                        ...file,
+                                        diary_no: file.cfo_diary_number,
+                                        party_name: file.received_from,
+                                        amount: file.amount || 0
+                                      });
+                                      if (!file.history || file.history.length === 0) {
+                                        fetchRecordHistory(file.receiving_number);
+                                      }
+                                    }}
+                                  >
+                                    View Timeline <ArrowRight className="w-3 h-3" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Timeline Panel */}
+            <div className="lg:col-span-1">
+              {selectedBill ? (
+                <Card className="glass-card border-none shadow-xl relative">
+                  <CardHeader>
+                    <CardTitle className="text-lg font-bold flex items-center gap-2">
+                      <History className="w-5 h-5 text-primary" />
+                      Movement History
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pb-10 pt-4">
+                    <div className="relative space-y-8 before:absolute before:inset-0 before:ml-4 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-primary/50 before:via-primary/20 before:to-transparent">
+                      <h4 className="text-xs font-black uppercase text-zinc-400 tracking-widest flex items-center justify-between">
+                        <span className="flex items-center gap-2"><History className="w-4 h-4" /> Log Roadmap</span>
+                        <button 
+                          onClick={() => setIsJourneyMapOpen(true)}
+                          className="bg-sky-500/10 text-sky-500 hover:bg-sky-500 hover:text-white transition-colors px-3 py-1.5 rounded-full text-[10px] flex items-center gap-1.5 shadow-sm"
+                        >
+                          <Network className="w-3.5 h-3.5" /> Visual Map
+                        </button>
+                      </h4>
+                      
+                      <JourneyMapModal 
+                        isOpen={isJourneyMapOpen} 
+                        onClose={() => setIsJourneyMapOpen(false)} 
+                        record={selectedBill} 
+                      />
+
+                      {selectedBill.history?.map((step: any, index: number) => (
+                        <div key={index} className="relative flex items-center gap-4">
+                          <div className="flex items-center justify-center w-8 h-8 rounded-full border border-primary/50 bg-background text-primary shadow shrink-0 z-10">
+                            {index === selectedBill.history.length - 1 ? <MapPin className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
+                          </div>
+                          <div className="flex-1 p-3 rounded-xl border border-primary/10 bg-primary/5 shadow-sm">
+                            <div className="flex justify-between items-start gap-1">
+                              <span className="text-[10px] font-black uppercase text-primary">
+                                {step.action || "FORWARDED"}
+                              </span>
+                              <span className="text-[9px] text-muted-foreground font-mono">
+                                {step.date ? new Date(step.date).toLocaleDateString() : ""}
+                              </span>
+                            </div>
+                            <p className="text-[11px] font-bold text-white mt-1">
+                              Processed by: {step.processed_by || "CFO Office"}
+                            </p>
+                            {step.mark_to && (
+                              <p className="text-[10px] font-medium text-white/70">
+                                Forwarded to: {sections.find(s => s.id === step.mark_to)?.name || step.mark_to}
+                              </p>
+                            )}
+                            {step.additional_mark_to && (
+                              <p className="text-[10px] font-medium text-purple-400">
+                                Additional Mark: {sections.find(s => s.id === step.additional_mark_to)?.name || step.additional_mark_to}
+                              </p>
+                            )}
+                            {step.remarks && (
+                              <p className="text-[10px] italic text-muted-foreground border-l-2 border-primary/20 pl-1.5 mt-1 bg-white/5 p-1 rounded">
+                                Remarks: {step.remarks}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="glass-card border-none shadow-xl h-full flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
+                  <History className="w-12 h-12 opacity-20 mb-3" />
+                  <p className="text-sm font-semibold">Select a file to view its history & visual roadmap</p>
+                </Card>
+              )}
+            </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="reports" className="animate-fade-in">
@@ -2618,6 +2932,16 @@ export default function FileTracking() {
                       </div>
                     )}
 
+                    {isAdmin && (
+                      <div className="flex items-center gap-2 mb-2 bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
+                        <Checkbox 
+                          id="duplicate-print" 
+                          checked={isDuplicatePrint}
+                          onCheckedChange={(checked) => setIsDuplicatePrint(!!checked)}
+                        />
+                        <Label htmlFor="duplicate-print" className="text-xs font-bold text-amber-600 cursor-pointer">Print with DUPLICATE watermark</Label>
+                      </div>
+                    )}
                     <Button variant="outline" className="w-full gap-2 border-primary/20 hover:bg-primary/5 font-bold mt-2" onClick={handlePrint}>
                       <Printer className="w-4 h-4" /> Print Covering Page (Slip)
                     </Button>
@@ -2960,6 +3284,20 @@ export default function FileTracking() {
                   className="bg-muted/20 border-border/50 font-mono border-primary/30"
                 />
               </div>
+              <div className="space-y-2">
+                <Label className="text-xs uppercase font-bold text-muted-foreground">Department Number <span className="text-muted-foreground/50 text-[10px]">(Optional)</span></Label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FileText className="h-4 w-4 text-[#14b8a6]" />
+                  </div>
+                  <Input
+                    placeholder="e.g. DEPT-123"
+                    className="pl-10 bg-background/50 border-white/10 text-white font-mono h-11 focus:border-[#14b8a6] focus:ring-1 focus:ring-[#14b8a6] transition-all rounded-xl"
+                    value={formData.department_number || ""}
+                    onChange={e => setFormData({ ...formData, department_number: e.target.value })}
+                  />
+                </div>
+              </div>
 
               <div className="space-y-2">
                 <Label className="text-xs uppercase font-bold text-muted-foreground">Main Category <span className="text-red-500">*</span></Label>
@@ -2978,23 +3316,64 @@ export default function FileTracking() {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-xs uppercase font-bold text-muted-foreground">Sub Category {formData.mainCategory !== 'impress' && formData.mainCategory !== 'pol_bills' && <span className="text-red-500">*</span>}</Label>
-                <Select
-                  value={formData.subCategory}
-                  onValueChange={v => setFormData({ ...formData, subCategory: v })}
-                  disabled={!formData.mainCategory}
-                >
-                  <SelectTrigger className="bg-muted/20 border-border/50">
-                    <SelectValue placeholder={formData.mainCategory ? "Select Sub Category" : "Select Main Category First"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {formData.mainCategory && getSubCategoriesFor(dynSubCats, formData.mainCategory).map(sc => (
-                      <SelectItem key={sc.config_key} value={sc.config_key}>{sc.config_label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {(formData.mainCategory === 'pol_bills' || formData.mainCategory === 'pol-bills' || formData.mainCategory === 'POL Bills') ? (
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase font-bold text-muted-foreground">Fuel Station</Label>
+                  <div className="relative">
+                    <Select value={formData.fuel_station || formData.subCategory} onValueChange={v => setFormData({ ...formData, fuel_station: v, subCategory: v })}>
+                      <SelectTrigger className="w-full bg-background/50 border-white/10 text-white h-11 focus:border-[#14b8a6] focus:ring-1 focus:ring-[#14b8a6] transition-all rounded-xl">
+                        <SelectValue placeholder="Select fuel station" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[250px]">
+                        <SelectItem value="ISHA SERVICE STATION">ISHA SERVICE STATION</SelectItem>
+                        <SelectItem value="ALLIED PETROLIUM SERVICE">ALLIED PETROLIUM SERVICE</SelectItem>
+                        <SelectItem value="AWAMI FILLING STATION">AWAMI FILLING STATION</SelectItem>
+                        <SelectItem value="BANBHORE FILLING STATION">BANBHORE FILLING STATION</SelectItem>
+                        <SelectItem value="BROTHERS SERVICE STATION">BROTHERS SERVICE STATION</SelectItem>
+                        <SelectItem value="CENTRAL SERVICE STATION">CENTRAL SERVICE STATION</SelectItem>
+                        <SelectItem value="DILAWAR GESOLINE">DILAWAR GESOLINE</SelectItem>
+                        <SelectItem value="FAISAL FILLING STATION">FAISAL FILLING STATION</SelectItem>
+                        <SelectItem value="FANCY SERVICE STATION">FANCY SERVICE STATION</SelectItem>
+                        <SelectItem value="KARACHI SERVICE STATION">KARACHI SERVICE STATION</SelectItem>
+                        <SelectItem value="KARIMI AUTOMOBILE SERVICE">KARIMI AUTOMOBILE SERVICE</SelectItem>
+                        <SelectItem value="LANDHI GASOLINE SERVICES">LANDHI GASOLINE SERVICES</SelectItem>
+                        <SelectItem value="MACCA MOBILE SERVICE">MACCA MOBILE SERVICE</SelectItem>
+                        <SelectItem value="MADINA FILLING STATION">MADINA FILLING STATION</SelectItem>
+                        <SelectItem value="MADINA SERVICE STATION EJAZ">MADINA SERVICE STATION EJAZ</SelectItem>
+                        <SelectItem value="MADINA SERVICES STATION YASIR">MADINA SERVICES STATION YASIR</SelectItem>
+                        <SelectItem value="MANSOOR SERVICE STATION">MANSOOR SERVICE STATION</SelectItem>
+                        <SelectItem value="MUGHAL PETROLEUM SERVICES">MUGHAL PETROLEUM SERVICES</SelectItem>
+                        <SelectItem value="NOOR PETROLIUM SERVICE">NOOR PETROLIUM SERVICE</SelectItem>
+                        <SelectItem value="PAK PETROLEUM SERVICE">PAK PETROLEUM SERVICE</SelectItem>
+                        <SelectItem value="PSO FLEET CARD">PSO FLEET CARD</SelectItem>
+                        <SelectItem value="Q STAR PETROLEUM SERVICE">Q STAR PETROLEUM SERVICE</SelectItem>
+                        <SelectItem value="ROSHAN SERVICE STATION">ROSHAN SERVICE STATION</SelectItem>
+                        <SelectItem value="STADIUM SERVICE STATION">STADIUM SERVICE STATION</SelectItem>
+                        <SelectItem value="SUPER SERVICE STATION">SUPER SERVICE STATION</SelectItem>
+                        <SelectItem value="UNITED FILLING STATION">UNITED FILLING STATION</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase font-bold text-muted-foreground">Sub Category {formData.mainCategory !== 'impress' && formData.mainCategory !== 'pol_bills' && <span className="text-red-500">*</span>}</Label>
+                  <Select
+                    value={formData.subCategory}
+                    onValueChange={v => setFormData({ ...formData, subCategory: v })}
+                    disabled={!formData.mainCategory}
+                  >
+                    <SelectTrigger className="bg-muted/20 border-border/50">
+                      <SelectValue placeholder={formData.mainCategory ? "Select Sub Category" : "Select Main Category First"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {formData.mainCategory && getSubCategoriesFor(dynSubCats, formData.mainCategory).map(sc => (
+                        <SelectItem key={sc.config_key} value={sc.config_key}>{sc.config_label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {/* Conditional Field: Employee Number */}
               {formData.mainCategory === 'employee' && formData.subCategory && (
@@ -3136,13 +3515,24 @@ export default function FileTracking() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs uppercase font-bold text-muted-foreground">Amount (PKR) <span className="text-emerald-500 text-[9px]">(Net Amount)</span></Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs uppercase font-bold text-muted-foreground">Amount (PKR) <span className="text-emerald-500 text-[9px]">(Net Amount)</span></Label>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="no_amount_chk"
+                      checked={formData.no_amount || false}
+                      onCheckedChange={(checked) => setFormData({ ...formData, no_amount: !!checked, amount: checked ? 0 : formData.amount })}
+                    />
+                    <label htmlFor="no_amount_chk" className="text-[11px] font-semibold text-white/60 cursor-pointer select-none">No Amount</label>
+                  </div>
+                </div>
                 <Input
                   type="number"
                   placeholder="Enter Amount"
                   value={formData.amount}
+                  disabled={formData.no_amount || false}
                   onChange={e => setFormData({ ...formData, amount: Number(e.target.value) })}
-                  className="bg-muted/20 border-border/50 font-bold text-primary"
+                  className="bg-muted/20 border-border/50 font-bold text-primary disabled:opacity-40 disabled:cursor-not-allowed"
                 />
               </div>
 
@@ -3281,6 +3671,27 @@ export default function FileTracking() {
                 </Select>
               </div>
 
+              {(isForwardingMode || isEditingMode) && (
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase font-bold text-muted-foreground">Additional Mark To <span className="text-muted-foreground/50 text-[10px]">(Optional)</span></Label>
+                  <Select
+                    value={formData.additional_mark_to || ""}
+                    onValueChange={v => setFormData({ ...formData, additional_mark_to: v })}
+                  >
+                    <SelectTrigger className="bg-muted/20 border-border/50">
+                      <SelectValue placeholder="Select additional department (optional)" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-primary/20 text-white">
+                      {sections.map(section => (
+                        <SelectItem key={section.id} value={section.id} className="font-bold uppercase tracking-tight">
+                          {section.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label className="text-xs uppercase font-bold text-muted-foreground">Outward (Forwarding) Date</Label>
                 <Input
@@ -3331,6 +3742,132 @@ export default function FileTracking() {
                   onChange={e => setFormData({ ...formData, remarks: e.target.value })}
                   className="bg-muted/20 border-border/50"
                 />
+              </div>
+
+              {/* ── Document Image Section ── */}
+              <div className="space-y-3 lg:col-span-3 border border-dashed border-border/40 rounded-xl p-4 bg-muted/10">
+                <Label className="text-xs uppercase font-bold text-muted-foreground flex items-center gap-2">
+                  <ImageIcon className="w-3 h-3" />
+                  Document Photo
+                  <span className="text-[9px] font-normal normal-case text-muted-foreground">(Optional — attach scanned copy)</span>
+                </Label>
+
+                {fileImage ? (
+                  <div className="relative w-full">
+                    <img
+                      src={fileImage}
+                      alt="Document"
+                      className="w-full max-h-48 object-contain rounded-lg border border-border/30 bg-black/20"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setFileImage("")}
+                      className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white text-xs font-bold px-2 py-1 rounded-md"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-3">
+                    {/* Desktop file input */}
+                    <label className="cursor-pointer">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            const img = new Image();
+                            img.src = ev.target?.result as string;
+                            img.onload = () => {
+                              const canvas = document.createElement('canvas');
+                              const MAX = 800;
+                              let w = img.width, h = img.height;
+                              if (w > h) { if (w > MAX) { h = h * MAX / w; w = MAX; } }
+                              else { if (h > MAX) { w = w * MAX / h; h = MAX; } }
+                              canvas.width = w; canvas.height = h;
+                              canvas.getContext('2d')?.drawImage(img, 0, 0, w, h);
+                              setFileImage(canvas.toDataURL('image/jpeg', 0.65));
+                            };
+                          };
+                          reader.readAsDataURL(file);
+                          e.target.value = '';
+                        }}
+                      />
+                      <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-muted/40 border border-border/50 hover:bg-muted/60 transition-colors text-xs font-bold text-muted-foreground">
+                        <Upload className="w-3.5 h-3.5" />
+                        Upload from PC
+                      </div>
+                    </label>
+
+                    {/* Mobile QR scan button */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const sessionId = `img-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+                        setMobileUploadSessionId(sessionId);
+                        setShowMobileUploadQR(true);
+                        setIsMobileListening(true);
+                        // Subscribe to Supabase Realtime broadcast
+                        const channel = supabase.channel(`mobile-upload-${sessionId}`);
+                        channel
+                          .on('broadcast', { event: 'image-uploaded' }, (payload) => {
+                            if (payload?.payload?.image) {
+                              setFileImage(payload.payload.image);
+                              setShowMobileUploadQR(false);
+                              setIsMobileListening(false);
+                              toast.success("Document photo received from mobile!");
+                              supabase.removeChannel(channel);
+                            }
+                          })
+                          .subscribe();
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-500/10 border border-teal-500/30 hover:bg-teal-500/20 transition-colors text-xs font-bold text-teal-500"
+                    >
+                      <ScanLine className="w-3.5 h-3.5" />
+                      Scan from Mobile
+                    </button>
+                  </div>
+                )}
+
+                {/* Mobile QR Modal */}
+                {showMobileUploadQR && mobileUploadSessionId && (
+                  <div className="fixed inset-0 z-[200] bg-black/80 flex items-center justify-center p-4">
+                    <div className="bg-zinc-900 border border-white/10 rounded-2xl p-6 w-full max-w-sm space-y-4 text-center">
+                      <h3 className="text-base font-black text-white">Scan with Mobile Camera</h3>
+                      <p className="text-xs text-zinc-400">Open camera app, scan the QR code, then take a photo of the document.</p>
+                      <div className="flex justify-center">
+                        <img
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(window.location.origin + '/mobile-upload/' + mobileUploadSessionId)}`}
+                          alt="QR Code"
+                          className="w-48 h-48 rounded-xl border-4 border-white"
+                        />
+                      </div>
+                      <p className="text-[10px] text-zinc-500 font-mono break-all">
+                        {window.location.origin}/mobile-upload/{mobileUploadSessionId}
+                      </p>
+                      {isMobileListening && (
+                        <div className="flex items-center justify-center gap-2 text-xs text-teal-400 font-bold">
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          Waiting for mobile upload...
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowMobileUploadQR(false);
+                          setIsMobileListening(false);
+                        }}
+                        className="w-full py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
 
@@ -3750,8 +4287,21 @@ export default function FileTracking() {
       {/* Hidden Printable Covering Page */}
       <div className={`print-only hidden ${isPrintingCovering ? '' : 'no-print'}`}>
         <div ref={printRef} className="p-6 font-sans text-black bg-white min-h-[210mm] w-[148mm] mx-auto relative overflow-hidden">
+          
+          {/* DUPLICATE Watermark */}
+          {isDuplicatePrint && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
+              <div 
+                className="text-[120px] font-black uppercase text-gray-300/30 -rotate-45 select-none"
+                style={{ WebkitTextStroke: '2px rgba(156, 163, 175, 0.4)' }}
+              >
+                DUPLICATE
+              </div>
+            </div>
+          )}
+
           {/* Header */}
-          <div className="text-center border-b-2 border-black pb-4 mb-4 flex justify-between items-end">
+          <div className="text-center border-b-2 border-black pb-4 mb-4 flex justify-between items-end relative z-10">
             <div className="text-left">
               <h1 className="text-xl font-black uppercase tracking-tighter">Karachi Water Corporation</h1>
               <h2 className="text-sm font-bold uppercase mt-1">Finance Department - File Movement Slip</h2>
@@ -3853,7 +4403,18 @@ export default function FileTracking() {
           {(() => {
             const ticket = qrFullScreen ? records.find(r => r.cfo_diary_number === qrFullScreen.diary || r.receiving_number === qrFullScreen.receiving) : null;
             return (
-              <div className={`w-full h-full ${isPrintingQR ? 'overflow-visible max-h-none' : 'max-h-[90vh] overflow-y-auto'} overflow-x-hidden font-sans pb-6`}>
+              <div className={`w-full h-full ${isPrintingQR ? 'overflow-visible max-h-none' : 'max-h-[90vh] overflow-y-auto'} overflow-x-hidden font-sans pb-6 relative`}>
+                {/* DUPLICATE Watermark for QR Ticket */}
+                {isDuplicatePrint && (
+                  <div className="hidden print:flex absolute inset-0 items-center justify-center pointer-events-none z-[100] overflow-hidden">
+                    <div 
+                      className="text-[100px] font-black uppercase text-gray-500/40 -rotate-45 select-none"
+                      style={{ WebkitTextStroke: '2px rgba(100, 116, 139, 0.5)' }}
+                    >
+                      DUPLICATE
+                    </div>
+                  </div>
+                )}
                 {/* Header */}
                 <div className="bg-primary px-6 pt-8 pb-16 rounded-b-[40px] shadow-2xl relative overflow-hidden shrink-0">
                   <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
@@ -3895,7 +4456,7 @@ export default function FileTracking() {
                           </div>
                           <div>
                             <span className="text-[9px] font-bold text-zinc-400 uppercase">Subject</span>
-                            <p className="text-xs font-bold text-zinc-800 leading-tight">{ticket?.subject || "Subject Details"}</p>
+                            <p className="text-xs font-bold text-zinc-800 leading-tight">{qrFullScreen?.subject || ticket?.subject || "Subject Details"}</p>
                           </div>
                         </div>
                         <div className="flex items-start gap-3">
@@ -3918,15 +4479,39 @@ export default function FileTracking() {
                             </p>
                           </div>
                         </div>
+                        {qrFullScreen?.history?.filter((h: any) => (h.action === 'FORWARD' || h.action === 'FORWARDED') && h.from)?.slice(-1)[0]?.from && (
+                          <div className="flex items-start gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-600 shrink-0">
+                              <Building2 className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <span className="text-[9px] font-bold text-zinc-400 uppercase">Previous Section</span>
+                              <p className="text-xs font-black text-amber-600 uppercase tracking-tight">
+                                {sections.find(s => s.id === qrFullScreen.history!.filter((h: any) => (h.action === 'FORWARD' || h.action === 'FORWARDED') && h.from).slice(-1)[0].from)?.name || qrFullScreen.history!.filter((h: any) => (h.action === 'FORWARD' || h.action === 'FORWARDED') && h.from).slice(-1)[0].from}
+                              </p>
+                            </div>
+                          </div>
+                        )}
                         <div className="flex items-start gap-3">
                           <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-600 shrink-0">
                             <Building2 className="w-4 h-4" />
                           </div>
                           <div>
                             <span className="text-[9px] font-bold text-zinc-400 uppercase">Current Section</span>
-                            <p className="text-xs font-black text-blue-600 uppercase tracking-tight">{ticket?.mark_to || "CFO Office"}</p>
+                            <p className="text-xs font-black text-blue-600 uppercase tracking-tight">{qrFullScreen?.mark_to ? (sections.find(s => s.id === qrFullScreen.mark_to)?.name || qrFullScreen.mark_to) : (ticket?.mark_to || "CFO Office")}</p>
                           </div>
                         </div>
+                        {(qrFullScreen?.additional_mark_to || ticket?.additional_mark_to) && (
+                          <div className="flex items-start gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-600 shrink-0">
+                              <Building2 className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <span className="text-[9px] font-bold text-zinc-400 uppercase">Additional Mark To</span>
+                              <p className="text-xs font-black text-purple-600 uppercase tracking-tight">{qrFullScreen?.additional_mark_to ? (sections.find(s => s.id === qrFullScreen.additional_mark_to)?.name || qrFullScreen.additional_mark_to) : (sections.find(s => s.id === ticket?.additional_mark_to)?.name || ticket?.additional_mark_to)}</p>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {/* QR Section */}
@@ -3946,28 +4531,38 @@ export default function FileTracking() {
                       </div>
 
                       <div className="pt-2 flex flex-col gap-2 justify-center">
-                        {isAdmin && (
-                          <div className="no-print space-y-2 mb-2 bg-slate-500/5 p-3 rounded-lg border border-slate-500/20">
-                            <div>
-                              <label className="text-[10px] uppercase font-bold text-amber-600">Override Created Date</label>
-                              <input
-                                type="date"
-                                value={qrFullScreen?.created_date || ''}
-                                onChange={e => setQrFullScreen({ ...qrFullScreen!, created_date: e.target.value })}
-                                className="w-full h-8 text-xs bg-white border border-amber-500/30 text-amber-600 font-bold rounded-md px-2 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-[10px] uppercase font-bold text-emerald-600">Override Print Date</label>
-                              <input
-                                type="date"
-                                value={qrFullScreen?.print_date || ''}
-                              onChange={e => setQrFullScreen({ ...qrFullScreen!, print_date: e.target.value })}
-                              className="w-full h-8 text-xs bg-white border border-emerald-500/30 text-emerald-600 font-bold rounded-md px-2 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                        <div className="no-print space-y-2 mb-2 bg-slate-500/5 p-3 rounded-lg border border-slate-500/20">
+                          <div className="flex items-center gap-2 mb-3 bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
+                            <Checkbox 
+                              id="duplicate-print-qr" 
+                              checked={isDuplicatePrint}
+                              onCheckedChange={(checked) => setIsDuplicatePrint(!!checked)}
                             />
-                            </div>
+                            <Label htmlFor="duplicate-print-qr" className="text-[10px] font-bold text-amber-600 cursor-pointer uppercase">Print with DUPLICATE watermark</Label>
                           </div>
-                        )}
+                          {(isAdmin || allowOverrideDates) && (
+                            <>
+                              <div>
+                                <label className="text-[10px] uppercase font-bold text-amber-600">Override Created Date</label>
+                                <input
+                                  type="date"
+                                  value={qrFullScreen?.created_date || ''}
+                                  onChange={e => setQrFullScreen({ ...qrFullScreen!, created_date: e.target.value })}
+                                  className="w-full h-8 text-xs bg-white border border-amber-500/30 text-amber-600 font-bold rounded-md px-2 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] uppercase font-bold text-emerald-600">Override Print Date</label>
+                                <input
+                                  type="date"
+                                  value={qrFullScreen?.print_date || ''}
+                                  onChange={e => setQrFullScreen({ ...qrFullScreen!, print_date: e.target.value })}
+                                  className="w-full h-8 text-xs bg-white border border-emerald-500/30 text-emerald-600 font-bold rounded-md px-2 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                                />
+                              </div>
+                            </>
+                          )}
+                        </div>
                         <Button
                           className={`w-full bg-primary hover:bg-primary/90 text-white font-bold rounded-xl no-print`}
                           onClick={handlePrintQR}

@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { Save, UserPlus, Eye, EyeOff, ShieldAlert, Edit2, Check, X, Shield, Trash2, Search as SearchIcon } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 
 const AVAILABLE_ROLES = [
@@ -176,6 +177,14 @@ export default function UserManagement() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="flex items-center gap-2 pt-2">
+                  <Checkbox 
+                    id="allow-override-dates" 
+                    checked={editForm?.allowOverrideDates || false}
+                    onCheckedChange={(checked) => setEditForm(prev => prev ? {...prev, allowOverrideDates: !!checked} : null)}
+                  />
+                  <Label htmlFor="allow-override-dates" className="text-sm font-semibold cursor-pointer">Allow Date Override on Print</Label>
+                </div>
                 <DialogFooter className="pt-4">
                   <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">Create User</Button>
                 </DialogFooter>
@@ -210,10 +219,11 @@ export default function UserManagement() {
             <Table>
               <TableHeader className="bg-muted/30">
                 <TableRow className="border-border">
-                  <TableHead className="font-semibold text-foreground w-[25%]">Display Name</TableHead>
-                  <TableHead className="font-semibold text-foreground w-[25%]">Email Account</TableHead>
+                  <TableHead className="font-semibold text-foreground w-[20%]">Display Name</TableHead>
+                  <TableHead className="font-semibold text-foreground w-[20%]">Email Account</TableHead>
                   <TableHead className="font-semibold text-foreground w-[20%]">Role / Permission</TableHead>
-                  <TableHead className="font-semibold text-foreground w-[20%]">Password</TableHead>
+                  <TableHead className="font-semibold text-foreground w-[15%]">Date Override</TableHead>
+                  <TableHead className="font-semibold text-foreground w-[15%]">Password</TableHead>
                   <TableHead className="text-right font-semibold text-foreground w-[10%]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -280,6 +290,19 @@ export default function UserManagement() {
 
                       <TableCell>
                         {isEditing ? (
+                          <Checkbox 
+                            checked={editForm?.allowOverrideDates || false}
+                            onCheckedChange={(checked) => setEditForm(prev => prev ? {...prev, allowOverrideDates: !!checked} : null)}
+                          />
+                        ) : (
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${user.allowOverrideDates || user.roleId === 'cfo' || user.roleId === 'admin' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
+                            {user.allowOverrideDates || user.roleId === 'cfo' || user.roleId === 'admin' ? 'Allowed' : 'Not Allowed'}
+                          </span>
+                        )}
+                      </TableCell>
+
+                      <TableCell>
+                        {isEditing ? (
                           <Input 
                             value={editForm?.password || ''} 
                             onChange={e => setEditForm(prev => prev ? {...prev, password: e.target.value} : null)}
@@ -327,7 +350,7 @@ export default function UserManagement() {
                 })}
                 {filteredUsers.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                       No users found matching "{searchTerm}"
                     </TableCell>
                   </TableRow>

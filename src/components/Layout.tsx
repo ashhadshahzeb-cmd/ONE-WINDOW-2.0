@@ -25,7 +25,9 @@ import {
   Settings2,
   Activity,
   MessageCircle,
-  BarChart3
+  BarChart3,
+  Wallet,
+  Megaphone
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -64,6 +66,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     { to: "/restricted", icon: Lock, label: "Restrict Dashboard", visible: !isRestrictedAsstCFO && !isEmpOperator },
     { to: "/collection-entry", icon: Plus, label: "Collection Entry", visible: !isRestrictedAsstCFO && !isEmpOperator },
     { to: "/bank-entries", icon: Landmark, label: "Bank Entries", visible: !isEmpOperator },
+    { to: "/budget-control", icon: Wallet, label: "Budget Control", visible: userRole === 'admin' || userRole === 'cfo' },
+    { to: "/notice-board", icon: Megaphone, label: "Notice Board", visible: true },
     { to: "/messages", icon: MessageCircle, label: "Messages", visible: true },
     { to: "/user-management", icon: Users, label: "User Management", visible: userRole === 'admin' },
     { to: "/admin-config", icon: Settings2, label: "Admin Config", visible: userRole === 'admin' },

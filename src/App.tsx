@@ -15,6 +15,9 @@ import Transactions from "./pages/Transactions";
 import BankEntries from "./pages/BankEntries";
 import Reports from "./pages/Reports";
 import NotFound from "./pages/NotFound";
+import BudgetControl from "./pages/BudgetControl";
+import BudgetDetails from "./pages/BudgetDetails";
+import NoticeBoard from "./pages/NoticeBoard";
 import RegularEmployee from "./pages/book-section/RegularEmployee";
 import RetiredEmployee from "./pages/book-section/RetiredEmployee";
 import EmpDetails from "./pages/book-section/EmpDetails";
@@ -32,6 +35,7 @@ import FileRecordDetail from "./pages/book-section/FileRecordDetail";
 import Books from "./pages/book-section/Books";
 import Establishment from "./pages/book-section/Establishment";
 import PublicTracking from "./pages/PublicTracking";
+import MobileUpload from "./pages/MobileUpload";
 import CpFund from "./pages/regular-employee/CpFund";
 import Placeholder from "./pages/Placeholder";
 import UserManagement from "./pages/UserManagement";
@@ -76,6 +80,7 @@ const App = () => (
               <Routes>
                 <Route path="/login" element={<AuthPage />} />
                 <Route path="/public-track/:diaryNo/:receivingNo" element={<PublicTracking />} />
+                <Route path="/mobile-upload/:sessionId" element={<MobileUpload />} />
                 <Route
                   path="/*"
                   element={
@@ -93,6 +98,8 @@ const App = () => (
                           <Route path="/transactions" element={<Transactions />} />
                           <Route path="/bank-entries" element={<BankEntries />} />
                           <Route path="/reports" element={<Reports />} />
+                          <Route path="/budget-control" element={<BudgetControl />} />
+                          <Route path="/budget-details/:sectionId" element={<BudgetDetails />} />
                           <Route path="/book-section/regular-employee" element={<RegularEmployee />} />
                           <Route path="/book-section/retired-employee" element={<RetiredEmployee />} />
                           <Route path="/book-section/emp-details" element={<EmpDetails />} />
@@ -113,6 +120,7 @@ const App = () => (
                           <Route path="/activity-log" element={<ActivityLog />} />
                           <Route path="/file-analytics" element={<FileAnalytics />} />
                           <Route path="/messages" element={<Messages />} />
+                          <Route path="/notice-board" element={<NoticeBoard />} />
                           <Route path="/book-section/cheque-record" element={<ChequeRecord />} />
                           <Route path="/book-section/books" element={<Books />} />
                           <Route path="/book-section/establishment" element={<Establishment />} />
