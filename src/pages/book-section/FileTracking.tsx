@@ -490,6 +490,7 @@ export default function FileTracking() {
         .from('file_tracking_records' as any)
         .select('cfo_diary_number')
         .like('cfo_diary_number', `${prefix}-%`)
+        .order('created_at', { ascending: false })
         .limit(100);
       if (!error && data) {
         supabaseData = data;
