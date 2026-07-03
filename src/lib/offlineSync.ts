@@ -129,3 +129,32 @@ export function setupOfflineListeners() {
     processOfflineQueue();
   });
 }
+
+// Function to recover dirty records that failed to enter the queue due to previous bugs
+export async function syncOrphanedDirtyRecords(db: any) {
+  try {
+    const dirtyRecords = await db.records.filter((r: any) => r.is_dirty && !r.deleted_locally).toArray();
+    if (dirtyRecords.length === 0) return;
+
+    const queue = getOfflineQueue();
+    let recoveredCount = 0;
+
+    for (const record of dirtyRecords) {
+      // Check if this record is already in the queue to avoid duplicates
+      const inQueue = queue.some(m => m.action === 'INSERT' && m.payload.id === record.id);
+      if (!inQueue) {
+        // It's orphaned, add it to the queue
+        addToOfflineQueue('file_tracking_records', 'INSERT', record);
+        recoveredCount++;
+      }
+    }
+
+    if (recoveredCount > 0) {
+      console.log(`Recovered ${recoveredCount} orphaned records into the sync queue.`);
+      processOfflineQueue(); // Trigger sync
+    }
+  } catch (err) {
+    console.error("Error recovering orphaned records:", err);
+  }
+}
+

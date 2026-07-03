@@ -68,7 +68,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAppConfig, getSubCategoriesFor, sectionsToLegacy } from "@/hooks/useAppConfig";
 import { logActivity } from "@/hooks/useActivityLog";
-import { addToOfflineQueue } from "@/lib/offlineSync";
+import { addToOfflineQueue, syncOrphanedDirtyRecords } from "@/lib/offlineSync";
 import JourneyMapModal from "@/components/JourneyMapModal";
 import { db } from "@/lib/db";
 import { useSyncManager } from "@/hooks/useSyncManager";
@@ -168,6 +168,9 @@ export default function FileTracking() {
     if (isFileViewer) {
       setActiveTab('view_only');
     }
+    
+    // Recover any orphaned offline records on mount
+    syncOrphanedDirtyRecords(db);
   }, [currentRole, isFileViewer]);
 
   const isCFORole = currentRole === 'cfo' || currentRole === 'sub_cfo' || currentRole?.startsWith('sub_cfo_') || currentRole === 'admin' || isAdmin;
