@@ -166,6 +166,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
+  // Re-check allowOverrideDates when localStorage changes (cross-tab) or window regains focus
+  useEffect(() => {
+    const refreshOverrideDates = () => {
+      const savedLocal = localStorage.getItem(LOCAL_AUTH_KEY);
+      if (savedLocal) {
+        try {
+          const parsed = JSON.parse(savedLocal);
+          const usersList = getDepartmentUsers();
+          const match = usersList.find((u: DepartmentUser) => u.email === parsed.email);
+          if (match) {
+            setAllowOverrideDates(!!match.allowOverrideDates || match.roleId === 'cfo' || match.roleId === 'admin');
+          }
+        } catch { /* ignore */ }
+      }
+    };
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === CUSTOM_USERS_KEY) refreshOverrideDates();
+    };
+
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('focus', refreshOverrideDates);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('focus', refreshOverrideDates);
+    };
+  }, []);
+
   const checkAdminRole = async (userId: string) => {
     try {
       const { data, error } = await supabase

@@ -23,6 +23,7 @@ import {
   Loader2,
   FileSignature,
   PenTool,
+  CalendarDays,
   RotateCcw as ResetIcon,
   Trash2,
   Check,
@@ -209,6 +210,27 @@ export default function FileTracking() {
   const [customFilterEndDate, setCustomFilterEndDate] = useState("");
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [selectedRecordIds, setSelectedRecordIds] = useState<string[]>([]);
+  const [isBulkEditDateModalOpen, setIsBulkEditDateModalOpen] = useState(false);
+  const [bulkEditDateForm, setBulkEditDateForm] = useState({ created_date: '', print_date: '', password: '' });
+  const [bulkPrintFullScreen, setBulkPrintFullScreen] = useState<any[] | null>(null);
+  const [bulkModifiedRecords, _setBulkModifiedRecords] = useState<any[]>(() => {
+    try {
+      const saved = sessionStorage.getItem('kwsb_bulk_modified');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+  const setBulkModifiedRecords = (records: any[]) => {
+    _setBulkModifiedRecords(records);
+    try {
+      if (records.length > 0) {
+        sessionStorage.setItem('kwsb_bulk_modified', JSON.stringify(records));
+      } else {
+        sessionStorage.removeItem('kwsb_bulk_modified');
+      }
+    } catch { /* ignore */ }
+  };
+  const [allBulkModifiedRecords, setAllBulkModifiedRecords] = useState<any[]>([]);
+  const [isBulkModifiedLoading, setIsBulkModifiedLoading] = useState(false);
   const [empSuggestions, setEmpSuggestions] = useState<any[]>([]);
   const [showEmpSuggestions, setShowEmpSuggestions] = useState(false);
   const [selectedEmpProfile, setSelectedEmpProfile] = useState<any>(null);
@@ -259,6 +281,81 @@ export default function FileTracking() {
     }
   };
 
+  const handleBulkEditDateSubmit = async () => {
+    if (!bulkEditDateForm.password) {
+      toast.error("Password required for bulk edit"); return;
+    }
+    
+    const overrideAllowed = verifyPassword(bulkEditDateForm.password);
+    if (!overrideAllowed) {
+      toast.error("Invalid authorization password"); return;
+    }
+
+    if (!bulkEditDateForm.created_date && !bulkEditDateForm.print_date) {
+      toast.error("Please provide at least one date to change."); return;
+    }
+
+    const modifiedRecords = [];
+    setIsSavingForm(true);
+
+    try {
+      for (const id of selectedRecordIds) {
+        const record = records.find(r => r.id === id);
+        if (!record) continue;
+
+        const updatePayload: any = {};
+        if (bulkEditDateForm.created_date) {
+          updatePayload.created_at = new Date(bulkEditDateForm.created_date + 'T00:00:00').toISOString();
+          updatePayload.inward_date = new Date(bulkEditDateForm.created_date).toLocaleDateString('en-GB'); 
+        }
+        if (bulkEditDateForm.print_date) {
+          updatePayload.print_date = bulkEditDateForm.print_date;
+        }
+
+        const newHistory = [...(record.history || []), {
+          date: new Date().toISOString(),
+          action: "BULK_DATE_EDITED",
+          processed_by: sections.find(s => s.id === currentRole)?.name || currentRole,
+        }];
+        updatePayload.history = newHistory;
+
+        await db.records.where('id').equals(id).modify({ ...updatePayload, is_dirty: true });
+
+        await enqueue({
+          action: 'update',
+          table: 'file_tracking_records',
+          payload: { id, ...updatePayload },
+          record_id: record.receiving_number
+        });
+        
+        modifiedRecords.push({ ...record, ...updatePayload });
+        
+        logActivity({
+          userRole: currentRole || 'unknown',
+          userName: userName || sections.find(s => s.id === currentRole)?.name || currentRole || 'Unknown',
+          action: 'BULK_EDIT_DATE',
+          recordId: id,
+          diaryNumber: record.cfo_diary_number,
+          receivingNumber: record.receiving_number,
+          subject: record.subject,
+        });
+      }
+
+      toast.success(`Successfully updated ${modifiedRecords.length} records.`);
+      setIsBulkEditDateModalOpen(false);
+      setBulkEditDateForm({ created_date: '', print_date: '', password: '' });
+      setSelectedRecordIds([]);
+      
+      setBulkModifiedRecords(modifiedRecords);
+      setActiveTab('bulk_modified');
+      fetchRecords(currentPage); 
+
+    } catch(err) {
+       toast.error("Error updating records in bulk");
+    } finally {
+       setIsSavingForm(false);
+    }
+  };
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [recordToEdit, setRecordToEdit] = useState<any>(null);
@@ -376,30 +473,46 @@ export default function FileTracking() {
     }
     const prefix = userId ? `CFO-${year}-${userId}` : `CFO-${year}`;
 
-    const { data, error } = await supabase
-      .from('file_tracking_records' as any)
-      .select('cfo_diary_number, created_at')
-      .like('cfo_diary_number', `${prefix}-%`)
-      .order('created_at', { ascending: false })
-      .limit(20);
-
-    if (!error && data && data.length > 0) {
-      const numericParts = data
-        .map(d => {
-          const parts = d.cfo_diary_number.split('-');
-          return parseInt(parts[parts.length - 1]) || 0;
-        })
-        .filter(n => !isNaN(n));
-
-      if (numericParts.length > 0) {
-        const maxNo = Math.max(...numericParts);
-        setFormData(prev => ({ ...prev, cfo_diary_number: `${prefix}-${String(maxNo + 1).padStart(4, '0')}` }));
-      } else {
-        setFormData(prev => ({ ...prev, cfo_diary_number: `${prefix}-0001` }));
-      }
-    } else {
-      setFormData(prev => ({ ...prev, cfo_diary_number: `${prefix}-0001` }));
+    // 1. Fetch from local Dexie first
+    let localMatches: any[] = [];
+    try {
+      localMatches = await db.records
+        .filter(r => (r.cfo_diary_number || '').startsWith(prefix))
+        .toArray();
+    } catch (e) {
+      console.error("Error reading local Dexie records for diary number:", e);
     }
+
+    // 2. Fetch from Supabase
+    let supabaseData: any[] = [];
+    try {
+      const { data, error } = await supabase
+        .from('file_tracking_records' as any)
+        .select('cfo_diary_number')
+        .like('cfo_diary_number', `${prefix}-%`)
+        .limit(100);
+      if (!error && data) {
+        supabaseData = data;
+      }
+    } catch (e) {
+      console.error("Error fetching next diary number from Supabase:", e);
+    }
+
+    // 3. Combine both lists of diary numbers
+    const allDiaryNumbers = [
+      ...localMatches.map(r => r.cfo_diary_number),
+      ...supabaseData.map(r => r.cfo_diary_number)
+    ].filter(Boolean);
+
+    const numericSuffixes = allDiaryNumbers
+      .map(num => {
+        const parts = num.split('-');
+        return parseInt(parts[parts.length - 1]) || 0;
+      })
+      .filter(n => !isNaN(n) && n > 0);
+
+    const nextNo = numericSuffixes.length > 0 ? Math.max(...numericSuffixes) + 1 : 1;
+    setFormData(prev => ({ ...prev, cfo_diary_number: `${prefix}-${String(nextNo).padStart(4, '0')}` }));
   };
 
   useEffect(() => {
@@ -766,6 +879,7 @@ export default function FileTracking() {
     setFileImage("");
     setShowMobileUploadQR(false);
     setMobileUploadSessionId("");
+    fetchNextDiaryNumber();
   };
 
   const handleEmployeeNumberChange = async (val: string) => {
@@ -815,7 +929,7 @@ export default function FileTracking() {
 
   const handleSaveForm = async () => {
     const isSubCategoryRequired = formData.mainCategory !== 'impress' && formData.mainCategory !== 'pol_bills';
-    if (!formData.cfo_diary_number || !formData.received_from || !formData.receiving_number || !formData.subject || !formData.mainCategory || (isSubCategoryRequired && !formData.subCategory) || !formData.mark_to) {
+    if (!formData.cfo_diary_number || !formData.receiving_number || !formData.subject || !formData.mainCategory || (isSubCategoryRequired && !formData.subCategory) || !formData.mark_to) {
       toast.error("Please fill all required fields");
       return;
     }
@@ -973,7 +1087,16 @@ export default function FileTracking() {
         }
 
         const trackingId = `FT-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
-        const tempId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
+        let tempId = '';
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+          tempId = crypto.randomUUID();
+        } else {
+          tempId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0;
+            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+          });
+        }
         const newEntry = {
           id: tempId,
           tracking_id: trackingId,
@@ -1050,7 +1173,52 @@ export default function FileTracking() {
   const [isPrintingQRMinimal, setIsPrintingQRMinimal] = useState(false);
   const [isPrintingCovering, setIsPrintingCovering] = useState(false);
   
-  const handlePrintQR = () => {
+  const handlePrintQR = async () => {
+    if (qrFullScreen && (qrFullScreen.created_date || qrFullScreen.print_date)) {
+      const ticket = records.find(r => r.cfo_diary_number === qrFullScreen.diary || r.receiving_number === qrFullScreen.receiving);
+      if (ticket) {
+        const updatePayload: any = {};
+        if (qrFullScreen.created_date) {
+          updatePayload.created_at = new Date(qrFullScreen.created_date + 'T00:00:00').toISOString();
+          updatePayload.inward_date = new Date(qrFullScreen.created_date).toLocaleDateString('en-GB'); 
+        }
+        if (qrFullScreen.print_date) {
+          updatePayload.print_date = qrFullScreen.print_date;
+        }
+
+        const newHistory = [...(ticket.history || []), {
+          date: new Date().toISOString(),
+          action: "BULK_DATE_EDITED",
+          processed_by: sections.find((s: any) => s.id === currentRole)?.name || currentRole,
+        }];
+        updatePayload.history = newHistory;
+
+        try {
+          await db.records.where('id').equals(ticket.id).modify({ ...updatePayload, is_dirty: true });
+          await enqueue({
+            action: 'update',
+            table: 'file_tracking_records',
+            payload: { id: ticket.id, ...updatePayload },
+            record_id: ticket.receiving_number
+          });
+          
+          logActivity({
+            userRole: currentRole || 'unknown',
+            userName: userName || sections.find((s: any) => s.id === currentRole)?.name || currentRole || 'Unknown',
+            action: 'BULK_EDIT_DATE',
+            recordId: ticket.id,
+            diaryNumber: ticket.cfo_diary_number,
+            receivingNumber: ticket.receiving_number,
+            subject: ticket.subject,
+          });
+          
+          setRecords(prev => prev.map(r => r.id === ticket.id ? { ...r, ...updatePayload } : r));
+        } catch (err) {
+          console.error("Error saving date override during print:", err);
+        }
+      }
+    }
+
     setIsPrintingQR(true);
     document.body.classList.add('printing-qr-ticket');
     setTimeout(() => {
@@ -1133,6 +1301,8 @@ export default function FileTracking() {
         } else {
           mapped = mapped.filter(r => r.mark_to !== 'exited');
         }
+      } else if (activeTab === 'bulk_modified') {
+        mapped = mapped.filter(r => r.history && r.history.some((h: any) => h.action === 'BULK_DATE_EDITED'));
       }
 
       // 2. Category & Section Filters
@@ -1203,6 +1373,8 @@ export default function FileTracking() {
         } else {
           query = query.neq('mark_to', 'exited');
         }
+      } else if (activeTab === 'bulk_modified') {
+        query = query.contains('history', '[{"action": "BULK_DATE_EDITED"}]');
       }
 
       // Apply Category filter
@@ -1312,7 +1484,70 @@ export default function FileTracking() {
     }
   };
 
+  const fetchBulkModifiedRecords = async () => {
+    setIsBulkModifiedLoading(true);
+    try {
+      // First load from IndexedDB (offline support)
+      const localData = await db.records.filter((r: any) =>
+        !r.deleted_locally && r.history && r.history.some((h: any) => h.action === 'BULK_DATE_EDITED')
+      ).toArray();
+      
+      let allMapped: any[] = [];
+
+      if (localData.length > 0) {
+        allMapped = localData.map((d: any) => ({
+          ...d,
+          mainCategory: d.main_category || d.mainCategory,
+          subCategory: d.sub_category || d.subCategory,
+        }));
+        setAllBulkModifiedRecords(allMapped);
+      }
+
+      // Fetch diary numbers from activity_log
+      const { data: logData, error: logError } = await (supabase as any)
+        .from('activity_log')
+        .select('diary_number')
+        .eq('action', 'BULK_EDIT_DATE');
+
+      if (!logError && logData && logData.length > 0) {
+        const diaryNumbers = [...new Set(logData.map((l: any) => l.diary_number).filter(Boolean))];
+        
+        if (diaryNumbers.length > 0) {
+          // Then fetch from Supabase
+          const { data, error } = await (supabase as any)
+            .from('file_tracking_records')
+            .select('*')
+            .in('cfo_diary_number', diaryNumbers)
+            .order('created_at', { ascending: false });
+
+          if (!error && data) {
+            const mapped = (data as any[]).map(d => ({
+              ...d,
+              mainCategory: d.main_category,
+              subCategory: d.sub_category,
+            }));
+            
+            // Merge local and remote
+            const combined = [...mapped];
+            allMapped.forEach(localRecord => {
+              if (!combined.find(r => r.id === localRecord.id)) {
+                combined.push(localRecord);
+              }
+            });
+            
+            setAllBulkModifiedRecords(combined);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("fetchBulkModifiedRecords error:", err);
+    } finally {
+      setIsBulkModifiedLoading(false);
+    }
+  };
+
   const handleBulkExport = async (format: 'csv' | 'pdf') => {
+
     setIsLoading(true);
     toast.info(`Fetching all records for ${format.toUpperCase()} export...`);
     try {
@@ -1485,7 +1720,11 @@ export default function FileTracking() {
   };
 
   useEffect(() => {
-    fetchRecords(currentPage);
+    if (activeTab === 'bulk_modified') {
+      fetchBulkModifiedRecords();
+    } else {
+      fetchRecords(currentPage);
+    }
   }, [currentPage, filterCategory, filterSubCategory, filterSection, filterStatus, sortOrder, searchQuery, activeTab, viewingRole, reportDateFilter, customFilterStartDate, customFilterEndDate]);
 
 
@@ -1937,6 +2176,13 @@ export default function FileTracking() {
                 </TabsTrigger>
 
                 <TabsTrigger
+                  value="bulk_modified"
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl data-[state=active]:bg-[#14b8a6] data-[state=active]:text-[#0f1115] text-white/50 hover:text-white transition-all font-black text-sm"
+                >
+                  <CalendarDays className="w-4 h-4" /> Bulk Modified
+                </TabsTrigger>
+
+                <TabsTrigger
                   value="track"
                   className="flex items-center gap-2 px-6 py-2.5 rounded-xl data-[state=active]:bg-[#14b8a6] data-[state=active]:text-[#0f1115] text-white/50 hover:text-white transition-all font-black text-sm"
                 >
@@ -2115,6 +2361,15 @@ export default function FileTracking() {
                       onClick={() => exportToCSV(records.filter(r => selectedRecordIds.includes(r.id)), "Selected_Files")}
                     >
                       <Plus className="w-3.5 h-3.5 rotate-45" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 hover:bg-amber-500/20 text-amber-500"
+                      title="Bulk Edit Date"
+                      onClick={() => setIsBulkEditDateModalOpen(true)}
+                    >
+                      <CalendarDays className="w-3.5 h-3.5" />
                     </Button>
                     <Button
                       variant="ghost"
@@ -2579,6 +2834,23 @@ export default function FileTracking() {
                     />
                   </div>
                 )}
+                {selectedRecordIds.length > 0 && (
+                  <>
+                    <Button
+                      onClick={() => setIsBulkEditDateModalOpen(true)}
+                      className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs gap-2 animate-in fade-in zoom-in-95 duration-150"
+                    >
+                      <CalendarDays className="w-4 h-4" /> Bulk Edit Date ({selectedRecordIds.length})
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setSelectedRecordIds([])}
+                      className="bg-transparent border-white/10 text-white/70 hover:text-white hover:bg-white/5 font-bold text-xs gap-2 animate-in fade-in zoom-in-95 duration-150"
+                    >
+                      Clear Selection
+                    </Button>
+                  </>
+                )}
                 <Button
                   onClick={() => handleBulkExport('pdf')}
                   disabled={isLoading}
@@ -2737,6 +3009,110 @@ export default function FileTracking() {
                       Next <ArrowRight className="w-3 h-3 ml-1" />
                     </Button>
                   </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="bulk_modified" className="animate-fade-in" onFocus={undefined}>
+          <Card className="glass-card border-none shadow-xl">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                  <CalendarDays className="w-6 h-6 text-amber-500" />
+                  Bulk Modified Files
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  List of files whose inward or print dates were modified in bulk during this session.
+                </p>
+              </div>
+              {allBulkModifiedRecords.length > 0 && (
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => setBulkPrintFullScreen(allBulkModifiedRecords)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs gap-2"
+                  >
+                    <Printer className="w-4 h-4" /> Print All Slips
+                  </Button>
+                </div>
+              )}
+            </CardHeader>
+            <CardContent>
+              {isBulkModifiedLoading ? (
+                <div className="flex items-center justify-center py-20">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
+                  <span className="ml-3 text-muted-foreground text-sm font-bold">Loading back-dated files...</span>
+                </div>
+              ) : allBulkModifiedRecords.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-muted-foreground bg-muted/5 rounded-xl border-2 border-dashed border-border/50">
+                  <CalendarDays className="w-16 h-16 opacity-10 mb-4" />
+                  <h3 className="text-lg font-bold">No Back-Dated Files Found</h3>
+                  <p className="text-sm">No files have had their dates modified via bulk edit or QR popup.</p>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-border/50 overflow-hidden bg-background/40">
+                  <Table>
+                    <TableHeader className="bg-muted/50 text-[10px] uppercase font-black tracking-tighter">
+                      <TableRow>
+                        <TableHead>Diary #</TableHead>
+                        <TableHead>Ref/Sub</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead>From & Mark To</TableHead>
+                        <TableHead>Created At (Inward)</TableHead>
+                        <TableHead>Print Date</TableHead>
+                        <TableHead className="text-right pr-6">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {allBulkModifiedRecords.map((file, i) => (
+                        <TableRow key={i} className="hover:bg-primary/5 border-border/30 transition-colors">
+                          <TableCell className="font-mono text-[10px] font-bold text-primary">{file.cfo_diary_number}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="font-bold text-xs">{file.subject}</span>
+                              <span className="text-[10px] text-muted-foreground italic">{file.receiving_number}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <Badge className="text-[9px] font-black uppercase tracking-wider scale-90 origin-left bg-zinc-800 text-zinc-300 hover:bg-zinc-700">
+                                {file.mainCategory}
+                              </Badge>
+                              <span className="text-[8px] text-muted-foreground mt-0.5 uppercase tracking-widest">{file.subCategory}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col text-[10px]">
+                              <span className="text-muted-foreground">F: {file.received_from || "ONE WINDOW"}</span>
+                              <span className="text-emerald-500 font-bold">M: {sections.find(s => s.id === file.mark_to)?.name || file.mark_to}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-xs font-black text-amber-600">{safeFormatDate(file.created_at)}</TableCell>
+                          <TableCell className="text-xs font-black text-zinc-300">{file.print_date}</TableCell>
+                          <TableCell className="text-right pr-6">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 hover:bg-primary/20 text-primary"
+                              onClick={() => setQrFullScreen({
+                                diary: file.cfo_diary_number,
+                                receiving: file.receiving_number,
+                                print_date: file.print_date,
+                                created_date: file.created_at,
+                                subject: file.subject,
+                                mark_to: file.mark_to,
+                                additional_mark_to: file.additional_mark_to,
+                                history: file.history
+                              })}
+                            >
+                              <Printer className="w-3.5 h-3.5" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
               )}
             </CardContent>
@@ -3336,7 +3712,7 @@ export default function FileTracking() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs uppercase font-bold text-muted-foreground">Received From Section <span className="text-red-500">*</span></Label>
+                <Label className="text-xs uppercase font-bold text-muted-foreground">Received From Section (Optional)</Label>
                 <Input
                   placeholder="Department or Section"
                   value={formData.received_from}
@@ -3772,7 +4148,7 @@ export default function FileTracking() {
                 />
               </div>
 
-              {isAdmin && (
+              {(isAdmin || allowOverrideDates) && (
                 <>
                   <div className="space-y-2">
                     <Label className="text-xs uppercase font-bold text-amber-500 flex items-center gap-2">
@@ -4610,8 +4986,6 @@ export default function FileTracking() {
                             />
                             <Label htmlFor="duplicate-print-qr" className="text-[10px] font-bold text-amber-600 cursor-pointer uppercase">Print with DUPLICATE watermark</Label>
                           </div>
-                          {(isAdmin || allowOverrideDates) && (
-                            <>
                               <div>
                                 <label className="text-[10px] uppercase font-bold text-amber-600">Override Created Date</label>
                                 <input
@@ -4630,8 +5004,6 @@ export default function FileTracking() {
                                   className="w-full h-8 text-xs bg-white border border-emerald-500/30 text-emerald-600 font-bold rounded-md px-2 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                                 />
                               </div>
-                            </>
-                          )}
                         </div>
                         <Button
                           className={`w-full bg-primary hover:bg-primary/90 text-white font-bold rounded-xl no-print`}
@@ -4829,6 +5201,175 @@ export default function FileTracking() {
             >
               Confirm Exit
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Edit Date Modal */}
+      <Dialog open={isBulkEditDateModalOpen} onOpenChange={setIsBulkEditDateModalOpen}>
+        <DialogContent className="bg-[#0f1115] border-white/10 text-white sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="text-[#14b8a6] flex items-center gap-2">
+              <CalendarDays className="w-5 h-5" /> Bulk Edit Dates
+            </DialogTitle>
+            <DialogDescription className="text-white/60">
+              Editing {selectedRecordIds.length} files. Enter new dates below. Leave blank to keep current.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase tracking-widest text-white/50">New Inward (Created) Date</label>
+              <Input
+                type="date"
+                value={bulkEditDateForm.created_date}
+                onChange={e => setBulkEditDateForm({ ...bulkEditDateForm, created_date: e.target.value })}
+                className="bg-[#111318] border-white/5 text-white focus:border-[#14b8a6]"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase tracking-widest text-white/50">New Print Date</label>
+              <Input
+                type="date"
+                value={bulkEditDateForm.print_date}
+                onChange={e => setBulkEditDateForm({ ...bulkEditDateForm, print_date: e.target.value })}
+                className="bg-[#111318] border-white/5 text-white focus:border-[#14b8a6]"
+              />
+            </div>
+            <div className="space-y-2 mt-4">
+              <label className="text-xs font-bold text-red-400">Admin/CFO Password Required *</label>
+              <Input
+                type="password"
+                placeholder="Enter authorization password"
+                value={bulkEditDateForm.password}
+                onChange={e => setBulkEditDateForm({ ...bulkEditDateForm, password: e.target.value })}
+                className="bg-red-500/10 border-red-500/20 text-white placeholder:text-red-300/30"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" className="bg-transparent border-white/10 text-white hover:text-white hover:bg-white/5" onClick={() => setIsBulkEditDateModalOpen(false)}>Cancel</Button>
+            <Button className="bg-amber-500 hover:bg-amber-600 text-white font-bold" onClick={handleBulkEditDateSubmit} disabled={!bulkEditDateForm.password}>Apply Bulk Edit</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Print Full Screen Modal */}
+      <Dialog open={!!bulkPrintFullScreen} onOpenChange={(open) => !open && setBulkPrintFullScreen(null)}>
+        <DialogContent className="max-w-none w-screen h-screen m-0 p-0 rounded-none bg-white border-0 flex flex-col sm:max-w-none sm:rounded-none">
+          <div className="flex justify-between items-center p-4 border-b border-gray-200 print:hidden bg-zinc-900 text-white">
+            <h2 className="text-lg font-bold">Bulk Print Slips ({bulkPrintFullScreen?.length} Files)</h2>
+            <div className="flex gap-2">
+              <Button onClick={() => window.print()} className="bg-blue-600 hover:bg-blue-700 text-white gap-2">
+                <Printer className="w-4 h-4" /> Print All
+              </Button>
+              <Button variant="outline" onClick={() => setBulkPrintFullScreen(null)} className="text-white border-white/20 hover:bg-white/10 hover:text-white">
+                Close
+              </Button>
+            </div>
+          </div>
+          
+          <div className="flex-1 overflow-auto bg-gray-100 p-8 print:p-0 print:bg-white">
+            {bulkPrintFullScreen?.map((ticket, index) => (
+              <div key={ticket.id} className="max-w-md mx-auto bg-white p-6 rounded-lg shadow-sm print:shadow-none print:p-0 mb-8 print:mb-0 print:max-w-full" style={{ pageBreakAfter: index < bulkPrintFullScreen.length - 1 ? 'always' : 'auto' }}>
+                <div className="border-[3px] border-zinc-800 p-1 bg-white relative overflow-hidden">
+                  <div className="border-2 border-zinc-800 p-4 relative z-10 bg-white/90 backdrop-blur-sm">
+                    {/* Bulk Header */}
+                    <div className="flex justify-between items-start border-b-2 border-zinc-200 pb-4 mb-4">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <Building2 className="w-5 h-5 text-zinc-800" />
+                          <h2 className="text-lg font-black text-zinc-800 tracking-tighter">KW&SC</h2>
+                        </div>
+                        <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">ONE WINDOW CELL</p>
+                      </div>
+                      <div className="text-right">
+                        <div className="bg-zinc-800 text-white px-2 py-0.5 rounded-sm inline-block mb-1">
+                          <p className="text-[10px] font-bold tracking-widest">DIARY NUMBER</p>
+                        </div>
+                        <p className="text-sm font-black text-zinc-800 font-mono mt-1 tracking-tighter">{ticket.cfo_diary_number}</p>
+                        <p className="text-[10px] text-zinc-400 font-bold mt-1">REF: CODE</p>
+                        <p className="text-sm font-black text-zinc-800 font-mono mt-1 tracking-tighter">{ticket.receiving_number}</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="bg-zinc-50 p-3 rounded-md border border-zinc-100">
+                        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Subject</p>
+                        <p className="text-xs font-bold text-zinc-800 leading-tight">{ticket.subject || "Subject Details"}</p>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Inward Date</p>
+                          <p className="text-xs font-black text-amber-600 tracking-tight">{safeFormatDate(ticket.created_at)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Print Date</p>
+                          <div className="flex items-center gap-1.5 text-xs font-black text-zinc-800">
+                            <Clock className="w-3.5 h-3.5 text-blue-500" />
+                            {safeFormatDate(ticket.print_date)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="border-t-2 border-dashed border-zinc-200 pt-4">
+                        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Routing Info</p>
+                        <div className="flex items-center gap-3">
+                          <div className="bg-zinc-100 p-2 rounded-md flex-1 text-center">
+                            <p className="text-[9px] font-bold text-zinc-500 uppercase mb-1">From</p>
+                            <p className="text-xs font-black text-zinc-800 uppercase tracking-tight">
+                              {ticket.history?.filter((h: any) => (h.action === 'FORWARD' || h.action === 'FORWARDED') && h.from)?.slice(-1)[0]?.from ? 
+                                (sections.find(s => s.id === ticket.history!.filter((h: any) => (h.action === 'FORWARD' || h.action === 'FORWARDED') && h.from).slice(-1)[0].from)?.name || ticket.history!.filter((h: any) => (h.action === 'FORWARD' || h.action === 'FORWARDED') && h.from).slice(-1)[0].from) 
+                                : (ticket.received_from || "ONE WINDOW")}
+                            </p>
+                          </div>
+                          <ArrowRight className="w-4 h-4 text-zinc-300 flex-shrink-0" />
+                          <div className="bg-blue-50 p-2 rounded-md flex-1 text-center border border-blue-100">
+                            <p className="text-[9px] font-bold text-blue-500 uppercase mb-1">Mark To</p>
+                            <p className="text-xs font-black text-blue-600 uppercase tracking-tight">{ticket.mark_to ? (sections.find(s => s.id === ticket.mark_to)?.name || ticket.mark_to) : "CFO Office"}</p>
+                          </div>
+                        </div>
+                        {ticket.additional_mark_to && (
+                          <div className="mt-2 bg-purple-50 p-2 rounded-md text-center border border-purple-100">
+                            <p className="text-[9px] font-bold text-purple-500 uppercase mb-1">Additional Mark To</p>
+                            <p className="text-xs font-black text-purple-600 uppercase tracking-tight">{sections.find(s => s.id === ticket.additional_mark_to)?.name || ticket.additional_mark_to}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-6 pt-4 border-t-2 border-zinc-800 flex justify-between items-end">
+                      <div className="text-center">
+                        <img 
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`${window.location.origin}/public-track/${ticket.cfo_diary_number}/${ticket.receiving_number}`)}&color=0ea5e9`}
+                          alt="QR Code" 
+                          className="w-16 h-16 mx-auto border border-zinc-200 p-1 rounded-md"
+                        />
+                        <p className="text-zinc-400 text-[10px] font-medium tracking-tight mt-1 font-mono">CODE: {ticket.receiving_number}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mb-4">Official Use Only</p>
+                        <div className="w-32 border-b-2 border-zinc-400 mb-1 mx-auto"></div>
+                        <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">Authorized Sig.</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="absolute -right-16 -top-16 opacity-[0.03] pointer-events-none z-0 transform rotate-12">
+                    <img 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(`${window.location.origin}/public-track/${ticket.cfo_diary_number}/${ticket.receiving_number}`)}&color=000000&margin=0`}
+                      alt="Watermark QR" 
+                      className="w-96 h-96 blur-[2px]"
+                    />
+                  </div>
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
+                    <p className="text-[100px] font-black uppercase text-gray-500/40 -rotate-45 select-none" style={{ letterSpacing: '0.1em', whiteSpace: 'nowrap' }}>
+                      D: {ticket.cfo_diary_number}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </DialogContent>
       </Dialog>
