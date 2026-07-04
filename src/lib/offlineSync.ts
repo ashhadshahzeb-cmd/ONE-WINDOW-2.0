@@ -71,18 +71,19 @@ export async function processOfflineQueue() {
       let error = null;
 
       if (mutation.action === 'INSERT') {
-        let { error: err } = await supabase.from(mutation.table as any).insert(mutation.payload);
+        const { is_dirty, deleted_locally, file_image, ...cleanPayload } = mutation.payload;
+        let { error: err } = await supabase.from(mutation.table as any).insert(cleanPayload);
         
         // If it fails because the column additional_mark_to does not exist (code 42703), retry without it
-        if (err && err.code === '42703' && mutation.payload.additional_mark_to !== undefined) {
-          const { additional_mark_to, ...safePayload } = mutation.payload;
+        if (err && err.code === '42703' && cleanPayload.additional_mark_to !== undefined) {
+          const { additional_mark_to, ...safePayload } = cleanPayload;
           const retry = await supabase.from(mutation.table as any).insert(safePayload);
           err = retry.error;
         }
         
         error = err;
       } else if (mutation.action === 'UPDATE') {
-        const { id, ...updateData } = mutation.payload;
+        const { id, is_dirty, deleted_locally, file_image, ...updateData } = mutation.payload;
         // Specifically for file_tracking_records, we might update by receiving_number if id is not present but usually id is present
         const matchField = id ? { id } : { receiving_number: updateData.receiving_number };
         let { error: err } = await supabase.from(mutation.table as any).update(updateData).match(matchField);
@@ -143,8 +144,10 @@ export async function syncOrphanedDirtyRecords(db: any) {
       // Check if this record is already in the queue to avoid duplicates
       const inQueue = queue.some(m => m.action === 'INSERT' && m.payload.id === record.id);
       if (!inQueue) {
+        // Remove internal fields before sending to Supabase
+        const { is_dirty, deleted_locally, file_image, ...safeRecord } = record;
         // It's orphaned, add it to the queue
-        addToOfflineQueue('file_tracking_records', 'INSERT', record);
+        addToOfflineQueue('file_tracking_records', 'INSERT', safeRecord);
         recoveredCount++;
       }
     }
