@@ -32,6 +32,7 @@ import ChequeRecord from "./pages/book-section/ChequeRecord";
 import BillDispatch from "./pages/book-section/BillDispatch";
 import FileTracking from "./pages/book-section/FileTracking";
 import FileRecordDetail from "./pages/book-section/FileRecordDetail";
+import TransferAdvice from "./pages/book-section/TransferAdvice";
 import Books from "./pages/book-section/Books";
 import Establishment from "./pages/book-section/Establishment";
 import PublicTracking from "./pages/PublicTracking";
@@ -112,6 +113,7 @@ const App = () => (
                           <Route path="/book-section/contingencies" element={<Contingencies />} />
                           <Route path="/book-section/bill-dispatch" element={<BillDispatch />} />
                           <Route path="/book-section/file-tracking" element={<FileTracking />} />
+                          <Route path="/book-section/transfer-advice" element={<TransferAdvice />} />
                           <Route path="/book-section/file-record/:receivingNo" element={<FileRecordDetail />} />
                           <Route path="/restricted" element={<RestrictedDashboard />} />
                           <Route path="/collection-entry" element={<CollectionEntry />} />
