@@ -15,14 +15,33 @@ import { bankAccounts, transactions, monthlyData, formatCurrency } from "@/lib/m
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const totalBalance = bankAccounts.reduce((s, b) => s + (b.currency === 'PKR' ? b.balance : b.balance * 280), 0);
 const totalIncome = 2775000;
 const totalExpenses = 1450800;
 const pendingCount = transactions.filter(t => t.status === 'pending').length;
 
+// Smart Mock Data Generator for Chart Breakdown
+const generateMockBreakdown = (amount: number, type: 'Income' | 'Expense', month: string) => {
+  const pieces = type === 'Income' ? [0.4, 0.35, 0.25] : [0.5, 0.3, 0.2];
+  const descriptions = type === 'Income' 
+    ? ['Govt Grant / Subvention', 'Water Tax Collection', 'Misc. Receipts']
+    : ['Contractor Payments', 'POL Bills', 'Employee Salaries'];
+  
+  return pieces.map((p, i) => ({
+    id: i,
+    date: `1${i + 2}-${month}-2024`,
+    ref: `KWSC/${type === 'Income' ? 'INC' : 'EXP'}/${1000 + i}`,
+    description: descriptions[i],
+    amount: amount * p
+  }));
+};
+
 export default function Dashboard() {
   const [mounted, setMounted] = useState(false);
+  const [selectedBarData, setSelectedBarData] = useState<{ month: string, type: 'Income' | 'Expense', amount: number, items: any[] } | null>(null);
+
   useEffect(() => setMounted(true), []);
 
   return (
@@ -143,8 +162,40 @@ export default function Dashboard() {
                     labelStyle={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', marginBottom: '4px' }}
                     formatter={(v: number) => [`Rs. ${formatCurrency(v)}`, '']}
                   />
-                  <Bar dataKey="income" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={32} />
-                  <Bar dataKey="expenses" fill="#f97316" radius={[4, 4, 0, 0]} maxBarSize={32} />
+                  <Bar 
+                    dataKey="income" 
+                    fill="#3b82f6" 
+                    radius={[4, 4, 0, 0]} 
+                    maxBarSize={32} 
+                    cursor="pointer"
+                    onClick={(data) => {
+                      if (data && data.month && data.income) {
+                        setSelectedBarData({
+                          month: data.month,
+                          type: 'Income',
+                          amount: data.income,
+                          items: generateMockBreakdown(data.income, 'Income', data.month)
+                        });
+                      }
+                    }}
+                  />
+                  <Bar 
+                    dataKey="expenses" 
+                    fill="#f97316" 
+                    radius={[4, 4, 0, 0]} 
+                    maxBarSize={32} 
+                    cursor="pointer"
+                    onClick={(data) => {
+                      if (data && data.month && data.expenses) {
+                        setSelectedBarData({
+                          month: data.month,
+                          type: 'Expense',
+                          amount: data.expenses,
+                          items: generateMockBreakdown(data.expenses, 'Expense', data.month)
+                        });
+                      }
+                    }}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -269,6 +320,48 @@ export default function Dashboard() {
 
         </div>
       </div>
+
+      <Dialog open={!!selectedBarData} onOpenChange={() => setSelectedBarData(null)}>
+        <DialogContent className="max-w-2xl bg-[#09090b] border-white/10 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-sky-400" />
+              {selectedBarData?.month} {selectedBarData?.type} Breakdown
+            </DialogTitle>
+          </DialogHeader>
+          <div className="mt-4">
+            <div className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/10 mb-6">
+              <span className="text-sm text-white/60 uppercase tracking-widest">Total {selectedBarData?.type}</span>
+              <span className={cn("text-2xl font-bold", selectedBarData?.type === 'Income' ? 'text-blue-400' : 'text-orange-400')}>
+                Rs. {selectedBarData?.amount ? formatCurrency(selectedBarData.amount) : '0'}
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs uppercase bg-white/5 text-white/50 border-b border-white/10">
+                  <tr>
+                    <th className="px-4 py-3 rounded-tl-lg">Date</th>
+                    <th className="px-4 py-3">Reference No</th>
+                    <th className="px-4 py-3">Description</th>
+                    <th className="px-4 py-3 text-right rounded-tr-lg">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedBarData?.items.map((item, idx) => (
+                    <tr key={item.id} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                      <td className="px-4 py-3 text-white/70">{item.date}</td>
+                      <td className="px-4 py-3 font-mono text-white/50 text-xs">{item.ref}</td>
+                      <td className="px-4 py-3 text-white/90">{item.description}</td>
+                      <td className="px-4 py-3 text-right font-medium">Rs. {formatCurrency(item.amount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
