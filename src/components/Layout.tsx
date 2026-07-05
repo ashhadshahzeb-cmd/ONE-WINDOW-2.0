@@ -63,8 +63,6 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const topNavItems = [
     { to: "/", icon: LayoutDashboard, label: "Dashboard", visible: !isRestrictedAsstCFO && !isEmpOperator && !isTransferUser },
     { to: "/book-section/file-tracking", icon: Shield, label: "File Tracking", visible: !isEmpOperator && !isTransferUser },
-    { to: "/restricted", icon: Lock, label: "Restrict Dashboard", visible: !isRestrictedAsstCFO && !isEmpOperator && !isTransferUser },
-    { to: "/collection-entry", icon: Plus, label: "Collection Entry", visible: !isRestrictedAsstCFO && !isEmpOperator && !isTransferUser },
     { to: "/bank-entries", icon: Landmark, label: "Bank Entries", visible: !isEmpOperator && !isTransferUser },
     { to: "/budget-control", icon: Wallet, label: "Budget Control", visible: (userRole === 'admin' || userRole === 'cfo') && !isTransferUser },
     { to: "/notice-board", icon: Megaphone, label: "Notice Board", visible: !isTransferUser },
@@ -76,6 +74,17 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   ].filter(item => item.visible);
 
   const categories = [];
+
+  if (!isRestrictedAsstCFO && !isEmpOperator && !isTransferUser) {
+    categories.push({
+      id: "collection-operations",
+      label: "Collection Operations",
+      items: [
+        { to: "/restricted", icon: Lock, label: "Restrict Dashboard", visible: true },
+        { to: "/collection-entry", icon: Plus, label: "Collection Entry", visible: true },
+      ].filter(item => item.visible)
+    });
+  }
 
   if ((userRole || isAdmin) && !isRestrictedAsstCFO && !isTransferUser) {
     categories.push({
