@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, FileText, Printer, Loader2, X } from "lucide-react";
+import { Search, FileText, Printer, Loader2, X, Trash2 } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -36,6 +36,25 @@ export default function TransferAdviceRecords() {
       toast.error('Failed to load Transfer Advices');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this Transfer Advice? This action cannot be undone.")) return;
+
+    try {
+      const { error } = await supabase
+        .from('transfer_advices')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      toast.success("Transfer Advice deleted successfully.");
+      setRecords(records.filter(r => r.id !== id));
+    } catch (err: any) {
+      console.error('Error deleting record:', err);
+      toast.error('Failed to delete record');
     }
   };
 
@@ -122,7 +141,7 @@ export default function TransferAdviceRecords() {
                           {Number(record.total_amount).toLocaleString('en-US')}
                         </td>
                         <td className="px-4 py-3">{record.created_by}</td>
-                        <td className="px-4 py-3 text-center">
+                        <td className="px-4 py-3 text-center space-x-2">
                           <Button 
                             variant="secondary" 
                             size="sm" 
@@ -130,6 +149,13 @@ export default function TransferAdviceRecords() {
                             className="bg-blue-600 hover:bg-blue-700 text-white"
                           >
                             <FileText className="w-4 h-4 mr-2" /> View
+                          </Button>
+                          <Button 
+                            variant="destructive" 
+                            size="sm" 
+                            onClick={() => handleDelete(record.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </Button>
                         </td>
                       </tr>
