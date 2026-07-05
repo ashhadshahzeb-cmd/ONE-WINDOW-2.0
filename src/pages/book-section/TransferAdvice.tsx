@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Trash2, Printer, Save } from "lucide-react";
 import { numberToWords } from "@/lib/numberToWords";
 import { toast } from "sonner";
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
 const getLocalDateString = (dateStr?: string | Date | null): string => {
