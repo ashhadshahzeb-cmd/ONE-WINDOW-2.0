@@ -126,8 +126,8 @@ export default function Dashboard() {
                 <p className="text-xs text-white/40 font-light">Income vs Expenses over the year</p>
               </div>
               <div className="flex gap-4">
-                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-400"></div><span className="text-[10px] text-white/60 font-medium">Income</span></div>
-                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-rose-400"></div><span className="text-[10px] text-white/60 font-medium">Expenses</span></div>
+                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-blue-500"></div><span className="text-[10px] text-white/60 font-medium">Income</span></div>
+                <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-orange-500"></div><span className="text-[10px] text-white/60 font-medium">Expenses</span></div>
               </div>
             </div>
             <div className="flex-1 w-full relative">
@@ -143,8 +143,8 @@ export default function Dashboard() {
                     labelStyle={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', marginBottom: '4px' }}
                     formatter={(v: number) => [`Rs. ${formatCurrency(v)}`, '']}
                   />
-                  <Bar dataKey="income" fill="#34d399" radius={[4, 4, 0, 0]} maxBarSize={32} />
-                  <Bar dataKey="expenses" fill="#fb7185" radius={[4, 4, 0, 0]} maxBarSize={32} />
+                  <Bar dataKey="income" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={32} />
+                  <Bar dataKey="expenses" fill="#f97316" radius={[4, 4, 0, 0]} maxBarSize={32} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
