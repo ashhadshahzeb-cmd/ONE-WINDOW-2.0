@@ -37,8 +37,10 @@ import OfflineIndicator from "@/components/OfflineIndicator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
+import { useAutoLogout } from "@/hooks/useAutoLogout";
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
+  useAutoLogout();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openCategory, setOpenCategory] = useState<string | null>("book-section");
