@@ -63,8 +63,6 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const topNavItems = [
     { to: "/", icon: LayoutDashboard, label: "Dashboard", visible: !isRestrictedAsstCFO && !isEmpOperator && !isTransferUser },
     { to: "/book-section/file-tracking", icon: Shield, label: "File Tracking", visible: !isEmpOperator && !isTransferUser },
-    { to: "/book-section/transfer-advice", icon: ArrowLeftRight, label: "Transfer Advice", visible: isAdmin || isTransferUser },
-    { to: "/book-section/transfer-advice-records", icon: ListTree, label: "Transfer Records", visible: isAdmin || isTransferUser },
     { to: "/restricted", icon: Lock, label: "Restrict Dashboard", visible: !isRestrictedAsstCFO && !isEmpOperator && !isTransferUser },
     { to: "/collection-entry", icon: Plus, label: "Collection Entry", visible: !isRestrictedAsstCFO && !isEmpOperator && !isTransferUser },
     { to: "/bank-entries", icon: Landmark, label: "Bank Entries", visible: !isEmpOperator && !isTransferUser },
@@ -77,8 +75,10 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     { to: "/file-analytics", icon: BarChart3, label: "File Analytics", visible: (userRole === 'admin' || userRole === 'cfo') && !isTransferUser },
   ].filter(item => item.visible);
 
-  const categories = (userRole || isAdmin) && !isRestrictedAsstCFO && !isTransferUser ? [
-    {
+  const categories = [];
+
+  if ((userRole || isAdmin) && !isRestrictedAsstCFO && !isTransferUser) {
+    categories.push({
       id: "book-section",
       label: "Sections Management",
       items: [
@@ -93,8 +93,19 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         { to: "/book-section/books", label: "Books", icon: BookOpen, visible: (isCFORole || userRole === 'books') && !isEmpOperator },
         { to: "/book-section/establishment", label: "Establishment", icon: Users, visible: (isCFORole || userRole === 'establishment') && !isEmpOperator },
       ].filter(item => item.visible)
-    }
-  ] : [];
+    });
+  }
+
+  if (isAdmin || isTransferUser) {
+    categories.push({
+      id: "transfer-operations",
+      label: "Transfer Operations",
+      items: [
+        { to: "/book-section/transfer-advice", icon: ArrowLeftRight, label: "Transfer Advice", visible: true },
+        { to: "/book-section/transfer-advice-records", icon: ListTree, label: "Transfer Records", visible: true },
+      ].filter(item => item.visible)
+    });
+  }
 
   const sections = [
     { id: 'emp_details', name: 'Employee Details' },
@@ -154,9 +165,20 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             </div>
 
             {categories.map((category) => (
-              <div key={category.id} className="space-y-2 pt-4 border-t border-border/50">
-                {!collapsed && <h3 className="px-3 text-xs font-semibold text-primary uppercase tracking-wider mb-2">{category.label}</h3>}
-                <div className="space-y-1">
+              <div key={category.id} className="pt-4 border-t border-border/50">
+                {!collapsed && (
+                  <button 
+                    onClick={() => setOpenCategory(openCategory === category.id ? null : category.id)}
+                    className="w-full flex items-center justify-between px-3 mb-2 text-xs font-semibold text-primary uppercase tracking-wider hover:text-primary/80 transition-colors"
+                  >
+                    {category.label}
+                    <ChevronRight className={cn("w-3 h-3 transition-transform duration-200", openCategory === category.id && "rotate-90")} />
+                  </button>
+                )}
+                <div className={cn(
+                  "space-y-1 overflow-hidden transition-all duration-300 ease-in-out",
+                  openCategory === category.id || collapsed ? "max-h-[500px] opacity-100 mt-2" : "max-h-0 opacity-0"
+                )}>
                   {category.items.map((item) => (
                     <Link key={item.to} to={item.to} className={cn(
                       "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group relative",
