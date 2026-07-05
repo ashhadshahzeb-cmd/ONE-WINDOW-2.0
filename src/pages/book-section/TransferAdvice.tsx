@@ -30,7 +30,7 @@ interface AdviceItem {
 }
 
 export default function TransferAdvice() {
-  const { user } = useAuth();
+  const { user, userRole, userName } = useAuth();
   const [adviceNo, setAdviceNo] = useState(`KW&SC/DIR-ACC/F.D/A/${new Date().getFullYear()}/`);
   const [adviceDate, setAdviceDate] = useState(getLocalDateString());
   const [bankDetails, setBankDetails] = useState("The Chief Manager,\nHabib Bank Limited,\nSindh Secretariat Branch,\nKarachi.");
@@ -67,7 +67,7 @@ export default function TransferAdvice() {
   };
 
   const handleSave = async () => {
-    if (!user) {
+    if (!user && !userRole) {
       toast.error("You must be logged in to save.");
       return;
     }
@@ -84,7 +84,7 @@ export default function TransferAdvice() {
         bank_name: bankDetails,
         subject: subject,
         total_amount: totalAmount,
-        created_by: user.email || 'unknown',
+        created_by: user?.email || userName || userRole || 'unknown',
         created_at: new Date().toISOString()
       });
 
