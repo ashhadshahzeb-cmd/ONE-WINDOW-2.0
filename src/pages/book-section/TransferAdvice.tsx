@@ -7,8 +7,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Trash2, Printer, Save } from "lucide-react";
 import { numberToWords } from "@/lib/numberToWords";
 import { toast } from "sonner";
-import { getLocalDateString } from '@/lib/utils';
 // import { supabase } from '@/lib/supabase'; // Will be used when saving
+
+const getLocalDateString = (dateStr?: string | Date | null): string => {
+  if (!dateStr) {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().split('T')[0];
+  }
+  const d = new Date(dateStr);
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().split('T')[0];
+};
 
 interface AdviceItem {
   id: string;
