@@ -218,8 +218,16 @@ export default function TransferAdvice() {
                 </tbody>
               </table>
             </div>
-            <div className="mt-4 text-right">
-              <p className="text-lg font-bold">Total Amount: {totalAmount.toLocaleString('en-US')}</p>
+            <div className="mt-4 flex justify-between items-center">
+              <div className="space-x-2">
+                <Button variant="outline" onClick={handleSave} disabled={isSaving} className="text-white border-white/20">
+                  <Save className="w-4 h-4 mr-2" /> {isSaving ? "Saving..." : "Save Advice"}
+                </Button>
+                <Button onClick={handlePrint} className="bg-primary hover:bg-primary/90 text-white font-bold">
+                  <Printer className="w-4 h-4 mr-2" /> Print Advice
+                </Button>
+              </div>
+              <p className="text-xl font-bold text-green-400">Total Amount: {totalAmount.toLocaleString('en-US')}</p>
             </div>
           </CardContent>
         </Card>
