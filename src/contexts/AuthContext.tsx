@@ -38,6 +38,7 @@ export const DEFAULT_DEPARTMENT_USERS: DepartmentUser[] = [
   { email: 'asst.cfo5@kwsb.gov.pk',        password: 'acfo5@12345',  roleId: 'sub_cfo_5',         displayName: 'ASST. CFO-5' },
   { email: 'mdoffice@kwsb.gov.pk',         password: 'md@12345',      roleId: 'md_office',         displayName: 'MD OFFICE' },
   { email: 'emp1@kwsb.gov.pk',             password: 'emp1@12345',    roleId: 'emp_operator',      displayName: 'EMPLOYEE REGISTRY 1' },
+  { email: 'transfer@kwsb.gov.pk',         password: 'transfer@12345',roleId: 'transfer_user',   displayName: 'TRANSFER ADVICE' },
   { email: 'emp2@kwsb.gov.pk',             password: 'emp2@12345',    roleId: 'emp_operator',      displayName: 'EMPLOYEE REGISTRY 2' },
   { email: 'viewer@kwsb.gov.pk',           password: 'viewer@12345',  roleId: 'file_viewer',       displayName: 'FILE VIEWER' },
 ];
@@ -89,6 +90,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userName, setUserName] = useState<string | null>(null);
   const [isLocalAuth, setIsLocalAuth] = useState(false);
   const [allowOverrideDates, setAllowOverrideDates] = useState(false);
+  const [isTransferUser, setIsTransferUser] = useState(false);
 
   useEffect(() => {
     // 1) Check for local department auth first
@@ -100,6 +102,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUserName(parsed.displayName);
         setIsLocalAuth(true);
         setIsAdmin(parsed.roleId === 'cfo' || parsed.roleId === 'admin');
+        setIsTransferUser(parsed.roleId === 'transfer_user');
         const usersList = getDepartmentUsers();
         const match = usersList.find(u => u.email === parsed.email);
         setAllowOverrideDates(match?.allowOverrideDates || parsed.roleId === 'cfo' || parsed.roleId === 'admin');
@@ -241,6 +244,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLocalAuth(true);
     setIsAdmin(match.roleId === 'cfo' || match.roleId === 'admin');
     setAllowOverrideDates(match.allowOverrideDates || match.roleId === 'cfo' || match.roleId === 'admin');
+    setIsTransferUser(match.roleId === 'transfer_user');
 
     // Log login activity
     logActivity({
@@ -328,6 +332,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isLocalAuth,
       verifyPassword,
       allowOverrideDates,
+      isTransferUser,
     }}>
       {children}
     </AuthContext.Provider>

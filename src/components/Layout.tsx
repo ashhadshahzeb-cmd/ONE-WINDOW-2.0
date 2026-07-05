@@ -43,7 +43,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openCategory, setOpenCategory] = useState<string | null>("book-section");
   const location = useLocation();
-  const { signOut, userRole, isAdmin, userName } = useAuth();
+  const { signOut, userRole, isAdmin, userName, isTransferUser } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const mainRef = useRef<HTMLDivElement>(null);
 
@@ -61,23 +61,23 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   };
 
   const topNavItems = [
-    { to: "/", icon: LayoutDashboard, label: "Dashboard", visible: !isRestrictedAsstCFO && !isEmpOperator },
-    { to: "/book-section/file-tracking", icon: Shield, label: "File Tracking", visible: !isEmpOperator },
-    { to: "/book-section/transfer-advice", icon: ArrowLeftRight, label: "Transfer Advice", visible: !isEmpOperator },
-    { to: "/book-section/transfer-advice-records", icon: ListTree, label: "Transfer Records", visible: !isEmpOperator },
-    { to: "/restricted", icon: Lock, label: "Restrict Dashboard", visible: !isRestrictedAsstCFO && !isEmpOperator },
-    { to: "/collection-entry", icon: Plus, label: "Collection Entry", visible: !isRestrictedAsstCFO && !isEmpOperator },
-    { to: "/bank-entries", icon: Landmark, label: "Bank Entries", visible: !isEmpOperator },
-    { to: "/budget-control", icon: Wallet, label: "Budget Control", visible: userRole === 'admin' || userRole === 'cfo' },
-    { to: "/notice-board", icon: Megaphone, label: "Notice Board", visible: true },
-    { to: "/messages", icon: MessageCircle, label: "Messages", visible: true },
-    { to: "/user-management", icon: Users, label: "User Management", visible: userRole === 'admin' },
-    { to: "/admin-config", icon: Settings2, label: "Admin Config", visible: userRole === 'admin' },
-    { to: "/activity-log", icon: Activity, label: "Activity Log", visible: userRole === 'admin' },
-    { to: "/file-analytics", icon: BarChart3, label: "File Analytics", visible: userRole === 'admin' || userRole === 'cfo' },
+    { to: "/", icon: LayoutDashboard, label: "Dashboard", visible: !isRestrictedAsstCFO && !isEmpOperator && !isTransferUser },
+    { to: "/book-section/file-tracking", icon: Shield, label: "File Tracking", visible: !isEmpOperator && !isTransferUser },
+    { to: "/book-section/transfer-advice", icon: ArrowLeftRight, label: "Transfer Advice", visible: isAdmin || isTransferUser },
+    { to: "/book-section/transfer-advice-records", icon: ListTree, label: "Transfer Records", visible: isAdmin || isTransferUser },
+    { to: "/restricted", icon: Lock, label: "Restrict Dashboard", visible: !isRestrictedAsstCFO && !isEmpOperator && !isTransferUser },
+    { to: "/collection-entry", icon: Plus, label: "Collection Entry", visible: !isRestrictedAsstCFO && !isEmpOperator && !isTransferUser },
+    { to: "/bank-entries", icon: Landmark, label: "Bank Entries", visible: !isEmpOperator && !isTransferUser },
+    { to: "/budget-control", icon: Wallet, label: "Budget Control", visible: (userRole === 'admin' || userRole === 'cfo') && !isTransferUser },
+    { to: "/notice-board", icon: Megaphone, label: "Notice Board", visible: !isTransferUser },
+    { to: "/messages", icon: MessageCircle, label: "Messages", visible: !isTransferUser },
+    { to: "/user-management", icon: Users, label: "User Management", visible: userRole === 'admin' && !isTransferUser },
+    { to: "/admin-config", icon: Settings2, label: "Admin Config", visible: userRole === 'admin' && !isTransferUser },
+    { to: "/activity-log", icon: Activity, label: "Activity Log", visible: userRole === 'admin' && !isTransferUser },
+    { to: "/file-analytics", icon: BarChart3, label: "File Analytics", visible: (userRole === 'admin' || userRole === 'cfo') && !isTransferUser },
   ].filter(item => item.visible);
 
-  const categories = (userRole || isAdmin) && !isRestrictedAsstCFO ? [
+  const categories = (userRole || isAdmin) && !isRestrictedAsstCFO && !isTransferUser ? [
     {
       id: "book-section",
       label: "Sections Management",

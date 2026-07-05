@@ -66,6 +66,10 @@ const DashboardRedirect = () => {
   if (isEmpOperator) {
     return <Navigate to="/book-section/emp-details" replace />;
   }
+
+  if (userRole === 'transfer_user') {
+    return <Navigate to="/book-section/transfer-advice-records" replace />;
+  }
   
   return <Dashboard />;
 };
