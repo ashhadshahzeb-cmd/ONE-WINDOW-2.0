@@ -64,6 +64,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     { to: "/", icon: LayoutDashboard, label: "Dashboard", visible: !isRestrictedAsstCFO && !isEmpOperator },
     { to: "/book-section/file-tracking", icon: Shield, label: "File Tracking", visible: !isEmpOperator },
     { to: "/book-section/transfer-advice", icon: ArrowLeftRight, label: "Transfer Advice", visible: !isEmpOperator },
+    { to: "/book-section/transfer-advice-records", icon: ListTree, label: "Transfer Records", visible: !isEmpOperator },
     { to: "/restricted", icon: Lock, label: "Restrict Dashboard", visible: !isRestrictedAsstCFO && !isEmpOperator },
     { to: "/collection-entry", icon: Plus, label: "Collection Entry", visible: !isRestrictedAsstCFO && !isEmpOperator },
     { to: "/bank-entries", icon: Landmark, label: "Bank Entries", visible: !isEmpOperator },
