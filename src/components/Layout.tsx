@@ -206,6 +206,10 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         </ScrollArea>
 
         <div className="p-4 border-t border-border/50 space-y-2">
+          <Link to="/profile" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-all">
+            <Settings2 className="w-5 h-5 shrink-0" />
+            {!collapsed && <span className="font-medium">Profile Settings</span>}
+          </Link>
           <button onClick={() => signOut()} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-red-400 hover:bg-red-500/10 transition-all">
             <LogOut className="w-5 h-5 shrink-0" />
             {!collapsed && <span className="font-medium">Logout</span>}

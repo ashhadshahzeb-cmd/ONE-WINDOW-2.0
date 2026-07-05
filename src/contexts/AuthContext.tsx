@@ -56,6 +56,7 @@ interface AuthContextType {
   isLocalAuth: boolean;
   verifyPassword: (password: string) => boolean;
   allowOverrideDates: boolean;
+  updateUserProfile: (newName: string, newPassword?: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -257,6 +258,65 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: true };
   };
 
+  const updateUserProfile = async (newName: string, newPassword?: string): Promise<{ success: boolean; error?: string }> => {
+    if (!isLocalAuth || !userRole) {
+      return { success: false, error: 'Cannot update profile for non-local or unauthenticated users via this method.' };
+    }
+
+    try {
+      const savedLocal = localStorage.getItem(LOCAL_AUTH_KEY);
+      if (!savedLocal) return { success: false, error: 'Session not found.' };
+      
+      const parsed = JSON.parse(savedLocal);
+      const email = parsed.email;
+
+      const usersList = getDepartmentUsers();
+      const userIndex = usersList.findIndex(u => u.email === email);
+      
+      if (userIndex === -1) {
+        return { success: false, error: 'User not found in system.' };
+      }
+
+      // Update the user details
+      const oldName = usersList[userIndex].displayName;
+      usersList[userIndex].displayName = newName;
+      if (newPassword) {
+        usersList[userIndex].password = newPassword;
+      }
+
+      // Save back to storage
+      saveDepartmentUsers(usersList);
+
+      // Update current session state
+      setUserName(newName);
+      
+      // Update the LOCAL_AUTH_KEY to reflect new display name
+      localStorage.setItem(LOCAL_AUTH_KEY, JSON.stringify({
+        ...parsed,
+        displayName: newName
+      }));
+
+      // Log the activity to notify admin
+      await logActivity({
+        userRole: userRole,
+        userName: newName,
+        action: 'UPDATE',
+        subject: 'Profile Updated',
+        details: { 
+          method: 'local', 
+          email: email,
+          nameChanged: oldName !== newName,
+          passwordChanged: !!newPassword
+        },
+      });
+
+      return { success: true };
+    } catch (err) {
+      console.error('Failed to update profile:', err);
+      return { success: false, error: 'An unexpected error occurred.' };
+    }
+  };
+
   const signOut = async () => {
     // Log logout activity before clearing state
     if (userRole && userName) {
@@ -333,6 +393,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       verifyPassword,
       allowOverrideDates,
       isTransferUser,
+      updateUserProfile
     }}>
       {children}
     </AuthContext.Provider>
