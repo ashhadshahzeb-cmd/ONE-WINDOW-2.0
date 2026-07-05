@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Trash2, Printer, Save } from "lucide-react";
 import { numberToWords } from "@/lib/numberToWords";
 import { toast } from "sonner";
-// import { supabase } from '@/lib/supabase'; // Will be used when saving
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 const getLocalDateString = (dateStr?: string | Date | null): string => {
   if (!dateStr) {
@@ -29,10 +30,12 @@ interface AdviceItem {
 }
 
 export default function TransferAdvice() {
+  const { user } = useAuth();
   const [adviceNo, setAdviceNo] = useState(`KW&SC/DIR-ACC/F.D/A/${new Date().getFullYear()}/`);
   const [adviceDate, setAdviceDate] = useState(getLocalDateString());
   const [bankDetails, setBankDetails] = useState("The Chief Manager,\nHabib Bank Limited,\nSindh Secretariat Branch,\nKarachi.");
   const [subject, setSubject] = useState("TRANSFER ADVICE.");
+  const [isSaving, setIsSaving] = useState(false);
   
   const [items, setItems] = useState<AdviceItem[]>([
     { id: crypto.randomUUID(), amount: 100000000, ac_debit: "09167900975803", ac_credit: "09167900975903", in_respect_of: "REGULAR SALARY" }
@@ -42,7 +45,7 @@ export default function TransferAdvice() {
     setItems([...items, { 
       id: crypto.randomUUID(), 
       amount: 0, 
-      ac_debit: "09167900975803", // Default from screenshot
+      ac_debit: "09167900975803",
       ac_credit: "09167900975903", 
       in_respect_of: "REGULAR SALARY" 
     }]);
@@ -63,9 +66,54 @@ export default function TransferAdvice() {
     window.print();
   };
 
-  const handleSave = () => {
-    // Save logic to Supabase would go here
-    toast.success("Feature ready for database integration.");
+  const handleSave = async () => {
+    if (!user) {
+      toast.error("You must be logged in to save.");
+      return;
+    }
+    
+    setIsSaving(true);
+    try {
+      const adviceId = crypto.randomUUID();
+      
+      // Save header
+      const { error: headerErr } = await supabase.from('transfer_advices').insert({
+        id: adviceId,
+        advice_no: adviceNo,
+        date: adviceDate,
+        bank_name: bankDetails,
+        subject: subject,
+        total_amount: totalAmount,
+        created_by: user.email || 'unknown',
+        created_at: new Date().toISOString()
+      });
+
+      if (headerErr) throw headerErr;
+
+      // Save items
+      const itemsToSave = items.map((item, index) => ({
+        id: crypto.randomUUID(),
+        transfer_advice_id: adviceId,
+        s_no: index + 1,
+        transfer_amount: item.amount,
+        amount_in_words: numberToWords(item.amount),
+        ac_no_debit: item.ac_debit,
+        ac_no_credit: item.ac_credit,
+        in_respect_of: item.in_respect_of,
+        created_at: new Date().toISOString()
+      }));
+
+      const { error: itemsErr } = await supabase.from('transfer_advice_items').insert(itemsToSave);
+      
+      if (itemsErr) throw itemsErr;
+
+      toast.success("Transfer Advice saved successfully to Supabase!");
+    } catch (err: any) {
+      console.error("Save error:", err);
+      toast.error(err.message || "Failed to save to database. Ensure the tables exist.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
