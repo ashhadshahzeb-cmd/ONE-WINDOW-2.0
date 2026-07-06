@@ -13,8 +13,8 @@ export default function OutgoingCallModal({ receiverName, receiverRole, receiver
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    // Play outgoing ringtone loop (Digital Slack-like)
-    audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2311/2311-preview.mp3');
+    // Play outgoing ringtone loop (Classic Telephone)
+    audioRef.current = new Audio('https://www.soundjay.com/phone/sounds/telephone-ring-04.mp3');
     audioRef.current.loop = true;
     audioRef.current.play().catch(e => console.error("Audio play failed:", e));
 

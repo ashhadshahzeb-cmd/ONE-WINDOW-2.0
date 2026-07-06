@@ -15,8 +15,8 @@ export default function IncomingCallModal({ callerName, callerRole, callerAvatar
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    // Play incoming ringtone loop (Digital Clean)
-    audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+    // Play incoming ringtone loop (Classic WhatsApp/Skype style)
+    audioRef.current = new Audio('https://www.soundjay.com/phone/sounds/ringtone-1-2.mp3');
     audioRef.current.loop = true;
     audioRef.current.play().catch(e => console.error("Audio play failed:", e));
 
