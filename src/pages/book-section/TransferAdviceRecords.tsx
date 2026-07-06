@@ -7,6 +7,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { numberToWords } from "@/lib/numberToWords";
+import { useAuth } from '@/contexts/AuthContext';
+import EditTransferAdviceModal from '@/components/EditTransferAdviceModal';
+import { FileEdit } from 'lucide-react';
 
 export default function TransferAdviceRecords() {
   const [records, setRecords] = useState<any[]>([]);
@@ -16,10 +19,43 @@ export default function TransferAdviceRecords() {
   const [selectedItems, setSelectedItems] = useState<any[]>([]);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [itemsLoading, setItemsLoading] = useState(false);
+  
+  const { userRole, userName, isAdmin, verifyPassword } = useAuth();
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
+  const [editPassword, setEditPassword] = useState("");
+  const [approvalStatus, setApprovalStatus] = useState<"waiting" | "approved" | "rejected">("waiting");
 
   useEffect(() => {
     fetchRecords();
   }, []);
+
+  useEffect(() => {
+    if (!isApprovalModalOpen || !selectedAdvice || !userRole) return;
+    
+    const channel = supabase
+      .channel('transfer_advice_approval')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload) => {
+          const newMsg = payload.new as any;
+          if (newMsg.receiver_role === userRole && newMsg.message.startsWith('[TRANSFER_ADVICE_EDIT_APPROVED]::' + selectedAdvice.id)) {
+            toast.success("Admin approved edit request!");
+            setApprovalStatus("approved");
+            setIsApprovalModalOpen(false);
+            setIsEditModalOpen(true);
+          } else if (newMsg.receiver_role === userRole && newMsg.message.startsWith('[TRANSFER_ADVICE_EDIT_REJECTED]::' + selectedAdvice.id)) {
+            toast.error("Admin rejected edit request.");
+            setApprovalStatus("rejected");
+            setIsApprovalModalOpen(false);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [isApprovalModalOpen, selectedAdvice, userRole]);
 
   const fetchRecords = async () => {
     try {
@@ -56,6 +92,36 @@ export default function TransferAdviceRecords() {
       console.error('Error deleting record:', err);
       toast.error('Failed to delete record');
     }
+  };
+
+  const handleEditClick = async (advice: any) => {
+    setSelectedAdvice(advice);
+    if (isAdmin) {
+      setIsEditModalOpen(true);
+    } else {
+      setApprovalStatus("waiting");
+      setIsApprovalModalOpen(true);
+      
+      await supabase.from('messages').insert([{
+        sender_role: userRole,
+        sender_name: userName || 'User',
+        receiver_role: 'admin',
+        receiver_name: 'Admin',
+        message: `[TRANSFER_ADVICE_EDIT_REQ]::${advice.id}`
+      }]);
+      toast.info("Approval request sent to Admin.");
+    }
+  };
+
+  const handlePasswordOverride = () => {
+    if (!verifyPassword(editPassword)) {
+      toast.error("Incorrect password.");
+      return;
+    }
+    toast.success("Password verified. Edit mode active.");
+    setEditPassword("");
+    setIsApprovalModalOpen(false);
+    setIsEditModalOpen(true);
   };
 
   const handleView = async (advice: any) => {
@@ -151,6 +217,14 @@ export default function TransferAdviceRecords() {
                             <FileText className="w-4 h-4 mr-2" /> View
                           </Button>
                           <Button 
+                            variant="secondary" 
+                            size="sm" 
+                            onClick={() => handleEditClick(record)}
+                            className="bg-amber-600 hover:bg-amber-700 text-white"
+                          >
+                            <FileEdit className="w-4 h-4 mr-2" /> Edit
+                          </Button>
+                          <Button 
                             variant="destructive" 
                             size="sm" 
                             onClick={() => handleDelete(record.id)}
@@ -167,6 +241,43 @@ export default function TransferAdviceRecords() {
           )}
         </CardContent>
       </Card>
+
+      {/* --- EDIT MODAL --- */}
+      <EditTransferAdviceModal 
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        record={selectedAdvice}
+        onSaveSuccess={() => { fetchRecords(); }}
+      />
+
+      {/* --- APPROVAL MODAL --- */}
+      <Dialog open={isApprovalModalOpen} onOpenChange={setIsApprovalModalOpen}>
+        <DialogContent className="bg-[#0B101E] border-white/10 text-white sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-amber-500 font-bold">Edit Approval Required</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-6">
+            <div className="flex flex-col items-center justify-center space-y-4 p-4 border border-white/10 rounded-lg bg-white/5">
+              <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
+              <p className="text-sm text-center">Waiting for Admin to approve this edit request...</p>
+            </div>
+            
+            <div className="space-y-4 border-t border-white/10 pt-4">
+              <p className="text-sm text-white/70">Or enter admin password to bypass approval:</p>
+              <Input 
+                type="password" 
+                placeholder="Enter password..." 
+                value={editPassword}
+                onChange={(e) => setEditPassword(e.target.value)}
+                className="bg-[#1A2333] border-white/10"
+              />
+              <Button onClick={handlePasswordOverride} disabled={!editPassword} className="w-full bg-emerald-600 hover:bg-emerald-700">
+                Verify Password
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* --- VIEW / PRINT MODAL --- */}
       <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>

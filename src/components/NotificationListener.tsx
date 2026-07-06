@@ -104,6 +104,42 @@ export default function NotificationListener() {
             } else if (newMsg.message.startsWith('[CALL_ACCEPTED]::') || newMsg.message.startsWith('[CALL_DECLINED]::')) {
               // handled in caller's side
               return;
+            } else if (newMsg.message.startsWith('[TRANSFER_ADVICE_EDIT_REQ]::') && userRole === 'admin') {
+              const parts = newMsg.message.split('::');
+              const recordId = parts[1];
+              const requesterName = newMsg.sender_name;
+              
+              toast(`Edit Request: Transfer Advice`, {
+                description: `${requesterName} wants to edit a Transfer Advice record.`,
+                duration: 30000,
+                action: {
+                  label: "Approve",
+                  onClick: async () => {
+                    await supabase.from('messages').insert([{
+                      sender_role: userRole,
+                      sender_name: userName || 'Admin',
+                      receiver_role: newMsg.sender_role,
+                      receiver_name: newMsg.sender_name,
+                      message: `[TRANSFER_ADVICE_EDIT_APPROVED]::${recordId}`
+                    }]);
+                    toast.success("Edit request approved.");
+                  }
+                },
+                cancel: {
+                  label: "Reject",
+                  onClick: async () => {
+                    await supabase.from('messages').insert([{
+                      sender_role: userRole,
+                      sender_name: userName || 'Admin',
+                      receiver_role: newMsg.sender_role,
+                      receiver_name: newMsg.sender_name,
+                      message: `[TRANSFER_ADVICE_EDIT_REJECTED]::${recordId}`
+                    }]);
+                    toast.error("Edit request rejected.");
+                  }
+                }
+              });
+              return;
             }
 
             // Normal chat notification
