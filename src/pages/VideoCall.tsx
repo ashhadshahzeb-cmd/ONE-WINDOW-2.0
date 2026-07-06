@@ -1,17 +1,49 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ZegoUIKitPrebuilt } from '@zegocloud/zego-uikit-prebuilt';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth, getDepartmentUsers, DepartmentUser } from '@/contexts/AuthContext';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, VideoOff } from 'lucide-react';
+import { ArrowLeft, VideoOff, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
+import GroupCallModal from '@/components/GroupCallModal';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function VideoCall() {
   const { roomId } = useParams<{ roomId: string }>();
-  const { userName, userRole } = useAuth();
+  const { userName, userRole, userAvatar } = useAuth();
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [contacts, setContacts] = useState<DepartmentUser[]>([]);
+
+  useEffect(() => {
+    // Load contacts, excluding myself
+    const allUsers = getDepartmentUsers();
+    setContacts(allUsers.filter(u => u.roleId !== userRole));
+  }, [userRole]);
+
+  const handleInvite = async (selectedContacts: DepartmentUser[]) => {
+    if (!userRole || !userName || !roomId) return;
+
+    const msg = `[CALL_RING]::${roomId}::${userAvatar || ''}`;
+    
+    // Batch Insert for Invites
+    const payloads = selectedContacts.map(contact => ({
+      sender_role: userRole,
+      sender_name: userName,
+      receiver_role: contact.roleId,
+      receiver_name: contact.displayName,
+      message: msg
+    }));
+
+    if (payloads.length > 0) {
+      await supabase.from('messages').insert(payloads);
+      toast.success(`Invited ${payloads.length} participant(s) to the call!`);
+    }
+
+    setShowInviteModal(false);
+  };
 
   // ZegoCloud App ID and Server Secret 
   // (In a real app, Server Secret should be used on the backend to generate tokens)
@@ -94,23 +126,42 @@ export default function VideoCall() {
   return (
     <div className="h-[calc(100vh-6rem)] w-full flex flex-col relative rounded-2xl overflow-hidden bg-black/50 border border-white/5">
       {/* Header bar */}
-      <div className="absolute top-0 left-0 w-full h-16 bg-gradient-to-b from-black/80 to-transparent z-10 flex items-center px-4">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="text-white hover:bg-white/20"
-          onClick={() => navigate('/messages')}
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <div className="ml-4 text-white">
-          <h2 className="font-semibold text-sm">Secure Room</h2>
-          <p className="text-xs text-white/60 opacity-80 font-mono">ID: {roomId}</p>
+      <div className="absolute top-0 left-0 w-full h-16 bg-gradient-to-b from-black/80 to-transparent z-10 flex items-center px-4 justify-between">
+        <div className="flex items-center">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="text-white hover:bg-white/20"
+            onClick={() => navigate('/messages')}
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <div className="ml-4 text-white">
+            <h2 className="font-semibold text-sm">Secure Room</h2>
+            <p className="text-xs text-white/60 opacity-80 font-mono">ID: {roomId}</p>
+          </div>
         </div>
+        
+        <Button 
+          onClick={() => setShowInviteModal(true)}
+          className="bg-sky-500 hover:bg-sky-600 text-white rounded-xl gap-2 h-9 px-4 shadow-lg shadow-sky-500/20"
+        >
+          <UserPlus className="w-4 h-4" />
+          Add People
+        </Button>
       </div>
 
       {/* ZegoCloud Container */}
       <div className="w-full h-full" ref={containerRef} />
+
+      {/* Invite Modal */}
+      {showInviteModal && (
+        <GroupCallModal 
+          contacts={contacts}
+          onCall={handleInvite}
+          onCancel={() => setShowInviteModal(false)}
+        />
+      )}
     </div>
   );
 }
