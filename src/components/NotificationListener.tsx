@@ -2,9 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { BellRing, FileText, MessageCircle } from 'lucide-react';
+import { BellRing, FileText, MessageCircle, AlertCircle, FileEdit, X } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import IncomingCallModal from './IncomingCallModal';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 interface IncomingCallData {
   roomId: string;
@@ -19,6 +21,10 @@ export default function NotificationListener() {
   const navigate = useNavigate();
 
   const [incomingCall, setIncomingCall] = useState<IncomingCallData | null>(null);
+  
+  // Edit Requests State
+  const [pendingEditRequests, setPendingEditRequests] = useState<any[]>([]);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   useEffect(() => {
     // Request browser notification permission
@@ -109,36 +115,18 @@ export default function NotificationListener() {
               const recordId = parts[1];
               const requesterName = newMsg.sender_name;
               
-              toast(`Edit Request: Transfer Advice`, {
-                description: `${requesterName} wants to edit a Transfer Advice record.`,
-                duration: 30000,
-                action: {
-                  label: "Approve",
-                  onClick: async () => {
-                    await supabase.from('messages').insert([{
-                      sender_role: userRole,
-                      sender_name: userName || 'Admin',
-                      receiver_role: newMsg.sender_role,
-                      receiver_name: newMsg.sender_name,
-                      message: `[TRANSFER_ADVICE_EDIT_APPROVED]::${recordId}`
-                    }]);
-                    toast.success("Edit request approved.");
-                  }
-                },
-                cancel: {
-                  label: "Reject",
-                  onClick: async () => {
-                    await supabase.from('messages').insert([{
-                      sender_role: userRole,
-                      sender_name: userName || 'Admin',
-                      receiver_role: newMsg.sender_role,
-                      receiver_name: newMsg.sender_name,
-                      message: `[TRANSFER_ADVICE_EDIT_REJECTED]::${recordId}`
-                    }]);
-                    toast.error("Edit request rejected.");
-                  }
-                }
+              try {
+                const audio = new Audio('/ringtone.mp3');
+                audio.play().catch(e => console.log('Audio play blocked:', e));
+              } catch (e) {}
+              
+              setPendingEditRequests(prev => {
+                // avoid duplicates
+                if (prev.find(r => r.recordId === recordId)) return prev;
+                return [...prev, { recordId, requesterName, requesterRole: newMsg.sender_role, msgId: newMsg.id }];
               });
+              setIsEditModalOpen(true);
+              
               return;
             }
 
@@ -273,6 +261,92 @@ export default function NotificationListener() {
           onDecline={handleDeclineCall}
         />
       )}
+
+      {/* Floating Notification Icon if there are pending edit requests and the modal is closed */}
+      {pendingEditRequests.length > 0 && !isEditModalOpen && (
+        <button 
+          onClick={() => setIsEditModalOpen(true)}
+          className="fixed bottom-24 right-8 z-[60] bg-amber-500 hover:bg-amber-600 text-white w-14 h-14 rounded-full shadow-2xl flex items-center justify-center animate-bounce"
+          title="Pending Approvals"
+        >
+          <AlertCircle className="w-6 h-6" />
+          <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-[#0f1115]">
+            {pendingEditRequests.length}
+          </span>
+        </button>
+      )}
+
+      {/* Center Modal for Pending Edit Requests */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="bg-[#0B101E] border-amber-500/30 text-white sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-amber-500 font-bold flex items-center gap-2">
+              <FileEdit className="w-5 h-5" /> Pending Edit Approvals
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4 max-h-[60vh] overflow-y-auto">
+            {pendingEditRequests.length === 0 ? (
+              <p className="text-center text-white/50 py-8">No pending requests.</p>
+            ) : (
+              pendingEditRequests.map((req) => (
+                <div key={req.recordId} className="bg-white/5 border border-white/10 p-4 rounded-xl space-y-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-bold text-lg">{req.requesterName}</p>
+                      <p className="text-sm text-white/50 capitalize">{req.requesterRole}</p>
+                    </div>
+                    <div className="bg-amber-500/20 text-amber-400 text-xs px-2 py-1 rounded font-mono">
+                      Transfer Advice
+                    </div>
+                  </div>
+                  <p className="text-sm text-white/80">Requests permission to edit a Transfer Advice record.</p>
+                  <div className="flex gap-2 pt-2 border-t border-white/10 mt-2">
+                    <Button 
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                      onClick={async () => {
+                        await supabase.from('messages').insert([{
+                          sender_role: userRole,
+                          sender_name: userName || 'Admin',
+                          receiver_role: req.requesterRole,
+                          receiver_name: req.requesterName,
+                          message: `[TRANSFER_ADVICE_EDIT_APPROVED]::${req.recordId}`
+                        }]);
+                        toast.success("Edit request approved.");
+                        setPendingEditRequests(prev => prev.filter(p => p.recordId !== req.recordId));
+                        if (pendingEditRequests.length <= 1) setIsEditModalOpen(false);
+                      }}
+                    >
+                      Approve
+                    </Button>
+                    <Button 
+                      className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                      onClick={async () => {
+                        await supabase.from('messages').insert([{
+                          sender_role: userRole,
+                          sender_name: userName || 'Admin',
+                          receiver_role: req.requesterRole,
+                          receiver_name: req.requesterName,
+                          message: `[TRANSFER_ADVICE_EDIT_REJECTED]::${req.recordId}`
+                        }]);
+                        toast.error("Edit request rejected.");
+                        setPendingEditRequests(prev => prev.filter(p => p.recordId !== req.recordId));
+                        if (pendingEditRequests.length <= 1) setIsEditModalOpen(false);
+                      }}
+                    >
+                      Reject
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <div className="flex justify-end pt-2">
+            <Button variant="ghost" className="text-white/50 hover:text-white" onClick={() => setIsEditModalOpen(false)}>
+              Decide Later
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
