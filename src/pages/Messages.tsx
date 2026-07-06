@@ -113,16 +113,50 @@ export default function Messages() {
     };
   }, [isDialing, dialingRoomId, userRole, navigate]);
 
+  const [lastActivityMap, setLastActivityMap] = useState<Record<string, number>>({});
+
   useEffect(() => {
     // Load contacts, excluding myself
     const allUsers = getDepartmentUsers();
     setContacts(allUsers.filter(u => u.roleId !== userRole));
   }, [userRole]);
 
+  // Fetch recent activity map to sort contacts like WhatsApp
+  useEffect(() => {
+    if (!userRole) return;
+
+    const fetchRecentActivity = async () => {
+      const { data } = await supabase
+        .from('messages')
+        .select('*')
+        .or(`sender_role.eq.${userRole},receiver_role.eq.${userRole}`)
+        .order('created_at', { ascending: false })
+        .limit(300);
+
+      if (data) {
+        const activityMap: Record<string, number> = {};
+        data.forEach((msg: ChatMessage) => {
+          const otherRole = msg.sender_role === userRole ? msg.receiver_role : msg.sender_role;
+          const time = new Date(msg.created_at).getTime();
+          if (!activityMap[otherRole] || time > activityMap[otherRole]) {
+            activityMap[otherRole] = time;
+          }
+        });
+        setLastActivityMap(activityMap);
+      }
+    };
+    fetchRecentActivity();
+  }, [userRole]);
+
+  // Fetch messages for active 1-on-1 chat
   useEffect(() => {
     if (!selectedContact || !userRole) return;
-
     fetchMessages(selectedContact.roleId);
+  }, [selectedContact, userRole]);
+
+  // Global realtime listener for incoming/outgoing messages
+  useEffect(() => {
+    if (!userRole) return;
 
     const channel = supabase
       .channel('private_messages')
@@ -131,13 +165,25 @@ export default function Messages() {
         { event: 'INSERT', schema: 'public', table: 'messages' },
         (payload) => {
           const newMsg = payload.new as ChatMessage;
-          // Only append if it belongs to the current 1-on-1 conversation
-          const isRelevant = 
-            (newMsg.sender_role === userRole && newMsg.receiver_role === selectedContact.roleId) ||
-            (newMsg.sender_role === selectedContact.roleId && newMsg.receiver_role === userRole);
           
-          if (isRelevant) {
-            setMessages((prev) => [...prev, newMsg]);
+          // Is this message related to me?
+          if (newMsg.sender_role === userRole || newMsg.receiver_role === userRole) {
+            const otherRole = newMsg.sender_role === userRole ? newMsg.receiver_role : newMsg.sender_role;
+            const time = new Date(newMsg.created_at).getTime();
+            
+            // Update activity map so contact bubbles to top
+            setLastActivityMap(prev => ({
+              ...prev,
+              [otherRole]: Math.max(prev[otherRole] || 0, time)
+            }));
+
+            // Only append to chat view if it belongs to the currently active 1-on-1 conversation
+            if (selectedContact && (
+              (newMsg.sender_role === userRole && newMsg.receiver_role === selectedContact.roleId) ||
+              (newMsg.sender_role === selectedContact.roleId && newMsg.receiver_role === userRole)
+            )) {
+              setMessages((prev) => [...prev, newMsg]);
+            }
           }
         }
       )
@@ -146,7 +192,7 @@ export default function Messages() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedContact, userRole]);
+  }, [userRole, selectedContact]);
 
   useEffect(() => {
     scrollToBottom();
@@ -195,10 +241,16 @@ export default function Messages() {
     ]);
   };
 
-  const filteredContacts = contacts.filter(c => 
-    c.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.roleId.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredContacts = contacts
+    .filter(c => 
+      c.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.roleId.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .sort((a, b) => {
+      const aTime = lastActivityMap[a.roleId] || 0;
+      const bTime = lastActivityMap[b.roleId] || 0;
+      return bTime - aTime;
+    });
 
   const [showGroupCall, setShowGroupCall] = useState(false);
 
