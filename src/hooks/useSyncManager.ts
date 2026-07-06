@@ -28,6 +28,9 @@ export function useSyncManager() {
       if (task.table === 'file_tracking_records') {
         if (task.action === 'insert') {
           const { id: _id, is_dirty, deleted_locally, additional_mark_to, department_number, fuel_station, file_image, ...payload } = task.payload;
+          
+          if (payload.amount === "") payload.amount = null;
+
           const { error } = await supabase
             .from('file_tracking_records' as any)
             .insert(payload);
@@ -35,6 +38,9 @@ export function useSyncManager() {
 
         } else if (task.action === 'update') {
           const { id: _id, is_dirty, deleted_locally, additional_mark_to, department_number, fuel_station, file_image, ...payload } = task.payload;
+          
+          if (payload.amount === "") payload.amount = null;
+
           const { error } = await supabase
             .from('file_tracking_records' as any)
             .update(payload)
