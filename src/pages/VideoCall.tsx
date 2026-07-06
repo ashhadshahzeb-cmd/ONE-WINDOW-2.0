@@ -89,6 +89,7 @@ export default function VideoCall() {
         scenario: {
           mode: ZegoUIKitPrebuilt.VideoConference,
         },
+        maxUsers: 50,
         layout: "Gallery",
         showScreenSharingButton: true,
         onLeaveRoom: () => {
