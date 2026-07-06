@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth, getDepartmentUsers, DepartmentUser } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Send, MessageCircle, User } from 'lucide-react';
+import { Search, Send, MessageCircle, User, Video } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 
 interface ChatMessage {
   id: string;
@@ -17,6 +18,7 @@ interface ChatMessage {
 
 export default function Messages() {
   const { userRole, userName } = useAuth();
+  const navigate = useNavigate();
   const [contacts, setContacts] = useState<DepartmentUser[]>([]);
   const [selectedContact, setSelectedContact] = useState<DepartmentUser | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -25,6 +27,30 @@ export default function Messages() {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const startVideoCall = async () => {
+    if (!selectedContact || !userRole || !userName) return;
+
+    // Generate random room ID
+    const roomId = Math.random().toString(36).substring(7);
+    const joinLink = `${window.location.origin}/video-call/${roomId}`;
+
+    // Send an automatic chat message with the link
+    const msg = `🎥 I have started a secure video call. Please click the link to join:\n${joinLink}`;
+    
+    await supabase.from('messages').insert([
+      {
+        sender_role: userRole,
+        sender_name: userName,
+        receiver_role: selectedContact.roleId,
+        receiver_name: selectedContact.displayName,
+        message: msg
+      }
+    ]);
+
+    // Navigate to the video call room
+    navigate(`/video-call/${roomId}`);
+  };
 
   useEffect(() => {
     // Load contacts, excluding myself
@@ -171,14 +197,26 @@ export default function Messages() {
         {selectedContact ? (
           <>
             {/* Chat Header */}
-            <div className="h-16 px-6 border-b border-border/50 bg-card/50 backdrop-blur-xl flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
-                <User className="w-5 h-5 text-primary" />
+            <div className="h-16 px-6 border-b border-border/50 bg-card/50 backdrop-blur-xl flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
+                  <User className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-bold">{selectedContact.displayName}</h3>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-widest">{selectedContact.roleId}</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-bold">{selectedContact.displayName}</h3>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-widest">{selectedContact.roleId}</p>
-              </div>
+
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="gap-2 bg-sky-500/10 text-sky-400 border-sky-500/20 hover:bg-sky-500/20 hover:text-sky-300"
+                onClick={startVideoCall}
+              >
+                <Video className="w-4 h-4" />
+                Start Video Call
+              </Button>
             </div>
 
             {/* Chat Messages */}
