@@ -72,7 +72,7 @@ export default function VideoCall() {
       // Create instance object from Kit Token.
       const zp = ZegoUIKitPrebuilt.create(kitToken);
 
-      // Start the call
+      // Join the room
       zp.joinRoom({
         container: element,
         sharedLinks: [
@@ -82,8 +82,9 @@ export default function VideoCall() {
           },
         ],
         scenario: {
-          mode: ZegoUIKitPrebuilt.GroupCall,
+          mode: ZegoUIKitPrebuilt.VideoConference,
         },
+        layout: "Gallery",
         showScreenSharingButton: true,
         onLeaveRoom: () => {
           navigate('/messages');
