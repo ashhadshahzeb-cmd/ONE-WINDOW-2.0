@@ -50,7 +50,7 @@ export default function VideoCall() {
           },
         ],
         scenario: {
-          mode: ZegoUIKitPrebuilt.OneONoneCall,
+          mode: ZegoUIKitPrebuilt.GroupCall,
         },
         showScreenSharingButton: true,
         onLeaveRoom: () => {

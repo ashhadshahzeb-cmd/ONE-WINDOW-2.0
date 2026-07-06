@@ -36,7 +36,7 @@ export default function Messages() {
     const joinLink = `${window.location.origin}/video-call/${roomId}`;
 
     // Send an automatic chat message with the link
-    const msg = `🎥 I have started a secure video call. Please click the link to join:\n${joinLink}`;
+    const msg = `🎥 I have started a secure Group Video Conference. Please click the link to join:\n${joinLink}`;
     
     await supabase.from('messages').insert([
       {
