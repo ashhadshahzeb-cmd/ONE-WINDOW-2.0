@@ -10,6 +10,7 @@ interface IncomingCallData {
   roomId: string;
   callerName: string;
   callerRole: string;
+  callerAvatar?: string;
 }
 
 export default function NotificationListener() {
@@ -85,11 +86,15 @@ export default function NotificationListener() {
             
             // Call logic
             if (newMsg.message.startsWith('[CALL_RING]::')) {
-              const roomId = newMsg.message.split('::')[1];
+              const parts = newMsg.message.split('::');
+              const roomId = parts[1];
+              const callerAvatar = parts[2];
+              
               setIncomingCall({
                 roomId,
                 callerName: newMsg.sender_name,
-                callerRole: newMsg.sender_role
+                callerRole: newMsg.sender_role,
+                callerAvatar: callerAvatar || undefined
               });
               return;
             } else if (newMsg.message.startsWith('[CALL_CANCELED]::')) {
@@ -226,6 +231,7 @@ export default function NotificationListener() {
         <IncomingCallModal 
           callerName={incomingCall.callerName}
           callerRole={incomingCall.callerRole}
+          callerAvatar={incomingCall.callerAvatar}
           roomId={incomingCall.roomId}
           onAccept={handleAcceptCall}
           onDecline={handleDeclineCall}

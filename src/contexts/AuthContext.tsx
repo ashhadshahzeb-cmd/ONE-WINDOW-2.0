@@ -11,6 +11,7 @@ export interface DepartmentUser {
   roleId: string;
   displayName: string;
   allowOverrideDates?: boolean;
+  avatarUrl?: string;
 }
 
 export const DEFAULT_DEPARTMENT_USERS: DepartmentUser[] = [
@@ -52,11 +53,12 @@ interface AuthContextType {
   // Department-specific fields
   userRole: string | null;       // e.g. 'cfo', 'cia', 'director_account'
   userName: string | null;       // e.g. 'CFO', 'DIRECTOR ACCOUNT'
+  userAvatar: string | null;
   localSignIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   isLocalAuth: boolean;
   verifyPassword: (password: string) => boolean;
   allowOverrideDates: boolean;
-  updateUserProfile: (newName: string, newPassword?: string) => Promise<{ success: boolean; error?: string }>;
+  updateUserProfile: (newName: string, newPassword?: string, newAvatar?: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -89,6 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Local department auth state
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [isLocalAuth, setIsLocalAuth] = useState(false);
   const [allowOverrideDates, setAllowOverrideDates] = useState(false);
   const [isTransferUser, setIsTransferUser] = useState(false);
@@ -101,6 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const parsed = JSON.parse(savedLocal);
         setUserRole(parsed.roleId);
         setUserName(parsed.displayName);
+        setUserAvatar(parsed.avatarUrl || null);
         setIsLocalAuth(true);
         setIsAdmin(parsed.roleId === 'cfo' || parsed.roleId === 'admin');
         setIsTransferUser(parsed.roleId === 'transfer_user');
@@ -258,7 +262,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: true };
   };
 
-  const updateUserProfile = async (newName: string, newPassword?: string): Promise<{ success: boolean; error?: string }> => {
+  const updateUserProfile = async (newName: string, newPassword?: string, newAvatar?: string): Promise<{ success: boolean; error?: string }> => {
     if (!isLocalAuth || !userRole) {
       return { success: false, error: 'Cannot update profile for non-local or unauthenticated users via this method.' };
     }
@@ -283,6 +287,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (newPassword) {
         usersList[userIndex].password = newPassword;
       }
+      if (newAvatar !== undefined) {
+        usersList[userIndex].avatarUrl = newAvatar;
+      }
 
       // Save back to storage
       saveDepartmentUsers(usersList);
@@ -293,7 +300,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Update the LOCAL_AUTH_KEY to reflect new display name
       localStorage.setItem(LOCAL_AUTH_KEY, JSON.stringify({
         ...parsed,
-        displayName: newName
+        displayName: newName,
+        ...(newAvatar !== undefined && { avatarUrl: newAvatar })
       }));
 
       // Log the activity to notify admin
@@ -388,6 +396,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isAdmin,
       userRole,
       userName,
+      userAvatar,
       localSignIn,
       isLocalAuth,
       verifyPassword,

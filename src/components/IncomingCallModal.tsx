@@ -5,17 +5,18 @@ import { Button } from '@/components/ui/button';
 interface IncomingCallModalProps {
   callerName: string;
   callerRole: string;
+  callerAvatar?: string;
   roomId: string;
   onAccept: () => void;
   onDecline: () => void;
 }
 
-export default function IncomingCallModal({ callerName, callerRole, roomId, onAccept, onDecline }: IncomingCallModalProps) {
+export default function IncomingCallModal({ callerName, callerRole, callerAvatar, roomId, onAccept, onDecline }: IncomingCallModalProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    // Play incoming ringtone loop
-    audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2870/2870-preview.mp3');
+    // Play incoming ringtone loop (Digital Clean)
+    audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
     audioRef.current.loop = true;
     audioRef.current.play().catch(e => console.error("Audio play failed:", e));
 
@@ -35,8 +36,12 @@ export default function IncomingCallModal({ callerName, callerRole, roomId, onAc
         <div className="relative mb-6 mt-4">
           <div className="absolute inset-0 bg-sky-500 rounded-full animate-ping opacity-20 scale-150"></div>
           <div className="absolute inset-0 bg-sky-500 rounded-full animate-ping opacity-40 scale-110 animation-delay-200"></div>
-          <div className="relative w-24 h-24 bg-gradient-to-br from-sky-400 to-blue-600 rounded-full flex items-center justify-center shadow-lg border-4 border-[#18181b]">
-            <span className="text-3xl font-black text-white">{callerName.charAt(0).toUpperCase()}</span>
+          <div className="relative w-24 h-24 bg-gradient-to-br from-sky-400 to-blue-600 rounded-full flex items-center justify-center shadow-lg border-4 border-[#18181b] overflow-hidden">
+            {callerAvatar ? (
+              <img src={callerAvatar} alt="Avatar" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-3xl font-black text-white">{callerName.charAt(0).toUpperCase()}</span>
+            )}
           </div>
         </div>
 

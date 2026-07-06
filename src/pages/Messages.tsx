@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import OutgoingCallModal from '@/components/OutgoingCallModal';
+import GroupCallModal from '@/components/GroupCallModal';
 import { toast } from 'sonner';
 
 interface ChatMessage {
@@ -19,7 +20,7 @@ interface ChatMessage {
 }
 
 export default function Messages() {
-  const { userRole, userName } = useAuth();
+  const { userRole, userName, userAvatar } = useAuth();
   const navigate = useNavigate();
   const [contacts, setContacts] = useState<DepartmentUser[]>([]);
   const [selectedContact, setSelectedContact] = useState<DepartmentUser | null>(null);
@@ -40,8 +41,8 @@ export default function Messages() {
     // Generate random room ID
     const roomId = Math.random().toString(36).substring(7);
     
-    // Send Ring Signal
-    const msg = `[CALL_RING]::${roomId}`;
+    // Send Ring Signal with Avatar
+    const msg = `[CALL_RING]::${roomId}::${userAvatar || ''}`;
     
     await supabase.from('messages').insert([
       {
@@ -199,13 +200,45 @@ export default function Messages() {
     c.roleId.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const [showGroupCall, setShowGroupCall] = useState(false);
+
+  const startGroupCall = async (selectedContacts: DepartmentUser[]) => {
+    if (!userRole || !userName) return;
+
+    // Generate random room ID
+    const roomId = Math.random().toString(36).substring(7);
+    const msg = `[CALL_RING]::${roomId}::${userAvatar || ''}`;
+    
+    // Send to all selected contacts
+    for (const contact of selectedContacts) {
+      await supabase.from('messages').insert([
+        {
+          sender_role: userRole,
+          sender_name: userName,
+          receiver_role: contact.roleId,
+          receiver_name: contact.displayName,
+          message: msg
+        }
+      ]);
+    }
+
+    setShowGroupCall(false);
+    navigate(`/video-call/${roomId}`);
+  };
+
   return (
     <div className="h-[calc(100vh-8rem)] w-full flex bg-card border border-border/50 rounded-3xl overflow-hidden shadow-2xl">
       
       {/* Left Sidebar - Contacts List */}
       <div className="w-80 flex flex-col border-r border-border/50 bg-muted/10">
         <div className="p-4 border-b border-border/50 bg-background/50 backdrop-blur-xl">
-          <h2 className="text-xl font-bold mb-4">Messages</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold">Messages</h2>
+            <Button size="sm" variant="outline" className="h-8 gap-1 rounded-xl" onClick={() => setShowGroupCall(true)}>
+              <Video className="w-3 h-3" />
+              Group Call
+            </Button>
+          </div>
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -346,7 +379,16 @@ export default function Messages() {
         <OutgoingCallModal 
           receiverName={selectedContact.displayName}
           receiverRole={selectedContact.roleId}
+          receiverAvatar={selectedContact.avatarUrl}
           onCancel={cancelCall}
+        />
+      )}
+
+      {showGroupCall && (
+        <GroupCallModal 
+          contacts={contacts}
+          onCall={startGroupCall}
+          onCancel={() => setShowGroupCall(false)}
         />
       )}
     </div>

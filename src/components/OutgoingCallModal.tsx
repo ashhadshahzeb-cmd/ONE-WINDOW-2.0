@@ -5,15 +5,16 @@ import { Button } from '@/components/ui/button';
 interface OutgoingCallModalProps {
   receiverName: string;
   receiverRole: string;
+  receiverAvatar?: string;
   onCancel: () => void;
 }
 
-export default function OutgoingCallModal({ receiverName, receiverRole, onCancel }: OutgoingCallModalProps) {
+export default function OutgoingCallModal({ receiverName, receiverRole, receiverAvatar, onCancel }: OutgoingCallModalProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    // Play outgoing ringtone loop
-    audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3');
+    // Play outgoing ringtone loop (Digital Slack-like)
+    audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2311/2311-preview.mp3');
     audioRef.current.loop = true;
     audioRef.current.play().catch(e => console.error("Audio play failed:", e));
 
@@ -32,8 +33,12 @@ export default function OutgoingCallModal({ receiverName, receiverRole, onCancel
         {/* Calling Avatar */}
         <div className="relative mb-8 mt-4">
           <div className="absolute inset-0 bg-sky-500 rounded-full animate-ping opacity-20 scale-150"></div>
-          <div className="relative w-32 h-32 bg-gradient-to-br from-sky-500/20 to-blue-600/20 rounded-full flex items-center justify-center shadow-lg border border-sky-500/30 backdrop-blur-md">
-            <span className="text-4xl font-black text-sky-400">{receiverName.charAt(0).toUpperCase()}</span>
+          <div className="relative w-32 h-32 bg-gradient-to-br from-sky-500/20 to-blue-600/20 rounded-full flex items-center justify-center shadow-lg border border-sky-500/30 backdrop-blur-md overflow-hidden">
+            {receiverAvatar ? (
+              <img src={receiverAvatar} alt="Avatar" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-4xl font-black text-sky-400">{receiverName.charAt(0).toUpperCase()}</span>
+            )}
           </div>
         </div>
 

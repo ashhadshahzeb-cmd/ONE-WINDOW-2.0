@@ -8,12 +8,13 @@ import { UserCircle, Key, Save } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Profile() {
-  const { userName, updateUserProfile, isLocalAuth } = useAuth();
+  const { userName, userAvatar, updateUserProfile, isLocalAuth } = useAuth();
   const navigate = useNavigate();
   
   const [displayName, setDisplayName] = useState(userName || '');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [avatar, setAvatar] = useState(userAvatar || '');
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -22,6 +23,22 @@ export default function Profile() {
       navigate('/');
     }
   }, [isLocalAuth, navigate]);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 500 * 1024) { // 500KB limit
+      toast.error('Image size must be less than 500KB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setAvatar(event.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSave = async () => {
     if (!displayName.trim()) {
@@ -35,7 +52,7 @@ export default function Profile() {
     }
 
     setIsSaving(true);
-    const { success, error } = await updateUserProfile(displayName, newPassword || undefined);
+    const { success, error } = await updateUserProfile(displayName, newPassword || undefined, avatar || undefined);
     
     if (success) {
       toast.success('Profile updated successfully!');
@@ -49,13 +66,23 @@ export default function Profile() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center border border-primary/20">
-          <UserCircle className="w-6 h-6 text-primary" />
-        </div>
+      <div className="flex items-center gap-6 mb-6">
+        <label className="relative group cursor-pointer w-20 h-20 rounded-full flex-shrink-0">
+          <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+          {avatar ? (
+            <img src={avatar} alt="Profile" className="w-full h-full rounded-full object-cover border-2 border-primary/50 shadow-xl" />
+          ) : (
+            <div className="w-full h-full rounded-full bg-primary/20 flex items-center justify-center border border-primary/20">
+              <UserCircle className="w-10 h-10 text-primary" />
+            </div>
+          )}
+          <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+            <span className="text-xs text-white font-semibold">Change</span>
+          </div>
+        </label>
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-white">Profile Settings</h1>
-          <p className="text-sm text-white/50">Manage your account details and password.</p>
+          <p className="text-sm text-white/50">Manage your account details, picture, and password.</p>
         </div>
       </div>
 
