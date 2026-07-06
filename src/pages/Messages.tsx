@@ -40,9 +40,8 @@ export default function Messages() {
 
     // Generate random room ID
     const roomId = Math.random().toString(36).substring(7);
-    
-    // Send Ring Signal with Avatar
-    const msg = `[CALL_RING]::${roomId}::${userAvatar || ''}`;
+    // Send Ring Signal without Avatar to avoid Realtime limits
+    const msg = `[CALL_RING]::${roomId}`;
     
     await supabase.from('messages').insert([
       {
@@ -259,7 +258,8 @@ export default function Messages() {
 
     // Generate random room ID
     const roomId = Math.random().toString(36).substring(7);
-    const msg = `[CALL_RING]::${roomId}::${userAvatar || ''}`;
+    // Omit userAvatar to prevent Realtime payload size limits
+    const msg = `[CALL_RING]::${roomId}`;
     
     // Send to all selected contacts at once (Batch Insert)
     const payloads = selectedContacts.map(contact => ({

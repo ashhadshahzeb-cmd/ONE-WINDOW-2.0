@@ -40,7 +40,7 @@ export default function IncomingCallModal({ callerName, callerRole, callerAvatar
             {callerAvatar ? (
               <img src={callerAvatar} alt="Avatar" className="w-full h-full object-cover" />
             ) : (
-              <span className="text-3xl font-black text-white">{callerName.charAt(0).toUpperCase()}</span>
+              <span className="text-3xl font-black text-white">{(callerName || callerRole || 'U').charAt(0).toUpperCase()}</span>
             )}
           </div>
         </div>

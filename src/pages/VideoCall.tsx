@@ -26,7 +26,7 @@ export default function VideoCall() {
   const handleInvite = async (selectedContacts: DepartmentUser[]) => {
     if (!userRole || !userName || !roomId) return;
 
-    const msg = `[CALL_RING]::${roomId}::${userAvatar || ''}`;
+    const msg = `[CALL_RING]::${roomId}`;
     
     // Batch Insert for Invites
     const payloads = selectedContacts.map(contact => ({
