@@ -1,13 +1,23 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { BellRing, FileText, MessageCircle } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import IncomingCallModal from './IncomingCallModal';
+
+interface IncomingCallData {
+  roomId: string;
+  callerName: string;
+  callerRole: string;
+}
 
 export default function NotificationListener() {
   const { userRole, userName } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const [incomingCall, setIncomingCall] = useState<IncomingCallData | null>(null);
 
   useEffect(() => {
     // Request browser notification permission
@@ -58,7 +68,7 @@ export default function NotificationListener() {
         }
       });
 
-    // Define the channel for chat messages
+    // Define the channel for chat messages and calls
     const messageChannel = supabase
       .channel('public:messages_notifications')
       .on(
@@ -72,7 +82,26 @@ export default function NotificationListener() {
           const newMsg = payload.new as any;
           // Only notify if message is for us, and we are not the sender
           if (newMsg && newMsg.receiver_role === userRole && newMsg.sender_role !== userRole) {
-            // Check if we are currently on the messages page
+            
+            // Call logic
+            if (newMsg.message.startsWith('[CALL_RING]::')) {
+              const roomId = newMsg.message.split('::')[1];
+              setIncomingCall({
+                roomId,
+                callerName: newMsg.sender_name,
+                callerRole: newMsg.sender_role
+              });
+              return;
+            } else if (newMsg.message.startsWith('[CALL_CANCELED]::')) {
+              const roomId = newMsg.message.split('::')[1];
+              setIncomingCall(prev => prev?.roomId === roomId ? null : prev);
+              return;
+            } else if (newMsg.message.startsWith('[CALL_ACCEPTED]::') || newMsg.message.startsWith('[CALL_DECLINED]::')) {
+              // handled in caller's side
+              return;
+            }
+
+            // Normal chat notification
             if (location.pathname !== '/messages') {
               showMessageNotification(newMsg);
             }
@@ -90,6 +119,37 @@ export default function NotificationListener() {
       supabase.removeChannel(messageChannel);
     };
   }, [userRole, location.pathname]);
+
+  const handleAcceptCall = async () => {
+    if (!incomingCall || !userRole || !userName) return;
+
+    // Send accepted signal
+    await supabase.from('messages').insert([{
+      sender_role: userRole,
+      sender_name: userName,
+      receiver_role: incomingCall.callerRole,
+      receiver_name: incomingCall.callerName,
+      message: `[CALL_ACCEPTED]::${incomingCall.roomId}`
+    }]);
+
+    navigate(`/video-call/${incomingCall.roomId}`);
+    setIncomingCall(null);
+  };
+
+  const handleDeclineCall = async () => {
+    if (!incomingCall || !userRole || !userName) return;
+
+    // Send declined signal
+    await supabase.from('messages').insert([{
+      sender_role: userRole,
+      sender_name: userName,
+      receiver_role: incomingCall.callerRole,
+      receiver_name: incomingCall.callerName,
+      message: `[CALL_DECLINED]::${incomingCall.roomId}`
+    }]);
+
+    setIncomingCall(null);
+  };
 
   const showNotification = (record: any, action: 'registered' | 'forwarded') => {
     toast.custom((t) => (
@@ -160,5 +220,17 @@ export default function NotificationListener() {
     }
   };
 
-  return null; // This component doesn't render anything visible directly
+  return (
+    <>
+      {incomingCall && (
+        <IncomingCallModal 
+          callerName={incomingCall.callerName}
+          callerRole={incomingCall.callerRole}
+          roomId={incomingCall.roomId}
+          onAccept={handleAcceptCall}
+          onDecline={handleDeclineCall}
+        />
+      )}
+    </>
+  );
 }

@@ -5,6 +5,8 @@ import { Search, Send, MessageCircle, User, Video } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
+import OutgoingCallModal from '@/components/OutgoingCallModal';
+import { toast } from 'sonner';
 
 interface ChatMessage {
   id: string;
@@ -28,15 +30,18 @@ export default function Messages() {
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Dialing States
+  const [isDialing, setIsDialing] = useState(false);
+  const [dialingRoomId, setDialingRoomId] = useState<string | null>(null);
+
   const startVideoCall = async () => {
     if (!selectedContact || !userRole || !userName) return;
 
     // Generate random room ID
     const roomId = Math.random().toString(36).substring(7);
-    const joinLink = `${window.location.origin}/video-call/${roomId}`;
-
-    // Send an automatic chat message with the link
-    const msg = `🎥 I have started a secure Group Video Conference. Please click the link to join:\n${joinLink}`;
+    
+    // Send Ring Signal
+    const msg = `[CALL_RING]::${roomId}`;
     
     await supabase.from('messages').insert([
       {
@@ -48,9 +53,64 @@ export default function Messages() {
       }
     ]);
 
-    // Navigate to the video call room
-    navigate(`/video-call/${roomId}`);
+    setIsDialing(true);
+    setDialingRoomId(roomId);
   };
+
+  const cancelCall = async () => {
+    if (!selectedContact || !dialingRoomId || !userRole || !userName) return;
+    
+    const msg = `[CALL_CANCELED]::${dialingRoomId}`;
+    await supabase.from('messages').insert([
+      {
+        sender_role: userRole,
+        sender_name: userName,
+        receiver_role: selectedContact.roleId,
+        receiver_name: selectedContact.displayName,
+        message: msg
+      }
+    ]);
+
+    setIsDialing(false);
+    setDialingRoomId(null);
+  };
+
+  useEffect(() => {
+    // Listen for call acceptance or decline while dialing
+    if (!isDialing || !dialingRoomId) return;
+
+    const channel = supabase
+      .channel('public:messages_calling')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+        },
+        (payload) => {
+          const newMsg = payload.new as any;
+          if (newMsg && newMsg.receiver_role === userRole) {
+            if (newMsg.message === `[CALL_ACCEPTED]::${dialingRoomId}`) {
+              // They accepted!
+              setIsDialing(false);
+              setDialingRoomId(null);
+              navigate(`/video-call/${dialingRoomId}`);
+            } else if (newMsg.message === `[CALL_DECLINED]::${dialingRoomId}`) {
+              // They declined!
+              setIsDialing(false);
+              setDialingRoomId(null);
+              toast.error(`${newMsg.sender_name} declined the call.`);
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isDialing, dialingRoomId, userRole, navigate]);
 
   useEffect(() => {
     // Load contacts, excluding myself
@@ -225,15 +285,15 @@ export default function Messages() {
                 <div className="h-full flex items-center justify-center text-muted-foreground">
                   Loading chat history...
                 </div>
-              ) : messages.length === 0 ? (
+              ) : messages.filter(m => !m.message.startsWith('[CALL_')).length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-muted-foreground/50">
                   <MessageCircle className="w-16 h-16 mb-4 opacity-50" />
                   <p>No messages yet. Send a message to start the conversation.</p>
                 </div>
               ) : (
-                messages.map((msg, index) => {
+                messages.filter(m => !m.message.startsWith('[CALL_')).map((msg, index, filteredMessages) => {
                   const isMe = msg.sender_role === userRole;
-                  const showHeader = index === 0 || messages[index - 1].sender_role !== msg.sender_role;
+                  const showHeader = index === 0 || filteredMessages[index - 1].sender_role !== msg.sender_role;
 
                   return (
                     <div key={msg.id} className={cn("flex flex-col max-w-[70%]", isMe ? "ml-auto items-end" : "mr-auto items-start")}>
@@ -281,6 +341,14 @@ export default function Messages() {
           </div>
         )}
       </div>
+
+      {isDialing && selectedContact && (
+        <OutgoingCallModal 
+          receiverName={selectedContact.displayName}
+          receiverRole={selectedContact.roleId}
+          onCancel={cancelCall}
+        />
+      )}
     </div>
   );
 }
