@@ -209,17 +209,17 @@ export default function Messages() {
     const roomId = Math.random().toString(36).substring(7);
     const msg = `[CALL_RING]::${roomId}::${userAvatar || ''}`;
     
-    // Send to all selected contacts
-    for (const contact of selectedContacts) {
-      await supabase.from('messages').insert([
-        {
-          sender_role: userRole,
-          sender_name: userName,
-          receiver_role: contact.roleId,
-          receiver_name: contact.displayName,
-          message: msg
-        }
-      ]);
+    // Send to all selected contacts at once (Batch Insert)
+    const payloads = selectedContacts.map(contact => ({
+      sender_role: userRole,
+      sender_name: userName,
+      receiver_role: contact.roleId,
+      receiver_name: contact.displayName,
+      message: msg
+    }));
+
+    if (payloads.length > 0) {
+      await supabase.from('messages').insert(payloads);
     }
 
     setShowGroupCall(false);
