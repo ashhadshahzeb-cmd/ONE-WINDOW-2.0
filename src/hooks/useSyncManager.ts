@@ -27,14 +27,14 @@ export function useSyncManager() {
 
       if (task.table === 'file_tracking_records') {
         if (task.action === 'insert') {
-          const { id: _id, is_dirty, deleted_locally, ...payload } = task.payload;
+          const { id: _id, is_dirty, deleted_locally, additional_mark_to, department_number, fuel_station, file_image, ...payload } = task.payload;
           const { error } = await supabase
             .from('file_tracking_records' as any)
             .insert(payload);
           if (error) throw error;
 
         } else if (task.action === 'update') {
-          const { id: _id, is_dirty, deleted_locally, ...payload } = task.payload;
+          const { id: _id, is_dirty, deleted_locally, additional_mark_to, department_number, fuel_station, file_image, ...payload } = task.payload;
           const { error } = await supabase
             .from('file_tracking_records' as any)
             .update(payload)
@@ -80,7 +80,7 @@ export function useSyncManager() {
     const tasks = await db.syncQueue
       .where('status')
       .anyOf(['pending', 'failed'])
-      .and(t => (t.retry_count || 0) < 5) // Max 5 retries
+      .and(t => (t.retry_count || 0) < 50) // Increased to 50 to process previously stuck items
       .sortBy('id');
 
     if (tasks.length === 0) {
