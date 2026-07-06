@@ -38,8 +38,13 @@ export default function VideoCall() {
     }));
 
     if (payloads.length > 0) {
-      await supabase.from('messages').insert(payloads);
-      toast.success(`Invited ${payloads.length} participant(s) to the call!`);
+      const { error } = await supabase.from('messages').insert(payloads);
+      if (error) {
+        toast.error('Failed to send invites: ' + error.message);
+        console.error('Invite error:', error);
+      } else {
+        toast.success(`Invited ${payloads.length} participant(s) to the call!`);
+      }
     }
 
     setShowInviteModal(false);

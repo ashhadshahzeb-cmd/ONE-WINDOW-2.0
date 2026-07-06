@@ -271,7 +271,12 @@ export default function Messages() {
     }));
 
     if (payloads.length > 0) {
-      await supabase.from('messages').insert(payloads);
+      const { error } = await supabase.from('messages').insert(payloads);
+      if (error) {
+        toast.error('Failed to start group call: ' + error.message);
+        console.error('Group call error:', error);
+        return;
+      }
     }
 
     setShowGroupCall(false);
