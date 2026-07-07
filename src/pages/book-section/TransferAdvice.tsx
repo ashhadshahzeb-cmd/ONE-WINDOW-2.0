@@ -9,6 +9,7 @@ import { numberToWords } from "@/lib/numberToWords";
 import { toast } from "sonner";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const getLocalDateString = (dateStr?: string | Date | null): string => {
   if (!dateStr) {
@@ -35,6 +36,8 @@ export default function TransferAdvice() {
   const [adviceDate, setAdviceDate] = useState(getLocalDateString());
   const [bankDetails, setBankDetails] = useState("The Chief Manager,\nHabib Bank Limited,\nSindh Secretariat Branch,\nKarachi.");
   const [subject, setSubject] = useState("TRANSFER ADVICE.");
+  const [paymentMethod, setPaymentMethod] = useState("None");
+  const [paymentNumber, setPaymentNumber] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   
   const [items, setItems] = useState<AdviceItem[]>([
@@ -84,6 +87,8 @@ export default function TransferAdvice() {
         bank_name: bankDetails,
         subject: subject,
         total_amount: totalAmount,
+        payment_method: paymentMethod !== "None" ? paymentMethod : null,
+        payment_number: paymentMethod !== "None" ? paymentNumber : null,
         created_by: user?.email || userName || userRole || 'unknown',
         created_at: new Date().toISOString()
       });
@@ -154,6 +159,26 @@ export default function TransferAdvice() {
               <Label>Subject</Label>
               <Input value={subject} onChange={(e) => setSubject(e.target.value)} className="bg-[#1A2333] border-white/10" />
             </div>
+            <div className="space-y-2">
+              <Label>Payment Method</Label>
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                <SelectTrigger className="bg-[#1A2333] border-white/10">
+                  <SelectValue placeholder="Select Method" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#1A2333] border-white/10 text-white">
+                  <SelectItem value="None">None</SelectItem>
+                  <SelectItem value="Cheque">Cheque</SelectItem>
+                  <SelectItem value="Voucher">Voucher</SelectItem>
+                  <SelectItem value="Digital">Digital</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {paymentMethod !== "None" && (
+              <div className="space-y-2">
+                <Label>{paymentMethod} Number</Label>
+                <Input value={paymentNumber} onChange={(e) => setPaymentNumber(e.target.value)} placeholder={`Enter ${paymentMethod} No...`} className="bg-[#1A2333] border-white/10" />
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -286,7 +311,12 @@ export default function TransferAdvice() {
 
         <div className="flex justify-between font-bold mb-6 text-[11pt]">
           <div>NO: {adviceNo}</div>
-          <div>DT: {adviceDate.split('-').reverse().join('.')}</div>
+          <div className="text-right">
+            <div>DT: {adviceDate.split('-').reverse().join('.')}</div>
+            {paymentMethod !== "None" && paymentNumber && (
+              <div>{paymentMethod.toUpperCase()} NO: {paymentNumber}</div>
+            )}
+          </div>
         </div>
 
         <div className="mb-6 text-[11pt] whitespace-pre-wrap leading-tight">

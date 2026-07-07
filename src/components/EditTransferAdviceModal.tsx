@@ -8,6 +8,7 @@ import { Plus, Trash2, Save, Loader2 } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { numberToWords } from "@/lib/numberToWords";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface AdviceItem {
   id: string;
@@ -29,6 +30,8 @@ export default function EditTransferAdviceModal({ isOpen, onClose, record, onSav
   const [adviceDate, setAdviceDate] = useState('');
   const [bankDetails, setBankDetails] = useState('');
   const [subject, setSubject] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('None');
+  const [paymentNumber, setPaymentNumber] = useState('');
   const [items, setItems] = useState<AdviceItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -39,6 +42,8 @@ export default function EditTransferAdviceModal({ isOpen, onClose, record, onSav
       setAdviceDate(record.date || '');
       setBankDetails(record.bank_name || '');
       setSubject(record.subject || '');
+      setPaymentMethod(record.payment_method || 'None');
+      setPaymentNumber(record.payment_number || '');
       fetchItems();
     }
   }, [isOpen, record]);
@@ -105,6 +110,8 @@ export default function EditTransferAdviceModal({ isOpen, onClose, record, onSav
           date: adviceDate,
           bank_name: bankDetails,
           subject: subject,
+          payment_method: paymentMethod !== "None" ? paymentMethod : null,
+          payment_number: paymentMethod !== "None" ? paymentNumber : null,
           total_amount: totalAmount
         })
         .eq('id', record.id);
@@ -179,6 +186,26 @@ export default function EditTransferAdviceModal({ isOpen, onClose, record, onSav
                 <Label>Subject</Label>
                 <Textarea value={subject} onChange={(e) => setSubject(e.target.value)} className="bg-[#1A2333] border-white/10 h-24" />
               </div>
+              <div className="space-y-2">
+                <Label>Payment Method</Label>
+                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                  <SelectTrigger className="bg-[#1A2333] border-white/10">
+                    <SelectValue placeholder="Select Method" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#1A2333] border-white/10 text-white">
+                    <SelectItem value="None">None</SelectItem>
+                    <SelectItem value="Cheque">Cheque</SelectItem>
+                    <SelectItem value="Voucher">Voucher</SelectItem>
+                    <SelectItem value="Digital">Digital</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {paymentMethod !== "None" && (
+                <div className="space-y-2">
+                  <Label>{paymentMethod} Number</Label>
+                  <Input value={paymentNumber} onChange={(e) => setPaymentNumber(e.target.value)} className="bg-[#1A2333] border-white/10" />
+                </div>
+              )}
             </div>
 
             <div className="space-y-4">

@@ -12,6 +12,7 @@ import EditTransferAdviceModal from '@/components/EditTransferAdviceModal';
 import { FileEdit, CheckSquare } from 'lucide-react';
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function TransferAdviceRecords() {
   const [records, setRecords] = useState<any[]>([]);
@@ -37,6 +38,8 @@ export default function TransferAdviceRecords() {
     date: '',
     bank_name: '',
     subject: '',
+    payment_method: 'None',
+    payment_number: '',
     total_amount: 0
   });
 
@@ -199,6 +202,8 @@ export default function TransferAdviceRecords() {
         date: firstSelected.date,
         bank_name: firstSelected.bank_name,
         subject: firstSelected.subject,
+        payment_method: firstSelected.payment_method || 'None',
+        payment_number: firstSelected.payment_number || '',
         total_amount: 0
       });
       setIsBulkPrintConfigOpen(true);
@@ -390,6 +395,26 @@ export default function TransferAdviceRecords() {
                 <Label>Subject</Label>
                 <Textarea value={bulkHeaderConfig.subject} onChange={(e) => setBulkHeaderConfig(c => ({...c, subject: e.target.value}))} className="bg-[#1A2333] border-white/10 h-20" />
               </div>
+              <div className="space-y-2">
+                <Label>Payment Method</Label>
+                <Select value={bulkHeaderConfig.payment_method} onValueChange={(val) => setBulkHeaderConfig(c => ({...c, payment_method: val}))}>
+                  <SelectTrigger className="bg-[#1A2333] border-white/10">
+                    <SelectValue placeholder="Select Method" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#1A2333] border-white/10 text-white">
+                    <SelectItem value="None">None</SelectItem>
+                    <SelectItem value="Cheque">Cheque</SelectItem>
+                    <SelectItem value="Voucher">Voucher</SelectItem>
+                    <SelectItem value="Digital">Digital</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {bulkHeaderConfig.payment_method !== "None" && (
+                <div className="space-y-2">
+                  <Label>{bulkHeaderConfig.payment_method} Number</Label>
+                  <Input value={bulkHeaderConfig.payment_number} onChange={(e) => setBulkHeaderConfig(c => ({...c, payment_number: e.target.value}))} className="bg-[#1A2333] border-white/10" />
+                </div>
+              )}
             </div>
             <div className="flex justify-end pt-4 space-x-2">
               <Button variant="outline" onClick={() => setIsBulkPrintConfigOpen(false)} className="text-white border-white/20">Cancel</Button>
@@ -464,9 +489,14 @@ export default function TransferAdviceRecords() {
                   <p className="text-xs mt-1">1st Floor, Old KBCA Building Behind Civic Center Karachi. Phone: 021-99230320 Webs: www.kwsc.gos.pk</p>
                 </div>
 
-                <div className="flex justify-between font-bold mb-6">
+                <div className="flex justify-between font-bold mb-6 text-[11pt]">
                   <div>NO: {selectedAdvice.advice_no}</div>
-                  <div>DT: {selectedAdvice.date.split('-').reverse().join('.')}</div>
+                  <div className="text-right">
+                    <div>DT: {selectedAdvice.date.split('-').reverse().join('.')}</div>
+                    {selectedAdvice.payment_method && selectedAdvice.payment_method !== "None" && selectedAdvice.payment_number && (
+                      <div>{selectedAdvice.payment_method.toUpperCase()} NO: {selectedAdvice.payment_number}</div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="mb-6 whitespace-pre-wrap leading-tight">
@@ -582,7 +612,12 @@ export default function TransferAdviceRecords() {
 
           <div className="flex justify-between font-bold mb-6 text-[11pt]">
             <div>NO: {selectedAdvice.advice_no}</div>
-            <div>DT: {selectedAdvice.date.split('-').reverse().join('.')}</div>
+            <div className="text-right">
+              <div>DT: {selectedAdvice.date.split('-').reverse().join('.')}</div>
+              {selectedAdvice.payment_method && selectedAdvice.payment_method !== "None" && selectedAdvice.payment_number && (
+                <div>{selectedAdvice.payment_method.toUpperCase()} NO: {selectedAdvice.payment_number}</div>
+              )}
+            </div>
           </div>
 
           <div className="mb-6 text-[11pt] whitespace-pre-wrap leading-tight">

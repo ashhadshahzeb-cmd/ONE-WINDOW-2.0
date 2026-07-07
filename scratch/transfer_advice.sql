@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS public.transfer_advices (
     date DATE NOT NULL,
     bank_name TEXT NOT NULL,
     subject TEXT DEFAULT 'TRANSFER ADVICE.',
+    payment_method TEXT,
+    payment_number TEXT,
     total_amount NUMERIC NOT NULL,
     created_by TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
