@@ -284,57 +284,62 @@ export default function Messages() {
   };
 
   return (
-    <div className="h-[calc(100vh-8rem)] w-full flex bg-card border border-border/50 rounded-3xl overflow-hidden shadow-2xl">
-      
+    <div className="h-[calc(100vh-8rem)] w-full flex bg-[#0B101E]/80 backdrop-blur-3xl border border-white/10 rounded-[2rem] overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.3)] relative">
+      {/* Decorative blobs */}
+      <div className="absolute top-[-20%] left-[-10%] w-[40%] h-[40%] bg-primary/20 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-[-20%] right-[-10%] w-[40%] h-[40%] bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none" />
+
       {/* Left Sidebar - Contacts List */}
-      <div className="w-80 flex flex-col border-r border-border/50 bg-muted/10">
-        <div className="p-4 border-b border-border/50 bg-background/50 backdrop-blur-xl">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold">Messages</h2>
-            <Button size="sm" variant="outline" className="h-8 gap-1 rounded-xl" onClick={() => setShowGroupCall(true)}>
-              <Video className="w-3 h-3" />
-              Group Call
+      <div className="w-80 flex flex-col border-r border-white/5 bg-background/20 relative z-10">
+        <div className="p-5 border-b border-white/5 bg-background/10 backdrop-blur-md">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-2xl font-black tracking-tight text-white/90">Messages</h2>
+            <Button size="sm" className="h-8 gap-2 rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/10 backdrop-blur-md shadow-lg" onClick={() => setShowGroupCall(true)}>
+              <Video className="w-3.5 h-3.5 text-primary" />
+              <span className="font-bold text-xs">Group Call</span>
             </Button>
           </div>
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <div className="relative group">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40 group-focus-within:text-primary transition-colors" />
             <input
               type="text"
               placeholder="Search contacts..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-background border border-border/50 rounded-xl pl-9 pr-4 py-2 text-sm focus:outline-none focus:border-primary/50 transition-colors"
+              className="w-full bg-black/20 border border-white/10 rounded-2xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all text-white/90 placeholder:text-white/30 font-medium"
             />
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+        <div className="flex-1 overflow-y-auto p-3 space-y-1.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 hover:[&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full">
           {filteredContacts.map(contact => (
             <button
               key={contact.roleId}
               onClick={() => setSelectedContact(contact)}
               className={cn(
-                "w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left",
+                "w-full flex items-center gap-3 p-3 rounded-[1.25rem] transition-all text-left group border border-transparent",
                 selectedContact?.roleId === contact.roleId 
-                  ? "bg-primary text-primary-foreground shadow-md" 
-                  : "hover:bg-muted"
+                  ? "bg-primary/10 border-primary/20 shadow-lg" 
+                  : "hover:bg-white/5 hover:border-white/5"
               )}
             >
               <div className={cn(
-                "w-10 h-10 rounded-full flex items-center justify-center shrink-0 border",
+                "w-11 h-11 rounded-full flex items-center justify-center shrink-0 border transition-colors",
                 selectedContact?.roleId === contact.roleId 
-                  ? "bg-primary-foreground/20 border-primary-foreground/30" 
-                  : "bg-background border-border"
+                  ? "bg-primary/20 border-primary/30" 
+                  : "bg-white/5 border-white/10 group-hover:bg-white/10 group-hover:border-white/20"
               )}>
-                <User className={cn("w-5 h-5", selectedContact?.roleId === contact.roleId ? "text-primary-foreground" : "text-muted-foreground")} />
+                <User className={cn("w-5 h-5", selectedContact?.roleId === contact.roleId ? "text-primary" : "text-white/50")} />
               </div>
               <div className="overflow-hidden">
-                <p className="font-semibold text-sm truncate">{contact.displayName}</p>
+                <p className={cn("font-bold text-sm truncate", selectedContact?.roleId === contact.roleId ? "text-white" : "text-white/80")}>
+                  {contact.displayName}
+                </p>
                 <p className={cn(
-                  "text-[10px] truncate uppercase tracking-wider",
-                  selectedContact?.roleId === contact.roleId ? "text-primary-foreground/70" : "text-muted-foreground"
+                  "text-[9px] truncate uppercase tracking-widest font-bold",
+                  selectedContact?.roleId === contact.roleId ? "text-primary/80" : "text-white/40"
                 )}>
-                  {contact.roleId}
+                  {contact.roleId.replace(/_/g, ' ')}
                 </p>
               </div>
             </button>
@@ -343,25 +348,25 @@ export default function Messages() {
       </div>
 
       {/* Right Area - Chat Window */}
-      <div className="flex-1 flex flex-col bg-background/50 relative">
+      <div className="flex-1 flex flex-col relative z-10">
         {selectedContact ? (
           <>
             {/* Chat Header */}
-            <div className="h-16 px-6 border-b border-border/50 bg-card/50 backdrop-blur-xl flex items-center justify-between">
+            <div className="h-[76px] px-8 border-b border-white/5 bg-background/10 backdrop-blur-xl flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
-                  <User className="w-5 h-5 text-primary" />
+                <div className="w-12 h-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
+                  <User className="w-6 h-6 text-primary" />
                 </div>
                 <div>
-                  <h3 className="font-bold">{selectedContact.displayName}</h3>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-widest">{selectedContact.roleId}</p>
+                  <h3 className="font-black text-lg text-white/90">{selectedContact.displayName}</h3>
+                  <p className="text-[10px] text-primary/70 font-bold uppercase tracking-widest">{selectedContact.roleId.replace(/_/g, ' ')}</p>
                 </div>
               </div>
 
               <Button 
                 variant="outline" 
                 size="sm"
-                className="gap-2 bg-sky-500/10 text-sky-400 border-sky-500/20 hover:bg-sky-500/20 hover:text-sky-300"
+                className="gap-2 bg-sky-500/10 text-sky-400 border-sky-500/20 hover:bg-sky-500/20 hover:text-sky-300 font-bold rounded-xl h-10 px-4"
                 onClick={startVideoCall}
               >
                 <Video className="w-4 h-4" />
@@ -370,7 +375,7 @@ export default function Messages() {
             </div>
 
             {/* Chat Messages */}
-            <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-[url('/noise.png')] bg-repeat bg-opacity-5">
+            <div ref={scrollRef} className="flex-1 overflow-y-auto p-8 space-y-6 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 hover:[&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full bg-[url('/noise.png')] bg-repeat bg-opacity-5">
               {loading ? (
                 <div className="h-full flex items-center justify-center text-muted-foreground">
                   Loading chat history...
@@ -410,24 +415,28 @@ export default function Messages() {
             </div>
 
             {/* Message Input */}
-            <form onSubmit={handleSend} className="p-4 bg-card/50 backdrop-blur-xl border-t border-border/50 flex items-end gap-3">
-              <input
-                type="text"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder={`Message ${selectedContact.displayName}...`}
-                className="flex-1 bg-background border border-border/50 rounded-2xl px-5 py-3 focus:outline-none focus:border-primary/50 transition-colors"
-              />
-              <Button type="submit" size="icon" className="h-[50px] w-[50px] rounded-2xl shrink-0 shadow-lg" disabled={!newMessage.trim()}>
-                <Send className="w-5 h-5 ml-1" />
+            <form onSubmit={handleSend} className="p-5 bg-background/20 backdrop-blur-2xl border-t border-white/5 flex items-end gap-3 relative z-10">
+              <div className="flex-1 relative group">
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder={`Message ${selectedContact.displayName}...`}
+                  className="w-full bg-black/20 border border-white/10 rounded-2xl px-6 py-4 text-white/90 placeholder:text-white/30 focus:outline-none focus:border-primary/50 focus:bg-black/30 focus:ring-1 focus:ring-primary/50 transition-all font-medium"
+                />
+              </div>
+              <Button type="submit" size="icon" className="h-[56px] w-[56px] rounded-2xl shrink-0 shadow-[0_0_20px_rgba(var(--primary),0.3)] bg-primary hover:bg-primary/90 text-primary-foreground group" disabled={!newMessage.trim()}>
+                <Send className="w-5 h-5 ml-1 group-hover:translate-x-1 transition-transform" />
               </Button>
             </form>
           </>
         ) : (
-          <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-60">
-            <MessageCircle className="w-20 h-20 mb-6" />
-            <h2 className="text-xl font-light tracking-tight">Select a contact to start messaging</h2>
-            <p className="text-sm mt-2">All your conversations are end-to-end secured inside KW&SC Network.</p>
+          <div className="h-full flex flex-col items-center justify-center text-white/40 p-8 text-center relative z-10">
+            <div className="w-32 h-32 bg-white/5 rounded-full flex items-center justify-center mb-8 border border-white/10 shadow-[0_0_50px_rgba(255,255,255,0.02)] backdrop-blur-md">
+              <MessageCircle className="w-12 h-12 text-white/30" />
+            </div>
+            <h2 className="text-2xl font-black tracking-tight text-white/60">Select a Contact</h2>
+            <p className="text-sm font-medium mt-3 max-w-sm text-white/40 leading-relaxed">Choose someone from the left sidebar to start messaging. All conversations are end-to-end secured inside KW&SC Network.</p>
           </div>
         )}
       </div>
