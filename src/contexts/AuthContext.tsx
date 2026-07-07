@@ -111,8 +111,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const usersList = getDepartmentUsers();
         const match = usersList.find(u => u.email === parsed.email);
         setAllowOverrideDates(match?.allowOverrideDates || parsed.roleId === 'cfo' || parsed.roleId === 'admin');
+        
+        // Sync local auth user with Supabase asynchronously to keep it fresh
+        supabase.from('department_users_settings').select('*').eq('email', parsed.email).maybeSingle().then(({ data }) => {
+          if (data) {
+            setUserName(data.display_name);
+            setUserAvatar(data.avatar_url || null);
+            setAllowOverrideDates(data.allow_override_dates || data.role_id === 'cfo' || data.role_id === 'admin');
+            
+            // Update local storage so it has latest
+            const usersList = getDepartmentUsers();
+            const idx = usersList.findIndex(u => u.email === data.email);
+            if (idx !== -1) {
+              usersList[idx] = {
+                ...usersList[idx],
+                displayName: data.display_name,
+                password: data.password,
+                avatarUrl: data.avatar_url,
+                allowOverrideDates: data.allow_override_dates
+              };
+              saveDepartmentUsers(usersList);
+            }
+          }
+        });
+        
         setLoading(false);
-        return; // skip Supabase if local auth is active
+        return; // skip Supabase auth if local auth is active
       } catch {
         localStorage.removeItem(LOCAL_AUTH_KEY);
       }
@@ -228,12 +252,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const trimEmail = email.trim().toLowerCase();
     const trimPass = password.trim();
 
-    const usersList = getDepartmentUsers();
-    const match = usersList.find(
-      u => u.email === trimEmail && u.password === trimPass
-    );
+    let match: DepartmentUser | undefined;
+
+    try {
+      const { data, error } = await supabase.from('department_users_settings').select('*').eq('email', trimEmail).maybeSingle();
+      if (data && !error) {
+        match = {
+          roleId: data.role_id,
+          email: data.email,
+          displayName: data.display_name,
+          password: data.password,
+          avatarUrl: data.avatar_url,
+          allowOverrideDates: data.allow_override_dates
+        };
+        // Also update local list so offline login works next time
+        const usersList = getDepartmentUsers();
+        const idx = usersList.findIndex(u => u.email === trimEmail);
+        if (idx !== -1) {
+          usersList[idx] = match;
+          saveDepartmentUsers(usersList);
+        }
+      }
+    } catch (e) {
+      console.log('Could not fetch user from Supabase, falling back to local');
+    }
 
     if (!match) {
+      const usersList = getDepartmentUsers();
+      match = usersList.find(u => u.email === trimEmail);
+    }
+
+    if (!match || match.password !== trimPass) {
       return { success: false, error: 'Invalid email or password. Please check your credentials.' };
     }
 
@@ -293,6 +342,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Save back to storage
       saveDepartmentUsers(usersList);
+
+      // Update in Supabase
+      try {
+        await supabase.from('department_users_settings').update({
+          display_name: newName,
+          password: newPassword || usersList[userIndex].password,
+          avatar_url: newAvatar !== undefined ? newAvatar : usersList[userIndex].avatarUrl
+        }).eq('email', email);
+      } catch (err) {
+        console.log('Failed to update profile globally in Supabase', err);
+      }
 
       // Update current session state
       setUserName(newName);
