@@ -163,7 +163,7 @@ export default function NotificationListener() {
       supabase.removeChannel(fileChannel);
       supabase.removeChannel(messageChannel);
     };
-  }, [userRole, location.pathname]);
+  }, [userRole, isAdmin, location.pathname]);
 
   const handleAcceptCall = async () => {
     if (!incomingCall || !userRole || !userName) return;
