@@ -24,19 +24,6 @@ export default function PublicTracking() {
   const [record, setRecord] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const [isUnlocked, setIsUnlocked] = useState(false);
-  const [password, setPassword] = useState("");
-  const [errorMsg, setErrorMsg] = useState("");
-
-  const handleUnlock = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (password === "1234") {
-      setIsUnlocked(true);
-    } else {
-      setErrorMsg("Incorrect password");
-    }
-  };
-
   useEffect(() => {
     const fetchRecord = async () => {
       setLoading(true);
@@ -91,40 +78,7 @@ export default function PublicTracking() {
     );
   }
 
-  if (!isUnlocked) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-sans">
-        <Card className="w-full max-w-sm rounded-[30px] border-none shadow-2xl overflow-hidden">
-          <div className="p-1 bg-gradient-to-r from-emerald-500 to-primary"></div>
-          <CardContent className="pt-8 pb-8 space-y-6">
-            <div className="text-center space-y-2">
-              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 text-primary">
-                <ShieldCheck className="w-8 h-8" />
-              </div>
-              <h2 className="text-xl font-black text-zinc-800 uppercase tracking-tight">Protected Record</h2>
-              <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest">Enter password to view</p>
-            </div>
-            
-            <form onSubmit={handleUnlock} className="space-y-4">
-              <div className="space-y-2">
-                <input
-                  type="password"
-                  placeholder="Enter Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full h-12 bg-zinc-100 border-none rounded-xl px-4 text-center font-bold tracking-widest text-zinc-800 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                />
-                {errorMsg && <p className="text-[10px] text-red-500 font-bold uppercase text-center">{errorMsg}</p>}
-              </div>
-              <Button type="submit" className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl uppercase tracking-widest text-xs">
-                Unlock Record
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-10">

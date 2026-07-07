@@ -44,6 +44,7 @@ import CpFund from "./pages/regular-employee/CpFund";
 import Placeholder from "./pages/Placeholder";
 import UserManagement from "./pages/UserManagement";
 import Messages from "./pages/Messages";
+import TrackingPortal from "./pages/TrackingPortal";
 
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -100,6 +101,7 @@ const App = () => (
             <BrowserRouter>
               <Routes>
                 <Route path="/login" element={<AuthPage />} />
+                <Route path="/track" element={<TrackingPortal />} />
                 <Route path="/public-track/:diaryNo/:receivingNo" element={<PublicTracking />} />
                 <Route path="/mobile-upload/:sessionId" element={<MobileUpload />} />
                 <Route
