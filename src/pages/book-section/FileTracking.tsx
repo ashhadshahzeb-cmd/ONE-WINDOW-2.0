@@ -442,7 +442,40 @@ export default function FileTracking() {
 
       if (allLocal) {
         setRecordToEdit(allLocal);
-        setIsEditModalOpen(true);
+        if (isAdmin) {
+          setActiveTab("register");
+          setFormData({
+            ...formData,
+            cfo_diary_number: allLocal.cfo_diary_number,
+            inward_date: allLocal.inward_date || getLocalDateString(),
+            registration_date: allLocal.created_at ? getLocalDateString(allLocal.created_at) : getLocalDateString(),
+            print_date: allLocal.created_at ? getLocalDateString(allLocal.created_at) : getLocalDateString(),
+            received_from: allLocal.received_from || "",
+            receiving_number: allLocal.receiving_number,
+            mainCategory: allLocal.mainCategory || allLocal.main_category || "",
+            subCategory: allLocal.subCategory || allLocal.sub_category || "",
+            subject: allLocal.subject || "",
+            amount: allLocal.amount || 0,
+            remarks: allLocal.remarks || "",
+            mark_to: allLocal.mark_to || "cfo",
+            signature_data: allLocal.signature_data || "",
+            employee_number: allLocal.employee_number || "",
+            voucher_code: allLocal.voucher_code || "",
+          });
+          setIsEditing(true);
+        } else {
+          setApprovalStatus("waiting");
+          setIsEditModalOpen(true);
+          setEditPassword("");
+          await supabase.from('messages').insert([{
+            sender_role: userRole,
+            sender_name: userName,
+            receiver_role: 'admin',
+            receiver_name: 'Admin',
+            message: `[FILE_TRACKING_EDIT_REQ]::${allLocal.id}`
+          }]);
+          toast.info("Approval request sent to Admin.");
+        }
         setCfoDiarySearchQuery('');
         return;
       }
