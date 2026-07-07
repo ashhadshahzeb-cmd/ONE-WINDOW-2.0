@@ -85,7 +85,7 @@ export default function PublicTracking() {
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-10">
       {/* Mobile-First Header */}
-      <div className="bg-primary px-6 pt-12 pb-20 rounded-b-[40px] shadow-2xl relative overflow-hidden">
+      <div className="bg-primary px-6 pt-12 pb-20 rounded-b-[40px] shadow-2xl relative overflow-hidden max-w-3xl mx-auto">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/10 rounded-full -ml-10 -mb-10 blur-2xl"></div>
 
@@ -105,7 +105,7 @@ export default function PublicTracking() {
       </div>
 
       {/* Main Content Card */}
-      <div className="px-6 -mt-12 relative">
+      <div className="px-6 -mt-12 relative max-w-3xl mx-auto">
         <Card className="rounded-[30px] border-none shadow-xl overflow-hidden">
           <div className="p-1 bg-gradient-to-r from-emerald-500 to-primary"></div>
           <CardContent className="pt-8 space-y-8">

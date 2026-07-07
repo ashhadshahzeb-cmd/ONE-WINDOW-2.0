@@ -10,31 +10,39 @@ import { toast } from "sonner";
 export default function TrackingPortal() {
   const [trackingNumber, setTrackingNumber] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
   const navigate = useNavigate();
 
   const handleTrack = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!trackingNumber.trim()) {
-      toast.error("Please enter a Tracking ID or Receiving Number");
+      toast.error("Please enter a Tracking ID, Receiving Number, or your Name");
       return;
     }
 
     setIsSearching(true);
+    setSearchResults([]);
     try {
       const q = trackingNumber.trim();
       const { data, error } = await supabase
         .from('file_tracking_records' as any)
-        .select('cfo_diary_number, receiving_number')
-        .or(`tracking_id.ilike.${q},receiving_number.ilike.${q},cfo_diary_number.ilike.${q}`)
-        .maybeSingle();
+        .select('cfo_diary_number, receiving_number, subject, tracking_id, inward_date')
+        .or(`tracking_id.ilike.%${q}%,receiving_number.ilike.%${q}%,cfo_diary_number.ilike.%${q}%,handover_person_name.ilike.%${q}%,received_from.ilike.%${q}%`)
+        .order('created_at', { ascending: false })
+        .limit(20);
 
       if (error) throw error;
 
-      if (data) {
-        toast.success("Record found! Redirecting...");
-        navigate(`/public-track/${data.cfo_diary_number}/${data.receiving_number}`);
+      if (data && data.length > 0) {
+        if (data.length === 1) {
+          toast.success("Record found! Redirecting...");
+          navigate(`/public-track/${data[0].cfo_diary_number}/${data[0].receiving_number}`);
+        } else {
+          toast.success(`Found ${data.length} records`);
+          setSearchResults(data);
+        }
       } else {
-        toast.error("No record found with this Tracking ID");
+        toast.error("No record found with this query");
       }
     } catch (err: any) {
       console.error("Error searching record:", err);
@@ -107,22 +115,47 @@ export default function TrackingPortal() {
                 </Button>
               </form>
 
-              <div className="mt-8 grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-3 bg-zinc-50 p-4 rounded-2xl">
-                  <Package className="w-8 h-8 text-zinc-400" />
-                  <div>
-                    <h4 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Real-time</h4>
-                    <p className="text-xs font-bold text-zinc-700">Status Updates</p>
+              {searchResults.length > 0 && (
+                <div className="mt-6 space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                  <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-4 border-b pb-2">Select a File to Track</h3>
+                  {searchResults.map((res, idx) => (
+                    <div 
+                      key={idx}
+                      onClick={() => navigate(`/public-track/${res.cfo_diary_number}/${res.receiving_number}`)}
+                      className="p-4 rounded-xl border border-zinc-200 bg-zinc-50 hover:bg-emerald-50 hover:border-emerald-200 cursor-pointer transition-all group flex flex-col gap-2"
+                    >
+                      <div className="flex justify-between items-start">
+                        <span className="text-[10px] font-black text-emerald-600 bg-emerald-100 px-2 py-1 rounded-md uppercase">{res.tracking_id || "NO-ID"}</span>
+                        <span className="text-[10px] font-bold text-zinc-400">{res.inward_date}</span>
+                      </div>
+                      <p className="text-sm font-bold text-zinc-800 line-clamp-2">{res.subject}</p>
+                      <div className="flex justify-between items-center mt-1">
+                        <span className="text-[10px] font-bold text-zinc-400 uppercase">Receiving: {res.receiving_number}</span>
+                        <ArrowRight className="w-4 h-4 text-emerald-500 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {searchResults.length === 0 && (
+                <div className="mt-8 grid grid-cols-2 gap-4">
+                  <div className="flex items-center gap-3 bg-zinc-50 p-4 rounded-2xl">
+                    <Package className="w-8 h-8 text-zinc-400" />
+                    <div>
+                      <h4 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Real-time</h4>
+                      <p className="text-xs font-bold text-zinc-700">Status Updates</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 bg-zinc-50 p-4 rounded-2xl">
+                    <ShieldCheck className="w-8 h-8 text-zinc-400" />
+                    <div>
+                      <h4 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Secure</h4>
+                      <p className="text-xs font-bold text-zinc-700">Verification</p>
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 bg-zinc-50 p-4 rounded-2xl">
-                  <ShieldCheck className="w-8 h-8 text-zinc-400" />
-                  <div>
-                    <h4 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Secure</h4>
-                    <p className="text-xs font-bold text-zinc-700">Verification</p>
-                  </div>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
 
