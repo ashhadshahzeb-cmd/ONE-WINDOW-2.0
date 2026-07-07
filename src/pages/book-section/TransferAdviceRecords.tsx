@@ -161,9 +161,13 @@ export default function TransferAdviceRecords() {
   };
 
   const filteredRecords = records.filter(r => {
-    const matchesSearch = r.advice_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          r.bank_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          r.date.includes(searchTerm);
+    const searchLower = searchTerm.toLowerCase();
+    const inRespectOfValues = r.transfer_advice_items ? r.transfer_advice_items.map((i: any) => i.in_respect_of?.toLowerCase() || '') : [];
+    
+    const matchesSearch = r.advice_no.toLowerCase().includes(searchLower) ||
+                          r.bank_name.toLowerCase().includes(searchLower) ||
+                          r.date.includes(searchTerm) ||
+                          inRespectOfValues.some((val: string) => val.includes(searchLower));
     const matchesStart = startDate ? r.date >= startDate : true;
     const matchesEnd = endDate ? r.date <= endDate : true;
     return matchesSearch && matchesStart && matchesEnd;
