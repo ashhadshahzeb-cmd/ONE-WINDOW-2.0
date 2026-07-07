@@ -239,6 +239,10 @@ export default function TransferAdviceRecords() {
     }
   };
 
+  const selectedTotalAmount = filteredRecords
+    .filter(r => selectedRecordIds.includes(r.id))
+    .reduce((sum, record) => sum + (Number(record.total_amount) || 0), 0);
+
   return (
     <div className="container mx-auto p-4 space-y-6">
       <div className="flex justify-between items-center no-print">
@@ -361,6 +365,19 @@ export default function TransferAdviceRecords() {
                     ))
                   )}
                 </tbody>
+                {selectedRecordIds.length > 0 && (
+                  <tfoot className="bg-sky-900/40 border-t-2 border-sky-500 font-bold">
+                    <tr>
+                      <td colSpan={5} className="px-4 py-4 text-right text-white uppercase text-xs tracking-wider">
+                        Total Amount of Selected Entries:
+                      </td>
+                      <td className="px-4 py-4 text-right text-green-400 text-lg">
+                        {selectedTotalAmount.toLocaleString('en-US')}
+                      </td>
+                      <td colSpan={2}></td>
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
           )}
