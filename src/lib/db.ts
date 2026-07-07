@@ -25,6 +25,8 @@ export interface FileRecord {
   voucher_code?: string;
   vehicle_no?: string;
   subject?: string;
+  handover_person_name?: string;
+  file_purpose?: string;
   amount?: number;
   status?: string;
   mark_to?: string;

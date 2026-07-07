@@ -179,6 +179,8 @@ export default function FileTracking() {
   const isCFORole = currentRole === 'cfo' || currentRole === 'sub_cfo' || currentRole?.startsWith('sub_cfo_') || currentRole === 'admin' || isAdmin;
 
   // New Form State
+  const [isPreEntryModalOpen, setIsPreEntryModalOpen] = useState(false);
+  const [preEntryForm, setPreEntryForm] = useState({ handover_person_name: "", file_purpose: "" });
   const [isSavingForm, setIsSavingForm] = useState(false);
   const [fileImage, setFileImage] = useState<string>("");
   const [mobileUploadSessionId, setMobileUploadSessionId] = useState<string>("");
@@ -208,6 +210,8 @@ export default function FileTracking() {
     subject_prefix: "",
     fuel_station: "",
     additional_mark_to: "",
+    handover_person_name: "",
+    file_purpose: "",
   });
 
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -541,6 +545,8 @@ export default function FileTracking() {
       date_of_sign: recordToEdit.date_of_sign || getLocalDateString(),
       outward_date: recordToEdit.outward_date || getLocalDateString(),
       additional_mark_to: recordToEdit.additional_mark_to || "",
+      handover_person_name: recordToEdit.handover_person_name || "",
+      file_purpose: recordToEdit.file_purpose || "",
     });
     setIsEditingMode(true);
     setEditingRecordId(recordToEdit.id);
@@ -965,6 +971,8 @@ export default function FileTracking() {
       employee_number: "",
       voucher_code: "",
       vehicle_no: "",
+      handover_person_name: "",
+      file_purpose: "",
     });
     setSelectedEmpProfile(null);
     setEmpSuggestions([]);
@@ -1022,7 +1030,7 @@ export default function FileTracking() {
 
   const handleSaveForm = async () => {
     const isSubCategoryRequired = formData.mainCategory !== 'impress' && formData.mainCategory !== 'pol_bills';
-    if (!formData.cfo_diary_number || !formData.receiving_number || !formData.subject || !formData.mainCategory || (isSubCategoryRequired && !formData.subCategory) || !formData.mark_to) {
+    if (!formData.cfo_diary_number || !formData.receiving_number || !formData.subject || !formData.mainCategory || (isSubCategoryRequired && !formData.subCategory) || !formData.mark_to || !formData.handover_person_name || !formData.file_purpose) {
       toast.error("Please fill all required fields");
       return;
     }
@@ -1058,6 +1066,8 @@ export default function FileTracking() {
           voucher_code: formData.voucher_code,
           vehicle_no: formData.vehicle_no,
           additional_mark_to: formData.additional_mark_to,
+          handover_person_name: formData.handover_person_name,
+          file_purpose: formData.file_purpose,
           print_date: formData.print_date || getLocalDateString(),
           created_at: formData.registration_date
             ? new Date(formData.registration_date + 'T00:00:00').toISOString()
@@ -1124,6 +1134,8 @@ export default function FileTracking() {
           voucher_code: formData.voucher_code,
           vehicle_no: formData.vehicle_no,
           additional_mark_to: formData.additional_mark_to,
+          handover_person_name: formData.handover_person_name,
+          file_purpose: formData.file_purpose,
           history: newHistory
         };
 
@@ -1210,6 +1222,8 @@ export default function FileTracking() {
           voucher_code: formData.voucher_code,
           vehicle_no: formData.vehicle_no,
           additional_mark_to: formData.additional_mark_to,
+          handover_person_name: formData.handover_person_name,
+          file_purpose: formData.file_purpose,
           print_date: formData.print_date || getLocalDateString(),
           history: [snapshot],
           created_at: formData.registration_date
@@ -1964,6 +1978,8 @@ export default function FileTracking() {
       remarks: ``, // Clear remarks for new entry
       mark_to: "cfo", // Defaulting back to CFO
       additional_mark_to: file.additional_mark_to || "",
+      handover_person_name: file.handover_person_name || "",
+      file_purpose: file.file_purpose || "",
       signature_data: "" // Clear signature for new person to sign
     });
     setIsForwardingMode(true);
@@ -2086,6 +2102,29 @@ export default function FileTracking() {
     } else {
       setSelectedRecordIds(ids);
     }
+  };
+  const handleTabChange = (val: string) => {
+    if (val === "register" && !isEditingMode && !isForwardingMode) {
+      if (!formData.handover_person_name || !formData.file_purpose) {
+        setIsPreEntryModalOpen(true);
+        return;
+      }
+    }
+    setActiveTab(val);
+  };
+
+  const handlePreEntrySubmit = () => {
+    if (!preEntryForm.handover_person_name || !preEntryForm.file_purpose) {
+      toast.error("Donon fields bharna zaroori hai");
+      return;
+    }
+    setFormData(prev => ({
+      ...prev,
+      handover_person_name: preEntryForm.handover_person_name,
+      file_purpose: preEntryForm.file_purpose
+    }));
+    setIsPreEntryModalOpen(false);
+    setActiveTab("register");
   };
 
   return (
@@ -2216,7 +2255,7 @@ export default function FileTracking() {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <div className="flex flex-col xl:flex-row justify-between xl:items-center gap-4 mb-6 border-b border-border/50 pb-4">
           <TabsList className="flex h-auto bg-[#0f1115] p-1.5 rounded-2xl border border-white/5 shrink-0 gap-1 overflow-x-auto overflow-y-hidden no-scrollbar max-w-full shadow-2xl">
             {isFileViewer ? (
@@ -2281,7 +2320,8 @@ export default function FileTracking() {
                 >
                   <Search className="w-4 h-4" /> Search
                 </TabsTrigger>
-
+              </>
+            )}
                 {isCFORole && (
                   <TabsTrigger
                     value="cfo_all_files"
@@ -2290,9 +2330,40 @@ export default function FileTracking() {
                     <Building2 className="w-4 h-4" /> CFO Dashboard
                   </TabsTrigger>
                 )}
-              </>
-            )}
           </TabsList>
+
+          {/* PRE-ENTRY MODAL */}
+          <Dialog open={isPreEntryModalOpen} onOpenChange={setIsPreEntryModalOpen}>
+            <DialogContent className="bg-[#0f1115] border-white/10 text-white">
+              <DialogHeader>
+                <DialogTitle className="text-white text-xl">New Entry Details</DialogTitle>
+                <DialogDescription className="text-white/40">File ki entry shuru karne se pehle ye details bharain.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 mt-4">
+                <div>
+                  <label className="text-xs font-bold text-white/70 uppercase">File Owner / Handover Person</label>
+                  <Input 
+                    placeholder="e.g., Ali Raza / Admin Dept" 
+                    className="bg-white/5 border-white/10 mt-1 text-white"
+                    value={preEntryForm.handover_person_name}
+                    onChange={(e) => setPreEntryForm(prev => ({ ...prev, handover_person_name: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-white/70 uppercase">File Purpose / Description</label>
+                  <Input 
+                    placeholder="e.g., Payment Voucher for July" 
+                    className="bg-white/5 border-white/10 mt-1 text-white"
+                    value={preEntryForm.file_purpose}
+                    onChange={(e) => setPreEntryForm(prev => ({ ...prev, file_purpose: e.target.value }))}
+                  />
+                </div>
+                <Button className="w-full bg-[#14b8a6] hover:bg-teal-600 text-[#0f1115] font-bold mt-4" onClick={handlePreEntrySubmit}>
+                  Proceed to Registration
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           <div className="flex flex-wrap items-center gap-2">
             {/* Global Search for My Tray, Timeline, Reports */}
@@ -3795,6 +3866,26 @@ export default function FileTracking() {
                   value={formData.inward_date}
                   onChange={e => setFormData({ ...formData, inward_date: e.target.value })}
                   className="bg-muted/20 border-border/50"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs uppercase font-bold text-[#14b8a6]">File Owner / Handover Person <span className="text-red-500">*</span></Label>
+                <Input
+                  placeholder="Handover Person / Owner"
+                  value={formData.handover_person_name || ""}
+                  onChange={e => setFormData({ ...formData, handover_person_name: e.target.value })}
+                  className="bg-muted/20 border-border/50 border-[#14b8a6]/30 text-[#14b8a6]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs uppercase font-bold text-[#14b8a6]">File Purpose / Description <span className="text-red-500">*</span></Label>
+                <Input
+                  placeholder="File Purpose"
+                  value={formData.file_purpose || ""}
+                  onChange={e => setFormData({ ...formData, file_purpose: e.target.value })}
+                  className="bg-muted/20 border-border/50 border-[#14b8a6]/30 text-[#14b8a6]"
                 />
               </div>
 
