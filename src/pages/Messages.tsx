@@ -380,13 +380,13 @@ export default function Messages() {
                 <div className="h-full flex items-center justify-center text-muted-foreground">
                   Loading chat history...
                 </div>
-              ) : messages.filter(m => !m.message.startsWith('[CALL_')).length === 0 ? (
+              ) : messages.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-muted-foreground/50">
                   <MessageCircle className="w-16 h-16 mb-4 opacity-50" />
                   <p>No messages yet. Send a message to start the conversation.</p>
                 </div>
               ) : (
-                messages.filter(m => !m.message.startsWith('[CALL_')).map((msg, index, filteredMessages) => {
+                messages.map((msg, index, filteredMessages) => {
                   const isMe = msg.sender_role === userRole;
                   const showHeader = index === 0 || filteredMessages[index - 1].sender_role !== msg.sender_role;
 
@@ -439,6 +439,20 @@ export default function Messages() {
                               <p className="text-xs opacity-80">Tracking ID: {msg.message.split('::')[1]}</p>
                             </div>
                           </div>
+                        </div>
+                      ) : msg.message.startsWith('[CALL_') ? (
+                        <div className={cn(
+                          "px-4 py-2.5 rounded-full text-xs font-bold shadow-sm border flex items-center gap-2",
+                          msg.message.startsWith('[CALL_ACCEPTED]') ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" :
+                          msg.message.startsWith('[CALL_DECLINED]') ? "bg-red-500/10 border-red-500/20 text-red-400" :
+                          msg.message.startsWith('[CALL_CANCELED]') ? "bg-zinc-500/10 border-zinc-500/20 text-zinc-400" :
+                          "bg-sky-500/10 border-sky-500/20 text-sky-400"
+                        )}>
+                          <Video className="w-3.5 h-3.5" />
+                          {msg.message.startsWith('[CALL_RING]') ? (isMe ? 'Outgoing Video Call' : 'Incoming Video Call') :
+                           msg.message.startsWith('[CALL_ACCEPTED]') ? 'Video Call Started' :
+                           msg.message.startsWith('[CALL_DECLINED]') ? (isMe ? 'Call Declined' : 'Missed Call') :
+                           'Call Canceled'}
                         </div>
                       ) : (
                         <div className={cn(
