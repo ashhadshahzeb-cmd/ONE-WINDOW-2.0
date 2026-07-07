@@ -19,6 +19,11 @@ export default function HuddleWindow({ roomId, onLeave }: HuddleWindowProps) {
   const appID = Number(import.meta.env.VITE_ZEGO_APP_ID) || 0;
   const serverSecret = import.meta.env.VITE_ZEGO_SERVER_SECRET || "";
 
+  const onLeaveRef = useRef(onLeave);
+  useEffect(() => {
+    onLeaveRef.current = onLeave;
+  }, [onLeave]);
+
   useEffect(() => {
     if (!roomId || !userName || !containerRef.current) return;
 
@@ -57,7 +62,7 @@ export default function HuddleWindow({ roomId, onLeave }: HuddleWindowProps) {
         showAudioVideoSettingsButton: true,
         showLayoutButton: true,
         onLeaveRoom: () => {
-          onLeave();
+          onLeaveRef.current();
         },
       });
     };
@@ -72,7 +77,7 @@ export default function HuddleWindow({ roomId, onLeave }: HuddleWindowProps) {
         containerRef.current.innerHTML = '';
       }
     };
-  }, [roomId, userName, userRole, appID, serverSecret, onLeave]);
+  }, [roomId, userName, userRole, appID, serverSecret]);
 
   return (
     <div 
