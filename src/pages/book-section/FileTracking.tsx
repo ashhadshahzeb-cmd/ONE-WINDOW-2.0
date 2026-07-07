@@ -140,6 +140,9 @@ export default function FileTracking() {
   const [isScanning, setIsScanning] = useState(false);
   const [exitModalFile, setExitModalFile] = useState<any>(null);
   const [exitModalScanInput, setExitModalScanInput] = useState("");
+  
+  const [approvalStatus, setApprovalStatus] = useState<"waiting" | "approved" | "rejected">("waiting");
+
   // Server-side pagination & filtering
   const DB_PAGE_SIZE = 50;
   const [currentPage, setCurrentPage] = useState(0);
@@ -407,7 +410,42 @@ export default function FileTracking() {
 
       if (data) {
         setRecordToEdit(data);
-        setIsEditModalOpen(true);
+        if (isAdmin) {
+          // If Admin, go directly to edit mode
+          setActiveTab("register");
+          setFormData({
+            ...formData,
+            cfo_diary_number: data.cfo_diary_number,
+            inward_date: data.inward_date || getLocalDateString(),
+            registration_date: data.created_at ? getLocalDateString(data.created_at) : getLocalDateString(),
+            print_date: data.created_at ? getLocalDateString(data.created_at) : getLocalDateString(),
+            received_from: data.received_from || "",
+            receiving_number: data.receiving_number,
+            mainCategory: data.mainCategory || data.main_category || "",
+            subCategory: data.subCategory || data.sub_category || "",
+            subject: data.subject || "",
+            amount: data.amount || 0,
+            remarks: data.remarks || "",
+            mark_to: data.mark_to || "cfo",
+            signature_data: data.signature_data || "",
+            employee_number: data.employee_number || "",
+            voucher_code: data.voucher_code || "",
+          });
+          setIsEditing(true);
+        } else {
+          // Not Admin, ask for approval
+          setApprovalStatus("waiting");
+          setIsEditModalOpen(true);
+          
+          await supabase.from('messages').insert([{
+            sender_role: userRole,
+            sender_name: userName,
+            receiver_role: 'admin',
+            receiver_name: 'Admin',
+            message: `[FILE_TRACKING_EDIT_REQ]::${data.id}`
+          }]);
+          toast.info("Approval request sent to Admin.");
+        }
         setCfoDiarySearchQuery('');
       } else {
         toast.error('No record found with this CFO Diary / Receiving Number.');
@@ -5091,46 +5129,51 @@ export default function FileTracking() {
 
       {/* Edit Confirmation Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="bg-[#0f1115] border-white/10 text-white sm:max-w-[425px]">
+        <DialogContent className="bg-[#0B101E] border-white/10 text-white sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle className="text-blue-500 flex items-center gap-2">
-              <FileEdit className="w-5 h-5" /> Edit Record Authorization
+            <DialogTitle className="text-xl text-sky-400 font-bold flex items-center gap-2">
+              <FileEdit className="w-5 h-5" /> Edit Authorization
             </DialogTitle>
-            <DialogDescription className="text-white/60">
-              Please enter your password to authorize editing this file tracking record.
-            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="py-4 space-y-4">
+            <div className="p-4 bg-sky-900/20 border border-sky-500/20 rounded-xl flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-sky-500/20 flex items-center justify-center shrink-0">
+                <Loader2 className="w-4 h-4 text-sky-400 animate-spin" />
+              </div>
+              <div>
+                <p className="font-bold text-sky-400">Waiting for Admin Approval</p>
+                <p className="text-sm text-white/70">A request has been sent to the admin. Please wait for them to approve your edit request.</p>
+              </div>
+            </div>
+
+            <div className="relative py-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-white/10"></div>
+              </div>
+              <div className="relative flex justify-center">
+                <span className="bg-[#0B101E] px-2 text-xs text-white/40 uppercase font-bold tracking-widest">or bypass</span>
+              </div>
+            </div>
+
             <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-white/50">Your Password</label>
+              <label className="text-xs font-bold uppercase tracking-widest text-white/50">Enter Password to Bypass</label>
               <Input
                 type="password"
-                placeholder="Enter password..."
+                placeholder="Enter admin password..."
                 value={editPassword}
                 onChange={(e) => setEditPassword(e.target.value)}
-                className="bg-[#111318] border-white/5 text-white placeholder:text-white/20"
+                className="bg-[#1A2333] border-white/10 text-white"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleEditRecordAuth();
                 }}
               />
             </div>
           </div>
-          <div className="flex justify-end gap-2 mt-4">
-            <Button
-              variant="outline"
-              className="bg-transparent border-white/10 text-white/70 hover:text-white hover:bg-white/5"
-              onClick={() => {
-                setIsEditModalOpen(false);
-                setEditPassword("");
-              }}
-            >
+          <div className="flex justify-end pt-2">
+            <Button variant="outline" onClick={() => setIsEditModalOpen(false)} className="text-white border-white/20">
               Cancel
             </Button>
-            <Button
-              className="bg-blue-500 hover:bg-blue-600 text-white font-bold"
-              onClick={handleEditRecordAuth}
-              disabled={!editPassword}
-            >
+            <Button className="ml-2 bg-sky-600 hover:bg-sky-700 text-white" onClick={handleEditRecordAuth}>
               Authorize Edit
             </Button>
           </div>

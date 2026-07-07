@@ -110,20 +110,34 @@ export default function NotificationListener() {
             } else if (newMsg.message.startsWith('[CALL_ACCEPTED]::') || newMsg.message.startsWith('[CALL_DECLINED]::')) {
               // handled in caller's side
               return;
-            } else if (newMsg.message.startsWith('[TRANSFER_ADVICE_EDIT_REQ]::') && userRole === 'admin') {
+            } else if ((newMsg.message.startsWith('[TRANSFER_ADVICE_EDIT_REQ]::') || newMsg.message.startsWith('[FILE_TRACKING_EDIT_REQ]::')) && userRole === 'admin') {
+              const isFileTracking = newMsg.message.startsWith('[FILE_TRACKING_EDIT_REQ]::');
               const parts = newMsg.message.split('::');
               const recordId = parts[1];
               const requesterName = newMsg.sender_name;
               
               try {
-                const audio = new Audio('/ringtone.mp3');
-                audio.play().catch(e => console.log('Audio play blocked:', e));
-              } catch (e) {}
+                // Base64 Beep sound
+                const beep = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU'); // A placeholder base64 for real beep
+                // A better approach is using the Web Audio API for a simple beep
+                const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.type = 'sine';
+                osc.frequency.value = 800;
+                gain.gain.setValueAtTime(1, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.5);
+              } catch (e) {
+                console.log('Audio play blocked:', e);
+              }
               
               setPendingEditRequests(prev => {
-                // avoid duplicates
                 if (prev.find(r => r.recordId === recordId)) return prev;
-                return [...prev, { recordId, requesterName, requesterRole: newMsg.sender_role, msgId: newMsg.id }];
+                return [...prev, { recordId, requesterName, requesterRole: newMsg.sender_role, msgId: newMsg.id, type: isFileTracking ? 'file_tracking' : 'transfer_advice' }];
               });
               setIsEditModalOpen(true);
               
@@ -296,20 +310,21 @@ export default function NotificationListener() {
                       <p className="text-sm text-white/50 capitalize">{req.requesterRole}</p>
                     </div>
                     <div className="bg-amber-500/20 text-amber-400 text-xs px-2 py-1 rounded font-mono">
-                      Transfer Advice
+                      {req.type === 'file_tracking' ? 'File Tracking' : 'Transfer Advice'}
                     </div>
                   </div>
-                  <p className="text-sm text-white/80">Requests permission to edit a Transfer Advice record.</p>
+                  <p className="text-sm text-white/80">Requests permission to edit a {req.type === 'file_tracking' ? 'File Tracking' : 'Transfer Advice'} record.</p>
                   <div className="flex gap-2 pt-2 border-t border-white/10 mt-2">
                     <Button 
                       className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
                       onClick={async () => {
+                        const approvalMsg = req.type === 'file_tracking' ? '[FILE_TRACKING_EDIT_APPROVED]' : '[TRANSFER_ADVICE_EDIT_APPROVED]';
                         await supabase.from('messages').insert([{
                           sender_role: userRole,
                           sender_name: userName || 'Admin',
                           receiver_role: req.requesterRole,
                           receiver_name: req.requesterName,
-                          message: `[TRANSFER_ADVICE_EDIT_APPROVED]::${req.recordId}`
+                          message: `${approvalMsg}::${req.recordId}`
                         }]);
                         toast.success("Edit request approved.");
                         setPendingEditRequests(prev => prev.filter(p => p.recordId !== req.recordId));
@@ -321,12 +336,13 @@ export default function NotificationListener() {
                     <Button 
                       className="flex-1 bg-red-600 hover:bg-red-700 text-white"
                       onClick={async () => {
+                        const rejectMsg = req.type === 'file_tracking' ? '[FILE_TRACKING_EDIT_REJECTED]' : '[TRANSFER_ADVICE_EDIT_REJECTED]';
                         await supabase.from('messages').insert([{
                           sender_role: userRole,
                           sender_name: userName || 'Admin',
                           receiver_role: req.requesterRole,
                           receiver_name: req.requesterName,
-                          message: `[TRANSFER_ADVICE_EDIT_REJECTED]::${req.recordId}`
+                          message: `${rejectMsg}::${req.recordId}`
                         }]);
                         toast.error("Edit request rejected.");
                         setPendingEditRequests(prev => prev.filter(p => p.recordId !== req.recordId));
