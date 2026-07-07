@@ -600,12 +600,7 @@ export default function Messages() {
         )}
       </div>
 
-      <GroupCallModal 
-        isOpen={showGroupCall} 
-        onClose={() => setShowGroupCall(false)} 
-        onStartCall={startGroupCall}
-        contacts={contacts}
-      />
+
 
       {isDialing && selectedContact && (
         <OutgoingCallModal 
