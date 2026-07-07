@@ -4445,7 +4445,7 @@ export default function FileTracking() {
                                 </div>
                                 <div>
                                   <p className="text-[10px] font-bold text-muted-foreground uppercase">Sub Category</p>
-                                  <p className="text-sm font-semibold">{step.subCategory?.replace(/_/g, " ").toUpperCase()}</p>
+                                  <p className="text-sm font-semibold">{step.subCategory?.replace(/_/g, " ")?.toUpperCase()}</p>
                                 </div>
                                 <div className="col-span-2">
                                   <p className="text-[10px] font-bold text-muted-foreground uppercase">Subject</p>
@@ -4481,7 +4481,7 @@ export default function FileTracking() {
                                 )}
                                 <div>
                                   <p className="text-[10px] font-bold text-muted-foreground uppercase">Marked To</p>
-                                  <Badge>{step.mark_to.toUpperCase()}</Badge>
+                                  <Badge>{step.mark_to?.toUpperCase()}</Badge>
                                 </div>
                               </div>
                             </DialogContent>
