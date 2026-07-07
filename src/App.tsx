@@ -53,6 +53,8 @@ import CollectionEntry from "./pages/CollectionEntry";
 import AdminConfig from "./pages/AdminConfig";
 import ActivityLog from "./pages/ActivityLog";
 import FileAnalytics from "./pages/FileAnalytics";
+import MaintenanceScreen from "./pages/MaintenanceScreen";
+import { useAppConfig } from "@/hooks/useAppConfig";
 
 const queryClient = new QueryClient();
 
@@ -76,6 +78,17 @@ const DashboardRedirect = () => {
   return <Dashboard />;
 };
 
+const MaintenanceGuard = ({ children }: { children: React.ReactNode }) => {
+  const { userRole, isAdmin } = useAuth();
+  const { isMaintenanceMode } = useAppConfig();
+  
+  if (isMaintenanceMode && userRole !== 'admin' && !isAdmin) {
+    return <MaintenanceScreen />;
+  }
+  
+  return <>{children}</>;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -93,8 +106,9 @@ const App = () => (
                   path="/*"
                   element={
                     <ProtectedRoute>
-                      <Layout>
-                        <Routes>
+                      <MaintenanceGuard>
+                        <Layout>
+                          <Routes>
                           <Route path="/" element={
                             <ProtectedRoute>
                               <DashboardRedirect />
@@ -155,9 +169,10 @@ const App = () => (
                           <Route path="*" element={<NotFound />} />
                         </Routes>
                       </Layout>
-                    </ProtectedRoute>
-                  }
-                />
+                    </MaintenanceGuard>
+                  </ProtectedRoute>
+                }
+              />
               </Routes>
             </BrowserRouter>
           </VoiceProvider>

@@ -62,7 +62,8 @@ export default function AdminConfig() {
   const [authPassword, setAuthPassword] = useState('');
   const [showAuthPass, setShowAuthPass] = useState(false);
 
-  const { mainCategories, subCategories, sections, isLoading, refetch } = useAppConfig();
+  const { mainCategories, subCategories, sections, isMaintenanceMode, isLoading, refetch } = useAppConfig();
+  const [isTogglingMaintenance, setIsTogglingMaintenance] = useState(false);
 
   // Local state (mirrored from hook so we can do optimistic updates)
   const [localMain, setLocalMain] = useState<AppConfigItem[]>([]);
@@ -273,6 +274,43 @@ export default function AdminConfig() {
     ? localSub
     : localSub.filter(s => s.parent_key === selectedParent);
 
+  // ── Maintenance Mode Toggle ────────────────────────────────────────────────
+  const handleToggleMaintenance = async (checked: boolean) => {
+    setIsTogglingMaintenance(true);
+    try {
+      // Check if the record already exists
+      const { data: existing } = await supabase
+        .from('app_config' as any)
+        .select('id')
+        .eq('config_type', 'system_setting')
+        .eq('config_key', 'maintenance_mode')
+        .maybeSingle();
+
+      if (existing) {
+        await supabase
+          .from('app_config' as any)
+          .update({ config_label: checked ? 'true' : 'false' })
+          .eq('id', existing.id);
+      } else {
+        await supabase
+          .from('app_config' as any)
+          .insert({
+            config_type: 'system_setting',
+            config_key: 'maintenance_mode',
+            config_label: checked ? 'true' : 'false',
+            is_active: true,
+            sort_order: 0
+          });
+      }
+      toast.success(checked ? 'Maintenance Mode Enabled' : 'Maintenance Mode Disabled');
+      refetch();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to toggle maintenance mode');
+    } finally {
+      setIsTogglingMaintenance(false);
+    }
+  };
+
   // ── UI ──────────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-16">
@@ -311,6 +349,41 @@ export default function AdminConfig() {
           </p>
         </div>
       </div>
+
+      {/* System Status / Maintenance Mode */}
+      <Card className="bg-[#0f1115]/50 border-orange-500/20 shadow-lg">
+        <CardContent className="p-6 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center border-2 ${isMaintenanceMode ? 'bg-orange-500/20 border-orange-500/40' : 'bg-green-500/10 border-green-500/20'}`}>
+              <Settings2 className={`w-6 h-6 ${isMaintenanceMode ? 'text-orange-400 animate-[spin_3s_linear_infinite]' : 'text-green-500'}`} />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                System Status
+                {isMaintenanceMode ? (
+                  <Badge className="bg-orange-500 hover:bg-orange-600">Maintenance Mode</Badge>
+                ) : (
+                  <Badge className="bg-green-500 hover:bg-green-600">Online</Badge>
+                )}
+              </h3>
+              <p className="text-sm text-white/50">
+                Turn on maintenance mode to temporarily block all regular users from accessing the system.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className={`text-sm font-semibold ${isMaintenanceMode ? 'text-orange-400' : 'text-white/40'}`}>
+              {isMaintenanceMode ? 'System is Offline' : 'System is Active'}
+            </span>
+            <Switch 
+              checked={isMaintenanceMode}
+              onCheckedChange={handleToggleMaintenance}
+              disabled={isTogglingMaintenance}
+              className="data-[state=checked]:bg-orange-500"
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Tabs */}
       <Tabs defaultValue="main_category" className="space-y-4">
