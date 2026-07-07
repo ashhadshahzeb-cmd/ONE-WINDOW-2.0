@@ -120,8 +120,7 @@ export default function HuddleWindow({ roomId, onLeave }: HuddleWindowProps) {
       {/* Zego Container */}
       <div 
         ref={containerRef} 
-        className="flex-1 w-full bg-black/50"
-        style={{ width: '100%', height: '100%' }}
+        className="flex-1 w-full bg-black/50 overflow-hidden relative"
       />
     </div>
   );
