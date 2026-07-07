@@ -76,7 +76,7 @@ export default function TransferAdviceRecords() {
       setLoading(true);
       const { data, error } = await supabase
         .from('transfer_advices')
-        .select('*')
+        .select('*, transfer_advice_items(in_respect_of)')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -283,6 +283,7 @@ export default function TransferAdviceRecords() {
                     <th className="px-4 py-3">Date</th>
                     <th className="px-4 py-3">Advice No</th>
                     <th className="px-4 py-3">Bank Details</th>
+                    <th className="px-4 py-3">In Respect Of</th>
                     <th className="px-4 py-3 text-right">Total Amount</th>
                     <th className="px-4 py-3">Created By</th>
                     <th className="px-4 py-3 text-center">Action</th>
@@ -309,6 +310,15 @@ export default function TransferAdviceRecords() {
                         <td className="px-4 py-3 whitespace-nowrap">{record.date.split('-').reverse().join('-')}</td>
                         <td className="px-4 py-3 font-medium">{record.advice_no}</td>
                         <td className="px-4 py-3 max-w-xs truncate" title={record.bank_name}>{record.bank_name.split('\n')[0]}...</td>
+                        <td className="px-4 py-3 max-w-[200px] truncate text-white/80" title={
+                          record.transfer_advice_items 
+                            ? Array.from(new Set(record.transfer_advice_items.map((i: any) => i.in_respect_of))).filter(Boolean).join(', ') 
+                            : 'N/A'
+                        }>
+                          {record.transfer_advice_items 
+                            ? Array.from(new Set(record.transfer_advice_items.map((i: any) => i.in_respect_of))).filter(Boolean).join(', ') || 'N/A'
+                            : 'N/A'}
+                        </td>
                         <td className="px-4 py-3 text-right font-bold text-green-400">
                           {Number(record.total_amount).toLocaleString('en-US')}
                         </td>
