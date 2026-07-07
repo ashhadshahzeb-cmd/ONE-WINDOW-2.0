@@ -425,6 +425,44 @@ export default function FileTracking() {
   const [cfoDiarySearchQuery, setCfoDiarySearchQuery] = useState("");
   const [isCfoDiarySearching, setIsCfoDiarySearching] = useState(false);
 
+  const handleRequestEdit = async (record: any) => {
+    setRecordToEdit(record);
+    if (isAdmin) {
+      setActiveTab("register");
+      setFormData({
+        ...formData,
+        cfo_diary_number: record.cfo_diary_number,
+        inward_date: record.inward_date || getLocalDateString(),
+        registration_date: record.created_at ? getLocalDateString(record.created_at) : getLocalDateString(),
+        print_date: record.created_at ? getLocalDateString(record.created_at) : getLocalDateString(),
+        received_from: record.received_from || "",
+        receiving_number: record.receiving_number,
+        mainCategory: record.mainCategory || record.main_category || "",
+        subCategory: record.subCategory || record.sub_category || "",
+        subject: record.subject || "",
+        amount: record.amount || 0,
+        remarks: record.remarks || "",
+        mark_to: record.mark_to || "cfo",
+        signature_data: record.signature_data || "",
+        employee_number: record.employee_number || "",
+        voucher_code: record.voucher_code || "",
+      });
+      setIsEditing(true);
+    } else {
+      setApprovalStatus("waiting");
+      setIsEditModalOpen(true);
+      setEditPassword("");
+      await supabase.from('messages').insert([{
+        sender_role: userRole,
+        sender_name: userName,
+        receiver_role: 'admin',
+        receiver_name: 'Admin',
+        message: `[FILE_TRACKING_EDIT_REQ]::${record.id}`
+      }]);
+      toast.info("Approval request sent to Admin.");
+    }
+  };
+
   const handleCfoDiarySearch = async () => {
     if (!cfoDiarySearchQuery.trim()) return;
     setIsCfoDiarySearching(true);
@@ -441,41 +479,7 @@ export default function FileTracking() {
       ).first();
 
       if (allLocal) {
-        setRecordToEdit(allLocal);
-        if (isAdmin) {
-          setActiveTab("register");
-          setFormData({
-            ...formData,
-            cfo_diary_number: allLocal.cfo_diary_number,
-            inward_date: allLocal.inward_date || getLocalDateString(),
-            registration_date: allLocal.created_at ? getLocalDateString(allLocal.created_at) : getLocalDateString(),
-            print_date: allLocal.created_at ? getLocalDateString(allLocal.created_at) : getLocalDateString(),
-            received_from: allLocal.received_from || "",
-            receiving_number: allLocal.receiving_number,
-            mainCategory: allLocal.mainCategory || allLocal.main_category || "",
-            subCategory: allLocal.subCategory || allLocal.sub_category || "",
-            subject: allLocal.subject || "",
-            amount: allLocal.amount || 0,
-            remarks: allLocal.remarks || "",
-            mark_to: allLocal.mark_to || "cfo",
-            signature_data: allLocal.signature_data || "",
-            employee_number: allLocal.employee_number || "",
-            voucher_code: allLocal.voucher_code || "",
-          });
-          setIsEditing(true);
-        } else {
-          setApprovalStatus("waiting");
-          setIsEditModalOpen(true);
-          setEditPassword("");
-          await supabase.from('messages').insert([{
-            sender_role: userRole,
-            sender_name: userName,
-            receiver_role: 'admin',
-            receiver_name: 'Admin',
-            message: `[FILE_TRACKING_EDIT_REQ]::${allLocal.id}`
-          }]);
-          toast.info("Approval request sent to Admin.");
-        }
+        await handleRequestEdit(allLocal);
         setCfoDiarySearchQuery('');
         return;
       }
@@ -491,44 +495,7 @@ export default function FileTracking() {
       if (error) throw error;
 
       if (data) {
-        setRecordToEdit(data);
-        if (isAdmin) {
-          // If Admin, go directly to edit mode
-          setActiveTab("register");
-          setFormData({
-            ...formData,
-            cfo_diary_number: data.cfo_diary_number,
-            inward_date: data.inward_date || getLocalDateString(),
-            registration_date: data.created_at ? getLocalDateString(data.created_at) : getLocalDateString(),
-            print_date: data.created_at ? getLocalDateString(data.created_at) : getLocalDateString(),
-            received_from: data.received_from || "",
-            receiving_number: data.receiving_number,
-            mainCategory: data.mainCategory || data.main_category || "",
-            subCategory: data.subCategory || data.sub_category || "",
-            subject: data.subject || "",
-            amount: data.amount || 0,
-            remarks: data.remarks || "",
-            mark_to: data.mark_to || "cfo",
-            signature_data: data.signature_data || "",
-            employee_number: data.employee_number || "",
-            voucher_code: data.voucher_code || "",
-          });
-          setIsEditing(true);
-        } else {
-          // Not Admin, ask for approval
-          setApprovalStatus("waiting");
-          setIsEditModalOpen(true);
-          setEditPassword(""); // clear previous
-          
-          await supabase.from('messages').insert([{
-            sender_role: userRole,
-            sender_name: userName,
-            receiver_role: 'admin',
-            receiver_name: 'Admin',
-            message: `[FILE_TRACKING_EDIT_REQ]::${data.id}`
-          }]);
-          toast.info("Approval request sent to Admin.");
-        }
+        await handleRequestEdit(data);
         setCfoDiarySearchQuery('');
       } else {
         toast.error('No record found with this CFO Diary / Receiving Number.');
@@ -2669,10 +2636,7 @@ export default function FileTracking() {
                                   variant="outline"
                                   className="h-8 w-8 p-0 border-blue-500/20 text-blue-500 hover:bg-blue-500 hover:text-white transition-all ml-1"
                                   title="Edit Record"
-                                  onClick={() => {
-                                    setRecordToEdit(file);
-                                    setIsEditModalOpen(true);
-                                  }}
+                                  onClick={() => handleRequestEdit(file)}
                                 >
                                   <FileEdit className="w-4 h-4" />
                                 </Button>
@@ -3082,10 +3046,7 @@ export default function FileTracking() {
                               size="icon"
                               className="h-8 w-8 hover:text-blue-500 hover:bg-blue-500/10"
                               title="Edit Record"
-                              onClick={() => {
-                                setRecordToEdit(file);
-                                setIsEditModalOpen(true);
-                              }}
+                              onClick={() => handleRequestEdit(file)}
                             >
                               <FileEdit className="w-3.5 h-3.5" />
                             </Button>
