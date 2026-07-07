@@ -9,7 +9,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { numberToWords } from "@/lib/numberToWords";
 import { useAuth } from '@/contexts/AuthContext';
 import EditTransferAdviceModal from '@/components/EditTransferAdviceModal';
-import { FileEdit } from 'lucide-react';
+import { FileEdit, CheckSquare } from 'lucide-react';
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function TransferAdviceRecords() {
   const [records, setRecords] = useState<any[]>([]);
@@ -25,6 +27,18 @@ export default function TransferAdviceRecords() {
   const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
   const [editPassword, setEditPassword] = useState("");
   const [approvalStatus, setApprovalStatus] = useState<"waiting" | "approved" | "rejected">("waiting");
+
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [selectedRecordIds, setSelectedRecordIds] = useState<string[]>([]);
+  const [isBulkPrintConfigOpen, setIsBulkPrintConfigOpen] = useState(false);
+  const [bulkHeaderConfig, setBulkHeaderConfig] = useState({
+    advice_no: '',
+    date: '',
+    bank_name: '',
+    subject: '',
+    total_amount: 0
+  });
 
   useEffect(() => {
     fetchRecords();
@@ -146,32 +160,111 @@ export default function TransferAdviceRecords() {
     }
   };
 
-  const filteredRecords = records.filter(r => 
-    r.advice_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.bank_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.date.includes(searchTerm)
-  );
+  const filteredRecords = records.filter(r => {
+    const matchesSearch = r.advice_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          r.bank_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          r.date.includes(searchTerm);
+    const matchesStart = startDate ? r.date >= startDate : true;
+    const matchesEnd = endDate ? r.date <= endDate : true;
+    return matchesSearch && matchesStart && matchesEnd;
+  });
+
+  const handleSelectAll = () => {
+    if (selectedRecordIds.length === filteredRecords.length) {
+      setSelectedRecordIds([]);
+    } else {
+      setSelectedRecordIds(filteredRecords.map(r => r.id));
+    }
+  };
+
+  const handleToggleSelect = (id: string) => {
+    setSelectedRecordIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleOpenBulkPrintConfig = () => {
+    if (selectedRecordIds.length === 0) {
+      toast.error("Please select at least one record to print.");
+      return;
+    }
+    const firstSelected = records.find(r => r.id === selectedRecordIds[0]);
+    if (firstSelected) {
+      setBulkHeaderConfig({
+        advice_no: firstSelected.advice_no,
+        date: firstSelected.date,
+        bank_name: firstSelected.bank_name,
+        subject: firstSelected.subject,
+        total_amount: 0
+      });
+      setIsBulkPrintConfigOpen(true);
+    }
+  };
+
+  const handleExecuteBulkPrint = async () => {
+    setIsBulkPrintConfigOpen(false);
+    setItemsLoading(true);
+    setIsViewModalOpen(true);
+    
+    try {
+      const { data, error } = await supabase
+        .from('transfer_advice_items')
+        .select('*')
+        .in('transfer_advice_id', selectedRecordIds)
+        .order('transfer_advice_id', { ascending: true })
+        .order('s_no', { ascending: true });
+        
+      if (error) throw error;
+      
+      const allItems = data || [];
+      const totalAmount = allItems.reduce((sum, item) => sum + (Number(item.transfer_amount) || 0), 0);
+      
+      setSelectedAdvice({ ...bulkHeaderConfig, total_amount: totalAmount });
+      setSelectedItems(allItems);
+    } catch (err: any) {
+      console.error('Error fetching bulk items:', err);
+      toast.error('Failed to load advice details for bulk print');
+      setIsViewModalOpen(false);
+    } finally {
+      setItemsLoading(false);
+    }
+  };
 
   return (
     <div className="container mx-auto p-4 space-y-6">
       <div className="flex justify-between items-center no-print">
         <h1 className="text-2xl font-bold text-white">Transfer Advice Records</h1>
-        <Button onClick={fetchRecords} variant="outline" className="text-white border-white/20">
-          Refresh Data
-        </Button>
+        <div className="space-x-2">
+          {selectedRecordIds.length > 0 && (
+            <Button onClick={handleOpenBulkPrintConfig} className="bg-sky-600 hover:bg-sky-700 text-white font-bold">
+              <Printer className="w-4 h-4 mr-2" /> Print Selected ({selectedRecordIds.length})
+            </Button>
+          )}
+          <Button onClick={fetchRecords} variant="outline" className="text-white border-white/20">
+            Refresh Data
+          </Button>
+        </div>
       </div>
 
       <Card className="bg-[#0B101E] border-white/10 text-white shadow-xl no-print">
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <CardTitle>History</CardTitle>
-          <div className="relative w-64">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Search Ref No, Bank, Date..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8 bg-[#1A2333] border-white/10"
-            />
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 bg-[#1A2333] border border-white/10 rounded-md p-1 px-2">
+              <Label className="text-xs text-white/50">From</Label>
+              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-8 border-0 bg-transparent focus-visible:ring-0 w-32" />
+              <Label className="text-xs text-white/50">To</Label>
+              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-8 border-0 bg-transparent focus-visible:ring-0 w-32" />
+            </div>
+            <div className="relative w-64">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search Ref No, Bank, Date..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-8 bg-[#1A2333] border-white/10 h-10"
+              />
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -182,6 +275,11 @@ export default function TransferAdviceRecords() {
               <table className="w-full text-sm text-left">
                 <thead className="text-xs uppercase bg-[#1A2333]">
                   <tr>
+                    <th className="px-4 py-3 w-10 text-center">
+                      <button onClick={handleSelectAll} className="text-white/50 hover:text-white" title="Select All">
+                        <CheckSquare className={`w-4 h-4 ${selectedRecordIds.length === filteredRecords.length && filteredRecords.length > 0 ? 'text-sky-400' : ''}`} />
+                      </button>
+                    </th>
                     <th className="px-4 py-3">Date</th>
                     <th className="px-4 py-3">Advice No</th>
                     <th className="px-4 py-3">Bank Details</th>
@@ -193,13 +291,21 @@ export default function TransferAdviceRecords() {
                 <tbody>
                   {filteredRecords.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
+                      <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
                         No records found.
                       </td>
                     </tr>
                   ) : (
                     filteredRecords.map((record) => (
-                      <tr key={record.id} className="border-b border-white/10 hover:bg-white/5 transition-colors">
+                      <tr key={record.id} className={`border-b border-white/10 hover:bg-white/5 transition-colors ${selectedRecordIds.includes(record.id) ? 'bg-sky-900/20' : ''}`}>
+                        <td className="px-4 py-3 text-center">
+                          <input 
+                            type="checkbox" 
+                            checked={selectedRecordIds.includes(record.id)}
+                            onChange={() => handleToggleSelect(record.id)}
+                            className="w-4 h-4 rounded border-white/20 bg-[#0B101E] text-sky-500 focus:ring-sky-500 focus:ring-offset-[#0B101E]"
+                          />
+                        </td>
                         <td className="px-4 py-3 whitespace-nowrap">{record.date.split('-').reverse().join('-')}</td>
                         <td className="px-4 py-3 font-medium">{record.advice_no}</td>
                         <td className="px-4 py-3 max-w-xs truncate" title={record.bank_name}>{record.bank_name.split('\n')[0]}...</td>
@@ -241,6 +347,45 @@ export default function TransferAdviceRecords() {
           )}
         </CardContent>
       </Card>
+
+      {/* --- BULK PRINT CONFIG MODAL --- */}
+      <Dialog open={isBulkPrintConfigOpen} onOpenChange={setIsBulkPrintConfigOpen}>
+        <DialogContent className="bg-[#0B101E] border-white/10 text-white sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-sky-400 font-bold">Configure Bulk Print</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <p className="text-sm text-white/70">
+              You are about to print <strong>{selectedRecordIds.length}</strong> selected records as a single document. 
+              Please confirm or edit the common header details that will appear at the top.
+            </p>
+            <div className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label>Advice No.</Label>
+                <Input value={bulkHeaderConfig.advice_no} onChange={(e) => setBulkHeaderConfig(c => ({...c, advice_no: e.target.value}))} className="bg-[#1A2333] border-white/10" />
+              </div>
+              <div className="space-y-2">
+                <Label>Date</Label>
+                <Input type="date" value={bulkHeaderConfig.date} onChange={(e) => setBulkHeaderConfig(c => ({...c, date: e.target.value}))} className="bg-[#1A2333] border-white/10" />
+              </div>
+              <div className="space-y-2">
+                <Label>Bank Details (To)</Label>
+                <Textarea value={bulkHeaderConfig.bank_name} onChange={(e) => setBulkHeaderConfig(c => ({...c, bank_name: e.target.value}))} className="bg-[#1A2333] border-white/10 h-20" />
+              </div>
+              <div className="space-y-2">
+                <Label>Subject</Label>
+                <Textarea value={bulkHeaderConfig.subject} onChange={(e) => setBulkHeaderConfig(c => ({...c, subject: e.target.value}))} className="bg-[#1A2333] border-white/10 h-20" />
+              </div>
+            </div>
+            <div className="flex justify-end pt-4 space-x-2">
+              <Button variant="outline" onClick={() => setIsBulkPrintConfigOpen(false)} className="text-white border-white/20">Cancel</Button>
+              <Button onClick={handleExecuteBulkPrint} className="bg-sky-600 hover:bg-sky-700 text-white font-bold">
+                <Printer className="w-4 h-4 mr-2" /> Generate Print View
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* --- EDIT MODAL --- */}
       <EditTransferAdviceModal 
