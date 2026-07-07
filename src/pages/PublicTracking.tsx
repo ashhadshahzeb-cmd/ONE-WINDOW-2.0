@@ -18,7 +18,9 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function PublicTracking() {
-  const { diaryNo, receivingNo } = useParams();
+  const params = useParams();
+  const diaryNo = params.diaryNo;
+  const receivingNo = params['*'];
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [record, setRecord] = useState<any>(null);

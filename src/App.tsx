@@ -102,7 +102,7 @@ const App = () => (
               <Routes>
                 <Route path="/login" element={<AuthPage />} />
                 <Route path="/track" element={<TrackingPortal />} />
-                <Route path="/public-track/:diaryNo/:receivingNo" element={<PublicTracking />} />
+                <Route path="/public-track/:diaryNo/*" element={<PublicTracking />} />
                 <Route path="/mobile-upload/:sessionId" element={<MobileUpload />} />
                 <Route
                   path="/*"
