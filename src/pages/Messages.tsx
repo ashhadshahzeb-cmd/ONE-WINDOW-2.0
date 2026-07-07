@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth, getDepartmentUsers, DepartmentUser } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Send, MessageCircle, User, Video } from 'lucide-react';
+import { Search, Send, MessageCircle, User, Video, Headphones } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
@@ -311,9 +311,9 @@ export default function Messages() {
         <div className="p-5 border-b border-white/5 bg-background/10 backdrop-blur-md">
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-2xl font-black tracking-tight text-white/90">Messages</h2>
-            <Button size="sm" className="h-8 gap-2 rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/10 backdrop-blur-md shadow-lg" onClick={() => setShowGroupCall(true)}>
-              <Video className="w-3.5 h-3.5 text-primary" />
-              <span className="font-bold text-xs">Group Call</span>
+            <Button size="sm" className="h-8 gap-2 rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/10 backdrop-blur-md shadow-lg transition-colors group" onClick={() => setShowGroupCall(true)}>
+              <Headphones className="w-3.5 h-3.5 text-white/70 group-hover:text-primary transition-colors" />
+              <span className="font-bold text-xs">Huddle</span>
             </Button>
           </div>
           <div className="relative group">
@@ -424,11 +424,11 @@ export default function Messages() {
               <Button 
                 variant="outline" 
                 size="sm"
-                className="gap-2 bg-sky-500/10 text-sky-400 border-sky-500/20 hover:bg-sky-500/20 hover:text-sky-300 font-bold rounded-xl h-10 px-4"
+                className="gap-2 bg-white/5 text-white/90 border-white/10 hover:bg-primary/20 hover:border-primary/50 hover:text-primary font-bold rounded-xl h-10 px-5 transition-all group shadow-sm"
                 onClick={startVideoCall}
               >
-                <Video className="w-4 h-4" />
-                Start Video Call
+                <Headphones className="w-4 h-4 text-white/50 group-hover:text-primary transition-colors" />
+                Start Huddle
               </Button>
             </div>
 
@@ -516,11 +516,11 @@ export default function Messages() {
                             msg.message.startsWith('[CALL_CANCELED]') ? "bg-zinc-500/10 border-zinc-500/20 text-zinc-400" :
                             "bg-sky-500/10 border-sky-500/20 text-sky-400"
                           )}>
-                            <Video className="w-3.5 h-3.5" />
-                            {msg.message.startsWith('[CALL_RING]') ? (isMe ? 'Started a Video Call' : 'Incoming Video Call') :
-                             msg.message.startsWith('[CALL_ACCEPTED]') ? 'Video Call Started' :
-                             msg.message.startsWith('[CALL_DECLINED]') ? (isMe ? 'Call Declined' : 'Missed Call') :
-                             'Call Canceled'}
+                            <Headphones className="w-3.5 h-3.5" />
+                            {msg.message.startsWith('[CALL_RING]') ? (isMe ? 'Started a Huddle' : 'Incoming Huddle') :
+                             msg.message.startsWith('[CALL_ACCEPTED]') ? 'Huddle Started' :
+                             msg.message.startsWith('[CALL_DECLINED]') ? (isMe ? 'Huddle Declined' : 'Missed Huddle') :
+                             'Huddle Canceled'}
                           </div>
                         ) : (
                           <div className="text-[15px] text-white/80 leading-relaxed break-words">
