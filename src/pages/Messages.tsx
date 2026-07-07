@@ -45,6 +45,17 @@ export default function Messages() {
   // Active Huddle State
   const [activeHuddleRoomId, setActiveHuddleRoomId] = useState<string | null>(null);
 
+  // Incoming Ringtone
+  const incomingRingAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    incomingRingAudioRef.current = new Audio('https://www.soundjay.com/phone/sounds/ringtone-1-01.mp3');
+    incomingRingAudioRef.current.loop = true;
+    return () => {
+      incomingRingAudioRef.current?.pause();
+    };
+  }, []);
+
   const startVideoCall = async () => {
     if (!selectedContact || !userRole || !userName) return;
 
@@ -185,6 +196,19 @@ export default function Messages() {
               setMessages((prev) => [...prev, newMsg]);
             }
           } else if (newMsg.sender_role === userRole || newMsg.receiver_role === userRole) {
+            
+            // Handle incoming ringtone
+            if (newMsg.receiver_role === userRole) {
+              if (newMsg.message.startsWith('[CALL_RING]')) {
+                incomingRingAudioRef.current?.play().catch(() => {});
+              } else if (newMsg.message.startsWith('[CALL_ACCEPTED]') || newMsg.message.startsWith('[CALL_DECLINED]') || newMsg.message.startsWith('[CALL_CANCELED]')) {
+                if (incomingRingAudioRef.current) {
+                  incomingRingAudioRef.current.pause();
+                  incomingRingAudioRef.current.currentTime = 0;
+                }
+              }
+            }
+
             const otherRole = newMsg.sender_role === userRole ? newMsg.receiver_role : newMsg.sender_role;
             const time = new Date(newMsg.created_at).getTime();
             
@@ -536,6 +560,10 @@ export default function Messages() {
                                 size="sm" 
                                 className="h-6 text-[10px] px-3 bg-white/10 hover:bg-white/20 text-white rounded-lg ml-2"
                                 onClick={() => {
+                                  if (incomingRingAudioRef.current) {
+                                    incomingRingAudioRef.current.pause();
+                                    incomingRingAudioRef.current.currentTime = 0;
+                                  }
                                   const roomId = msg.message.split('::')[1];
                                   setActiveHuddleRoomId(roomId);
                                   

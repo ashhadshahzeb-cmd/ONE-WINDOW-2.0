@@ -13,9 +13,10 @@ export default function OutgoingCallModal({ receiverName, receiverRole, receiver
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    // Play outgoing ringtone loop (Classic Telephone)
-    audioRef.current = new Audio('https://www.soundjay.com/phone/sounds/telephone-ring-04.mp3');
+    // Play outgoing background music (Slack Huddle style)
+    audioRef.current = new Audio('https://www.soundjay.com/free-music/sounds/midsummer-sky-1.mp3');
     audioRef.current.loop = true;
+    audioRef.current.volume = 0.5;
     audioRef.current.play().catch(e => console.error("Audio play failed:", e));
 
     return () => {
