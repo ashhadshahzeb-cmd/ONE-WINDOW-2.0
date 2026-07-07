@@ -246,55 +246,6 @@ export default function FileTracking() {
   const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
   const [deletePassword, setDeletePassword] = useState("");
 
-  useEffect(() => {
-    if (!isEditModalOpen || !recordToEdit || !userRole || approvalStatus !== "waiting") return;
-    
-    const channel = supabase
-      .channel('file_tracking_approval')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
-        (payload) => {
-          const newMsg = payload.new as any;
-          if (newMsg.receiver_role === userRole && newMsg.message.startsWith('[FILE_TRACKING_EDIT_APPROVED]::' + recordToEdit.id)) {
-            toast.success("Admin approved edit request!");
-            setApprovalStatus("approved");
-            setIsEditModalOpen(false);
-            
-            // Go to edit mode
-            setActiveTab("register");
-            setFormData({
-              ...formData,
-              cfo_diary_number: recordToEdit.cfo_diary_number,
-              inward_date: recordToEdit.inward_date || getLocalDateString(),
-              registration_date: recordToEdit.created_at ? getLocalDateString(recordToEdit.created_at) : getLocalDateString(),
-              print_date: recordToEdit.created_at ? getLocalDateString(recordToEdit.created_at) : getLocalDateString(),
-              received_from: recordToEdit.received_from || "",
-              receiving_number: recordToEdit.receiving_number,
-              mainCategory: recordToEdit.mainCategory || recordToEdit.main_category || "",
-              subCategory: recordToEdit.subCategory || recordToEdit.sub_category || "",
-              subject: recordToEdit.subject || "",
-              amount: recordToEdit.amount || 0,
-              remarks: recordToEdit.remarks || "",
-              mark_to: recordToEdit.mark_to || "cfo",
-              signature_data: recordToEdit.signature_data || "",
-              employee_number: recordToEdit.employee_number || "",
-              voucher_code: recordToEdit.voucher_code || "",
-            });
-            setIsEditing(true);
-            
-          } else if (newMsg.receiver_role === userRole && newMsg.message.startsWith('[FILE_TRACKING_EDIT_REJECTED]::' + recordToEdit.id)) {
-            toast.error("Admin rejected edit request.");
-            setApprovalStatus("rejected");
-            setIsEditModalOpen(false);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [isEditModalOpen, recordToEdit, userRole, approvalStatus]);
-
   const handleDeleteRecord = async () => {
     if (!verifyPassword(deletePassword)) {
       toast.error("Incorrect password. Deletion failed.");
@@ -417,6 +368,55 @@ export default function FileTracking() {
   const [editPassword, setEditPassword] = useState("");
   const [isEditingMode, setIsEditingMode] = useState(false);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isEditModalOpen || !recordToEdit || !userRole || approvalStatus !== "waiting") return;
+    
+    const channel = supabase
+      .channel('file_tracking_approval')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload) => {
+          const newMsg = payload.new as any;
+          if (newMsg.receiver_role === userRole && newMsg.message.startsWith('[FILE_TRACKING_EDIT_APPROVED]::' + recordToEdit.id)) {
+            toast.success("Admin approved edit request!");
+            setApprovalStatus("approved");
+            setIsEditModalOpen(false);
+            
+            // Go to edit mode
+            setActiveTab("register");
+            setFormData({
+              ...formData,
+              cfo_diary_number: recordToEdit.cfo_diary_number,
+              inward_date: recordToEdit.inward_date || getLocalDateString(),
+              registration_date: recordToEdit.created_at ? getLocalDateString(recordToEdit.created_at) : getLocalDateString(),
+              print_date: recordToEdit.created_at ? getLocalDateString(recordToEdit.created_at) : getLocalDateString(),
+              received_from: recordToEdit.received_from || "",
+              receiving_number: recordToEdit.receiving_number,
+              mainCategory: recordToEdit.mainCategory || recordToEdit.main_category || "",
+              subCategory: recordToEdit.subCategory || recordToEdit.sub_category || "",
+              subject: recordToEdit.subject || "",
+              amount: recordToEdit.amount || 0,
+              remarks: recordToEdit.remarks || "",
+              mark_to: recordToEdit.mark_to || "cfo",
+              signature_data: recordToEdit.signature_data || "",
+              employee_number: recordToEdit.employee_number || "",
+              voucher_code: recordToEdit.voucher_code || "",
+            });
+            setIsEditing(true);
+            
+          } else if (newMsg.receiver_role === userRole && newMsg.message.startsWith('[FILE_TRACKING_EDIT_REJECTED]::' + recordToEdit.id)) {
+            toast.error("Admin rejected edit request.");
+            setApprovalStatus("rejected");
+            setIsEditModalOpen(false);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [isEditModalOpen, recordToEdit, userRole, approvalStatus]);
 
   // My Tray local search
   const [traySearchQuery, setTraySearchQuery] = useState("");
