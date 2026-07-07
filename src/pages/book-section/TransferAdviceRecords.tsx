@@ -532,7 +532,11 @@ export default function TransferAdviceRecords() {
                         <td className="border border-black px-2 py-1 text-center">{item.ac_no_debit}</td>
                         <td className="border border-black px-2 py-1 text-center">{item.ac_no_credit}</td>
                         <td className="border border-black px-2 py-1 text-[9pt] text-center">{item.in_respect_of}</td>
-                        <td className="border border-black px-2 py-1 text-[9pt] text-center">{item.payment_method && item.payment_method !== "None" ? `${item.payment_method}\n${item.payment_number}` : '-'}</td>
+                        <td className="border border-black px-2 py-1 text-[9pt] text-center">
+                          {item.payment_method && item.payment_method !== "None" 
+                            ? (item.payment_method === 'Digital' ? `Transaction ID:\n${item.payment_number}` : `${item.payment_method} No:\n${item.payment_number}`) 
+                            : '-'}
+                        </td>
                       </tr>
                     ))}
                     <tr className="font-bold border-t-2 border-black">
@@ -650,7 +654,11 @@ export default function TransferAdviceRecords() {
                   <td>{item.ac_no_debit}</td>
                   <td>{item.ac_no_credit}</td>
                   <td className="words-col text-[9pt]">{item.in_respect_of}</td>
-                  <td className="text-[9pt]">{item.payment_method && item.payment_method !== "None" ? `${item.payment_method}\n${item.payment_number}` : '-'}</td>
+                  <td className="text-[9pt]">
+                    {item.payment_method && item.payment_method !== "None" 
+                      ? (item.payment_method === 'Digital' ? `Transaction ID:\n${item.payment_number}` : `${item.payment_method} No:\n${item.payment_number}`) 
+                      : '-'}
+                  </td>
                 </tr>
               ))}
               <tr className="font-bold border-t-2 border-black">

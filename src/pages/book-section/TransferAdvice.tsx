@@ -181,7 +181,10 @@ export default function TransferAdvice() {
                     <th className="px-4 py-3">A/C No (Credit)</th>
                     <th className="px-4 py-3">In Respect Of</th>
                     <th className="px-4 py-3">Payment Method</th>
-                    <th className="px-4 py-3">Number</th>
+                    <th className="px-4 py-3">
+                      {items[0]?.payment_method === 'Digital' ? 'Transaction ID' : 
+                       items[0]?.payment_method !== 'None' && items[0]?.payment_method ? `${items[0].payment_method} Number` : 'Number'}
+                    </th>
                     <th className="px-4 py-3">Action</th>
                   </tr>
                 </thead>
@@ -235,8 +238,8 @@ export default function TransferAdvice() {
                           <Input 
                             value={item.payment_number || ''} 
                             onChange={(e) => updateItem(item.id, 'payment_number', e.target.value)}
-                            placeholder="Number..."
-                            className="bg-[#1A2333] border-white/10 w-32" 
+                            placeholder={item.payment_method === 'Digital' ? 'Transaction ID...' : `${item.payment_method} No...`}
+                            className="bg-[#1A2333] border-white/10 w-36" 
                           />
                         )}
                       </td>
@@ -360,7 +363,13 @@ export default function TransferAdvice() {
                 <td>{item.ac_debit}</td>
                 <td>{item.ac_credit}</td>
                 <td className="words-col text-[9pt]">{item.in_respect_of}</td>
-                <td className="text-[9pt]">{item.payment_method && item.payment_method !== "None" ? `${item.payment_method}\n${item.payment_number}` : '-'}</td>
+                <td className="text-[9pt]">
+                  {item.payment_method && item.payment_method !== "None" 
+                    ? (item.payment_method === 'Digital' 
+                        ? `Transaction ID:\n${item.payment_number}` 
+                        : `${item.payment_method} No:\n${item.payment_number}`) 
+                    : '-'}
+                </td>
               </tr>
             ))}
             {/* Total Row */}

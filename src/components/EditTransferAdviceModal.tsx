@@ -257,11 +257,13 @@ export default function EditTransferAdviceModal({ isOpen, onClose, record, onSav
                     <div className="space-y-1">
                       {item.payment_method !== "None" && (
                         <>
-                          <Label className="text-xs text-white/50">Number</Label>
+                          <Label className="text-xs text-white/50">
+                            {item.payment_method === 'Digital' ? 'Transaction ID' : `${item.payment_method} Number`}
+                          </Label>
                           <Input 
                             value={item.payment_number || ''} 
                             onChange={(e) => updateItem(item.id, 'payment_number', e.target.value)}
-                            placeholder="Number..."
+                            placeholder={item.payment_method === 'Digital' ? 'Transaction ID...' : `${item.payment_method} No...`}
                             className="bg-[#0B101E] border-white/10" 
                           />
                         </>
