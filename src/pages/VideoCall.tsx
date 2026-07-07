@@ -90,8 +90,17 @@ export default function VideoCall() {
           mode: ZegoUIKitPrebuilt.VideoConference,
         },
         maxUsers: 50,
-        layout: "Gallery",
+        layout: "Sidebar",
         showScreenSharingButton: true,
+        showTextChat: true,
+        showUserList: true,
+        showPreJoinView: false,
+        turnOnMicrophoneWhenJoining: true,
+        turnOnCameraWhenJoining: true,
+        showMyCameraToggleButton: true,
+        showMyMicrophoneToggleButton: true,
+        showAudioVideoSettingsButton: true,
+        showLayoutButton: true,
         onLeaveRoom: () => {
           navigate('/messages');
         },
