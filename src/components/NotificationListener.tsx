@@ -16,7 +16,7 @@ interface IncomingCallData {
 }
 
 export default function NotificationListener() {
-  const { userRole, userName } = useAuth();
+  const { userRole, userName, isAdmin } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -87,8 +87,10 @@ export default function NotificationListener() {
         },
         (payload) => {
           const newMsg = payload.new as any;
-          // Only notify if message is for us, and we are not the sender
-          if (newMsg && newMsg.receiver_role === userRole && newMsg.sender_role !== userRole) {
+          // Only notify if message is for us (or if it's for admin and we are admin), and we are not the sender
+          const isForUs = newMsg && (newMsg.receiver_role === userRole || (newMsg.receiver_role === 'admin' && isAdmin));
+          
+          if (isForUs && newMsg.sender_role !== userRole) {
             
             // Call logic
             if (newMsg.message.startsWith('[CALL_RING]::')) {
@@ -110,7 +112,7 @@ export default function NotificationListener() {
             } else if (newMsg.message.startsWith('[CALL_ACCEPTED]::') || newMsg.message.startsWith('[CALL_DECLINED]::')) {
               // handled in caller's side
               return;
-            } else if ((newMsg.message.startsWith('[TRANSFER_ADVICE_EDIT_REQ]::') || newMsg.message.startsWith('[FILE_TRACKING_EDIT_REQ]::')) && userRole === 'admin') {
+            } else if ((newMsg.message.startsWith('[TRANSFER_ADVICE_EDIT_REQ]::') || newMsg.message.startsWith('[FILE_TRACKING_EDIT_REQ]::')) && isAdmin) {
               const isFileTracking = newMsg.message.startsWith('[FILE_TRACKING_EDIT_REQ]::');
               const parts = newMsg.message.split('::');
               const recordId = parts[1];
