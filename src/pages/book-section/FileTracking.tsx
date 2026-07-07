@@ -2613,7 +2613,7 @@ export default function FileTracking() {
                                 <Badge variant="outline" className="text-[10px] uppercase">{mainCatReadable(file.mainCategory)}</Badge>
                                 {file.subCategory && (
                                   <span className="text-[9px] text-muted-foreground uppercase font-bold px-1 italic">
-                                    {file.subCategory.replace(/_/g, " ")}
+                                    {file.subCategory?.replace(/_/g, " ")}
                                   </span>
                                 )}
                               </div>
@@ -2768,7 +2768,7 @@ export default function FileTracking() {
                                     <Badge variant="outline" className="text-[9px] uppercase">{mainCatReadable(file.mainCategory)}</Badge>
                                     {file.subCategory && (
                                       <span className="text-[8px] text-muted-foreground uppercase font-bold italic">
-                                        {file.subCategory.replace(/_/g, " ")}
+                                        {file.subCategory?.replace(/_/g, " ")}
                                       </span>
                                     )}
                                   </div>
@@ -2998,7 +2998,7 @@ export default function FileTracking() {
                             <Badge variant="outline" className="text-[9px] uppercase border-primary/20">{mainCatReadable(file.mainCategory)}</Badge>
                             {file.subCategory && (
                               <span className="text-[8px] text-muted-foreground uppercase font-bold italic">
-                                {file.subCategory.replace(/_/g, " ")}
+                                {file.subCategory?.replace(/_/g, " ")}
                               </span>
                             )}
                           </div>
@@ -3543,7 +3543,7 @@ export default function FileTracking() {
                                       <Badge variant="outline" className="text-[9px] uppercase">{mainCatReadable(file.mainCategory)}</Badge>
                                       {file.subCategory && (
                                         <span className="text-[8px] text-muted-foreground uppercase font-bold italic">
-                                          {file.subCategory.replace(/_/g, " ")}
+                                          {file.subCategory?.replace(/_/g, " ")}
                                         </span>
                                       )}
                                     </div>
@@ -4445,7 +4445,7 @@ export default function FileTracking() {
                                 </div>
                                 <div>
                                   <p className="text-[10px] font-bold text-muted-foreground uppercase">Sub Category</p>
-                                  <p className="text-sm font-semibold">{step.subCategory.replace(/_/g, " ").toUpperCase()}</p>
+                                  <p className="text-sm font-semibold">{step.subCategory?.replace(/_/g, " ").toUpperCase()}</p>
                                 </div>
                                 <div className="col-span-2">
                                   <p className="text-[10px] font-bold text-muted-foreground uppercase">Subject</p>
@@ -4539,7 +4539,7 @@ export default function FileTracking() {
                                 <Badge variant="outline" className="text-[9px] uppercase border-primary/20">{mainCatReadable(file.mainCategory)}</Badge>
                                 {file.subCategory && (
                                   <span className="text-[8px] text-muted-foreground uppercase font-bold italic">
-                                    {file.subCategory.replace(/_/g, " ")}
+                                    {file.subCategory?.replace(/_/g, " ")}
                                   </span>
                                 )}
                               </div>
