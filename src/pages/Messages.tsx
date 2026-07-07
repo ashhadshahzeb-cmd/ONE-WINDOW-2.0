@@ -19,6 +19,12 @@ interface ChatMessage {
   created_at: string;
 }
 
+const PREDEFINED_CHANNELS: DepartmentUser[] = [
+  { roleId: '#general', displayName: 'general', avatarUrl: '', name: 'General', department: 'system', permissions: [] },
+  { roleId: '#finance-updates', displayName: 'finance-updates', avatarUrl: '', name: 'Finance Updates', department: 'system', permissions: [] },
+  { roleId: '#cfo-discussions', displayName: 'cfo-discussions', avatarUrl: '', name: 'CFO Discussions', department: 'system', permissions: [] }
+];
+
 export default function Messages() {
   const { userRole, userName, userAvatar } = useAuth();
   const navigate = useNavigate();
@@ -135,10 +141,12 @@ export default function Messages() {
       if (data) {
         const activityMap: Record<string, number> = {};
         data.forEach((msg: ChatMessage) => {
-          const otherRole = msg.sender_role === userRole ? msg.receiver_role : msg.sender_role;
-          const time = new Date(msg.created_at).getTime();
-          if (!activityMap[otherRole] || time > activityMap[otherRole]) {
-            activityMap[otherRole] = time;
+          if (!msg.receiver_role.startsWith('#')) {
+            const otherRole = msg.sender_role === userRole ? msg.receiver_role : msg.sender_role;
+            const time = new Date(msg.created_at).getTime();
+            if (!activityMap[otherRole] || time > activityMap[otherRole]) {
+              activityMap[otherRole] = time;
+            }
           }
         });
         setLastActivityMap(activityMap);
@@ -165,8 +173,12 @@ export default function Messages() {
         (payload) => {
           const newMsg = payload.new as ChatMessage;
           
-          // Is this message related to me?
-          if (newMsg.sender_role === userRole || newMsg.receiver_role === userRole) {
+          if (newMsg.receiver_role.startsWith('#')) {
+            // It's a channel message
+            if (selectedContact && selectedContact.roleId === newMsg.receiver_role) {
+              setMessages((prev) => [...prev, newMsg]);
+            }
+          } else if (newMsg.sender_role === userRole || newMsg.receiver_role === userRole) {
             const otherRole = newMsg.sender_role === userRole ? newMsg.receiver_role : newMsg.sender_role;
             const time = new Date(newMsg.created_at).getTime();
             
@@ -177,7 +189,7 @@ export default function Messages() {
             }));
 
             // Only append to chat view if it belongs to the currently active 1-on-1 conversation
-            if (selectedContact && (
+            if (selectedContact && !selectedContact.roleId.startsWith('#') && (
               (newMsg.sender_role === userRole && newMsg.receiver_role === selectedContact.roleId) ||
               (newMsg.sender_role === selectedContact.roleId && newMsg.receiver_role === userRole)
             )) {
@@ -207,13 +219,18 @@ export default function Messages() {
     setLoading(true);
     setMessages([]);
     
-    // Fetch messages between me and contact
-    const { data, error } = await supabase
-      .from('messages')
-      .select('*')
-      .or(`and(sender_role.eq.${userRole},receiver_role.eq.${contactRole}),and(sender_role.eq.${contactRole},receiver_role.eq.${userRole})`)
+    // Fetch messages based on channel vs DM
+    let query = supabase.from('messages').select('*');
+    
+    if (contactRole.startsWith('#')) {
+      query = query.eq('receiver_role', contactRole);
+    } else {
+      query = query.or(`and(sender_role.eq.${userRole},receiver_role.eq.${contactRole}),and(sender_role.eq.${contactRole},receiver_role.eq.${userRole})`);
+    }
+
+    const { data, error } = await query
       .order('created_at', { ascending: true })
-      .limit(100);
+      .limit(200);
 
     if (data) {
       setMessages(data);
@@ -311,39 +328,80 @@ export default function Messages() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 space-y-1.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 hover:[&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full">
-          {filteredContacts.map(contact => (
-            <button
-              key={contact.roleId}
-              onClick={() => setSelectedContact(contact)}
-              className={cn(
-                "w-full flex items-center gap-3 p-3 rounded-[1.25rem] transition-all text-left group border border-transparent",
-                selectedContact?.roleId === contact.roleId 
-                  ? "bg-primary/10 border-primary/20 shadow-lg" 
-                  : "hover:bg-white/5 hover:border-white/5"
-              )}
-            >
-              <div className={cn(
-                "w-11 h-11 rounded-full flex items-center justify-center shrink-0 border transition-colors",
-                selectedContact?.roleId === contact.roleId 
-                  ? "bg-primary/20 border-primary/30" 
-                  : "bg-white/5 border-white/10 group-hover:bg-white/10 group-hover:border-white/20"
-              )}>
-                <User className={cn("w-5 h-5", selectedContact?.roleId === contact.roleId ? "text-primary" : "text-white/50")} />
-              </div>
-              <div className="overflow-hidden">
-                <p className={cn("font-bold text-sm truncate", selectedContact?.roleId === contact.roleId ? "text-white" : "text-white/80")}>
-                  {contact.displayName}
-                </p>
-                <p className={cn(
-                  "text-[9px] truncate uppercase tracking-widest font-bold",
-                  selectedContact?.roleId === contact.roleId ? "text-primary/80" : "text-white/40"
+        <div className="flex-1 overflow-y-auto p-3 space-y-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 hover:[&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full">
+          
+          {/* Channels Section */}
+          <div className="space-y-1.5">
+            <h3 className="px-3 text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">Channels</h3>
+            {PREDEFINED_CHANNELS.map(channel => (
+              <button
+                key={channel.roleId}
+                onClick={() => setSelectedContact(channel)}
+                className={cn(
+                  "w-full flex items-center gap-3 p-2.5 rounded-[1rem] transition-all text-left group border border-transparent",
+                  selectedContact?.roleId === channel.roleId 
+                    ? "bg-primary/15 border-primary/20 shadow-lg" 
+                    : "hover:bg-white/5 hover:border-white/5"
+                )}
+              >
+                <div className={cn(
+                  "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border transition-colors",
+                  selectedContact?.roleId === channel.roleId 
+                    ? "bg-primary/20 border-primary/30" 
+                    : "bg-white/5 border-white/10 group-hover:bg-white/10 group-hover:border-white/20"
                 )}>
-                  {contact.roleId.replace(/_/g, ' ')}
-                </p>
-              </div>
-            </button>
-          ))}
+                  <span className={cn("text-lg font-black", selectedContact?.roleId === channel.roleId ? "text-primary" : "text-white/50")}>#</span>
+                </div>
+                <div className="overflow-hidden">
+                  <p className={cn("font-bold text-sm truncate", selectedContact?.roleId === channel.roleId ? "text-white" : "text-white/80")}>
+                    {channel.displayName}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {/* Direct Messages Section */}
+          <div className="space-y-1.5">
+            <h3 className="px-3 text-[10px] font-black uppercase tracking-widest text-white/40 mb-2 mt-4 flex items-center justify-between">
+              Direct Messages
+              <span className="bg-white/10 px-2 py-0.5 rounded-full text-[9px] text-white/60">{filteredContacts.length}</span>
+            </h3>
+            {filteredContacts.map(contact => (
+              <button
+                key={contact.roleId}
+                onClick={() => setSelectedContact(contact)}
+                className={cn(
+                  "w-full flex items-center gap-3 p-2.5 rounded-[1rem] transition-all text-left group border border-transparent",
+                  selectedContact?.roleId === contact.roleId 
+                    ? "bg-primary/10 border-primary/20 shadow-lg" 
+                    : "hover:bg-white/5 hover:border-white/5"
+                )}
+              >
+                <div className={cn(
+                  "w-9 h-9 rounded-full flex items-center justify-center shrink-0 border transition-colors relative",
+                  selectedContact?.roleId === contact.roleId 
+                    ? "bg-primary/20 border-primary/30" 
+                    : "bg-white/5 border-white/10 group-hover:bg-white/10 group-hover:border-white/20"
+                )}>
+                  <User className={cn("w-4 h-4", selectedContact?.roleId === contact.roleId ? "text-primary" : "text-white/50")} />
+                  {/* Fake online indicator */}
+                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-[#0B101E] rounded-full"></span>
+                </div>
+                <div className="overflow-hidden">
+                  <p className={cn("font-bold text-sm truncate", selectedContact?.roleId === contact.roleId ? "text-white" : "text-white/80")}>
+                    {contact.displayName}
+                  </p>
+                  <p className={cn(
+                    "text-[9px] truncate uppercase tracking-widest font-bold",
+                    selectedContact?.roleId === contact.roleId ? "text-primary/80" : "text-white/40"
+                  )}>
+                    {contact.roleId.replace(/_/g, ' ')}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -391,83 +449,85 @@ export default function Messages() {
                   const showHeader = index === 0 || filteredMessages[index - 1].sender_role !== msg.sender_role;
 
                   return (
-                    <div key={msg.id} className={cn("flex flex-col max-w-[85%] md:max-w-[70%]", isMe ? "ml-auto items-end" : "mr-auto items-start")}>
-                      {showHeader && !isMe && (
-                        <span className="text-[10px] text-white/50 uppercase tracking-widest font-bold mb-1.5 ml-3">
-                          {msg.sender_name}
-                        </span>
-                      )}
-                      
-                      {/* Message Content Bubble */}
-                      {msg.message.startsWith('[FILE_TRACKING_EDIT_REQ]') ? (
-                        <div className={cn(
-                          "px-5 py-4 rounded-2xl text-sm shadow-lg relative border",
-                          isMe 
-                            ? "bg-amber-500/20 border-amber-500/30 text-amber-100 rounded-br-sm" 
-                            : "bg-amber-500/10 border-amber-500/20 text-amber-100 rounded-bl-sm backdrop-blur-md"
-                        )}>
-                          <div className="flex items-start gap-3">
-                            <div className="p-2 bg-amber-500/20 rounded-lg">
-                              <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                            </div>
-                            <div>
-                              <h4 className="font-bold text-amber-400 mb-1">File Edit Request</h4>
-                              <p className="text-xs opacity-80 mb-3">Tracking ID: {msg.message.split('::')[1]}</p>
-                              {!isMe && (
-                                <div className="flex gap-2">
-                                  <Button size="sm" className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 h-7 text-[10px] px-3">Approve</Button>
-                                  <Button size="sm" variant="ghost" className="text-white/50 hover:bg-white/5 hover:text-white h-7 text-[10px] px-3">Decline</Button>
-                                </div>
-                              )}
-                              {isMe && <span className="text-[10px] bg-amber-500/20 text-amber-400 px-2 py-1 rounded-md">Pending Approval</span>}
-                            </div>
-                          </div>
-                        </div>
-                      ) : msg.message.startsWith('[FILE_TRACKING_EDIT_APPROVED]') ? (
-                        <div className={cn(
-                          "px-5 py-4 rounded-2xl text-sm shadow-lg relative border",
-                          isMe 
-                            ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-100 rounded-br-sm" 
-                            : "bg-emerald-500/10 border-emerald-500/20 text-emerald-100 rounded-bl-sm backdrop-blur-md"
-                        )}>
-                          <div className="flex items-center gap-3">
-                            <div className="p-2 bg-emerald-500/20 rounded-lg">
-                              <svg className="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                            </div>
-                            <div>
-                              <h4 className="font-bold text-emerald-400">Edit Request Approved</h4>
-                              <p className="text-xs opacity-80">Tracking ID: {msg.message.split('::')[1]}</p>
-                            </div>
-                          </div>
-                        </div>
-                      ) : msg.message.startsWith('[CALL_') ? (
-                        <div className={cn(
-                          "px-4 py-2.5 rounded-full text-xs font-bold shadow-sm border flex items-center gap-2",
-                          msg.message.startsWith('[CALL_ACCEPTED]') ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" :
-                          msg.message.startsWith('[CALL_DECLINED]') ? "bg-red-500/10 border-red-500/20 text-red-400" :
-                          msg.message.startsWith('[CALL_CANCELED]') ? "bg-zinc-500/10 border-zinc-500/20 text-zinc-400" :
-                          "bg-sky-500/10 border-sky-500/20 text-sky-400"
-                        )}>
-                          <Video className="w-3.5 h-3.5" />
-                          {msg.message.startsWith('[CALL_RING]') ? (isMe ? 'Outgoing Video Call' : 'Incoming Video Call') :
-                           msg.message.startsWith('[CALL_ACCEPTED]') ? 'Video Call Started' :
-                           msg.message.startsWith('[CALL_DECLINED]') ? (isMe ? 'Call Declined' : 'Missed Call') :
-                           'Call Canceled'}
+                    <div key={msg.id} className={cn("flex items-start gap-4 hover:bg-white/[0.02] p-2 -mx-2 rounded-2xl transition-colors group", showHeader ? "mt-6" : "mt-1")}>
+                      {/* Avatar */}
+                      {showHeader ? (
+                        <div className={cn("w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 border", isMe ? "bg-primary/20 border-primary/30 text-primary shadow-[0_0_15px_rgba(var(--primary),0.2)]" : "bg-white/5 border-white/10 text-white/50")}>
+                          <User className="w-5 h-5" />
                         </div>
                       ) : (
-                        <div className={cn(
-                          "px-5 py-3 rounded-[1.25rem] text-[15px] shadow-sm relative group leading-relaxed max-w-full break-words",
-                          isMe 
-                            ? "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground rounded-br-sm shadow-[0_4px_20px_rgba(var(--primary),0.2)]" 
-                            : "bg-white/5 border border-white/10 text-white/90 rounded-bl-sm backdrop-blur-md"
-                        )}>
-                          {msg.message}
+                        <div className="w-11 h-11 shrink-0 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                          <span className="text-[10px] text-white/20 font-medium text-center">
+                            {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }).replace(/ AM| PM/, '')}
+                          </span>
                         </div>
                       )}
                       
-                      <span className="text-[9px] text-white/30 mt-1.5 px-2 font-medium">
-                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
+                      <div className="flex-1 min-w-0">
+                        {/* Header */}
+                        {showHeader && (
+                          <div className="flex items-baseline gap-2 mb-1.5">
+                            <span className={cn("font-bold text-[15px]", isMe ? "text-primary/90" : "text-white/90")}>
+                              {isMe ? 'You' : msg.sender_name}
+                            </span>
+                            <span className="text-[10px] text-white/30 font-medium">
+                              {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {/* Message Content Bubble */}
+                        {msg.message.startsWith('[FILE_TRACKING_EDIT_REQ]') ? (
+                          <div className="mt-2 bg-amber-500/10 border border-amber-500/20 text-amber-100 rounded-2xl p-4 max-w-sm backdrop-blur-md">
+                            <div className="flex items-start gap-3">
+                              <div className="p-2 bg-amber-500/20 rounded-lg shrink-0">
+                                <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-amber-400 mb-1">File Edit Request</h4>
+                                <p className="text-xs opacity-80 mb-3 text-amber-200/70">Tracking ID: {msg.message.split('::')[1]}</p>
+                                {!isMe && (
+                                  <div className="flex gap-2 mt-2">
+                                    <Button size="sm" className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 h-7 text-[10px] px-3">Approve</Button>
+                                    <Button size="sm" variant="ghost" className="text-white/50 hover:bg-white/5 hover:text-white h-7 text-[10px] px-3">Decline</Button>
+                                  </div>
+                                )}
+                                {isMe && <span className="text-[10px] bg-amber-500/20 text-amber-400 px-2 py-1 rounded-md">Pending Approval</span>}
+                              </div>
+                            </div>
+                          </div>
+                        ) : msg.message.startsWith('[FILE_TRACKING_EDIT_APPROVED]') ? (
+                          <div className="mt-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-100 rounded-2xl p-4 max-w-sm backdrop-blur-md">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 bg-emerald-500/20 rounded-lg shrink-0">
+                                <svg className="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-emerald-400">Edit Request Approved</h4>
+                                <p className="text-xs opacity-80 text-emerald-200/70">Tracking ID: {msg.message.split('::')[1]}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ) : msg.message.startsWith('[CALL_') ? (
+                          <div className={cn(
+                            "mt-2 px-4 py-2.5 rounded-xl text-xs font-bold border inline-flex items-center gap-2",
+                            msg.message.startsWith('[CALL_ACCEPTED]') ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" :
+                            msg.message.startsWith('[CALL_DECLINED]') ? "bg-red-500/10 border-red-500/20 text-red-400" :
+                            msg.message.startsWith('[CALL_CANCELED]') ? "bg-zinc-500/10 border-zinc-500/20 text-zinc-400" :
+                            "bg-sky-500/10 border-sky-500/20 text-sky-400"
+                          )}>
+                            <Video className="w-3.5 h-3.5" />
+                            {msg.message.startsWith('[CALL_RING]') ? (isMe ? 'Started a Video Call' : 'Incoming Video Call') :
+                             msg.message.startsWith('[CALL_ACCEPTED]') ? 'Video Call Started' :
+                             msg.message.startsWith('[CALL_DECLINED]') ? (isMe ? 'Call Declined' : 'Missed Call') :
+                             'Call Canceled'}
+                          </div>
+                        ) : (
+                          <div className="text-[15px] text-white/80 leading-relaxed break-words">
+                            {msg.message}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })
