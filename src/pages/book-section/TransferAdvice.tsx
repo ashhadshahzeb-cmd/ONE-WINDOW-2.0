@@ -28,6 +28,8 @@ interface AdviceItem {
   ac_debit: string;
   ac_credit: string;
   in_respect_of: string;
+  payment_method?: string;
+  payment_number?: string;
 }
 
 export default function TransferAdvice() {
@@ -36,12 +38,10 @@ export default function TransferAdvice() {
   const [adviceDate, setAdviceDate] = useState(getLocalDateString());
   const [bankDetails, setBankDetails] = useState("The Chief Manager,\nHabib Bank Limited,\nSindh Secretariat Branch,\nKarachi.");
   const [subject, setSubject] = useState("TRANSFER ADVICE.");
-  const [paymentMethod, setPaymentMethod] = useState("None");
-  const [paymentNumber, setPaymentNumber] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   
   const [items, setItems] = useState<AdviceItem[]>([
-    { id: crypto.randomUUID(), amount: 100000000, ac_debit: "09167900975803", ac_credit: "09167900975903", in_respect_of: "REGULAR SALARY" }
+    { id: crypto.randomUUID(), amount: 100000000, ac_debit: "09167900975803", ac_credit: "09167900975903", in_respect_of: "REGULAR SALARY", payment_method: "None", payment_number: "" }
   ]);
 
   const addItem = () => {
@@ -50,7 +50,9 @@ export default function TransferAdvice() {
       amount: 0, 
       ac_debit: "09167900975803",
       ac_credit: "09167900975903", 
-      in_respect_of: "REGULAR SALARY" 
+      in_respect_of: "REGULAR SALARY",
+      payment_method: "None",
+      payment_number: ""
     }]);
   };
 
@@ -87,8 +89,6 @@ export default function TransferAdvice() {
         bank_name: bankDetails,
         subject: subject,
         total_amount: totalAmount,
-        payment_method: paymentMethod !== "None" ? paymentMethod : null,
-        payment_number: paymentMethod !== "None" ? paymentNumber : null,
         created_by: user?.email || userName || userRole || 'unknown',
         created_at: new Date().toISOString()
       });
@@ -105,6 +105,8 @@ export default function TransferAdvice() {
         ac_no_debit: item.ac_debit,
         ac_no_credit: item.ac_credit,
         in_respect_of: item.in_respect_of,
+        payment_method: item.payment_method !== "None" ? item.payment_method : null,
+        payment_number: item.payment_method !== "None" ? item.payment_number : null,
         created_at: new Date().toISOString()
       }));
 
@@ -159,26 +161,6 @@ export default function TransferAdvice() {
               <Label>Subject</Label>
               <Input value={subject} onChange={(e) => setSubject(e.target.value)} className="bg-[#1A2333] border-white/10" />
             </div>
-            <div className="space-y-2">
-              <Label>Payment Method</Label>
-              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                <SelectTrigger className="bg-[#1A2333] border-white/10">
-                  <SelectValue placeholder="Select Method" />
-                </SelectTrigger>
-                <SelectContent className="bg-[#1A2333] border-white/10 text-white">
-                  <SelectItem value="None">None</SelectItem>
-                  <SelectItem value="Cheque">Cheque</SelectItem>
-                  <SelectItem value="Voucher">Voucher</SelectItem>
-                  <SelectItem value="Digital">Digital</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {paymentMethod !== "None" && (
-              <div className="space-y-2">
-                <Label>{paymentMethod} Number</Label>
-                <Input value={paymentNumber} onChange={(e) => setPaymentNumber(e.target.value)} placeholder={`Enter ${paymentMethod} No...`} className="bg-[#1A2333] border-white/10" />
-              </div>
-            )}
           </CardContent>
         </Card>
 
@@ -198,6 +180,8 @@ export default function TransferAdvice() {
                     <th className="px-4 py-3">A/C No (Debit)</th>
                     <th className="px-4 py-3">A/C No (Credit)</th>
                     <th className="px-4 py-3">In Respect Of</th>
+                    <th className="px-4 py-3">Payment Method</th>
+                    <th className="px-4 py-3">Number</th>
                     <th className="px-4 py-3">Action</th>
                   </tr>
                 </thead>
@@ -216,22 +200,45 @@ export default function TransferAdvice() {
                         <Input 
                           value={item.ac_debit} 
                           onChange={(e) => updateItem(item.id, 'ac_debit', e.target.value)}
-                          className="bg-[#1A2333] border-white/10" 
+                          className="bg-[#1A2333] border-white/10 w-36" 
                         />
                       </td>
                       <td className="px-4 py-2">
                         <Input 
                           value={item.ac_credit} 
                           onChange={(e) => updateItem(item.id, 'ac_credit', e.target.value)}
-                          className="bg-[#1A2333] border-white/10" 
+                          className="bg-[#1A2333] border-white/10 w-36" 
                         />
                       </td>
                       <td className="px-4 py-2">
                         <Input 
                           value={item.in_respect_of} 
                           onChange={(e) => updateItem(item.id, 'in_respect_of', e.target.value)}
-                          className="bg-[#1A2333] border-white/10" 
+                          className="bg-[#1A2333] border-white/10 w-40" 
                         />
+                      </td>
+                      <td className="px-4 py-2">
+                        <Select value={item.payment_method || "None"} onValueChange={(val) => updateItem(item.id, 'payment_method', val)}>
+                          <SelectTrigger className="bg-[#1A2333] border-white/10 w-32">
+                            <SelectValue placeholder="Method" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-[#1A2333] border-white/10 text-white">
+                            <SelectItem value="None">None</SelectItem>
+                            <SelectItem value="Cheque">Cheque</SelectItem>
+                            <SelectItem value="Voucher">Voucher</SelectItem>
+                            <SelectItem value="Digital">Digital</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </td>
+                      <td className="px-4 py-2">
+                        {item.payment_method !== "None" && (
+                          <Input 
+                            value={item.payment_number || ''} 
+                            onChange={(e) => updateItem(item.id, 'payment_number', e.target.value)}
+                            placeholder="Number..."
+                            className="bg-[#1A2333] border-white/10 w-32" 
+                          />
+                        )}
                       </td>
                       <td className="px-4 py-2 text-center">
                         <Button variant="ghost" size="icon" onClick={() => removeItem(item.id)} className="text-red-500 hover:text-red-400 hover:bg-red-500/10">
@@ -311,12 +318,7 @@ export default function TransferAdvice() {
 
         <div className="flex justify-between font-bold mb-6 text-[11pt]">
           <div>NO: {adviceNo}</div>
-          <div className="text-right">
-            <div>DT: {adviceDate.split('-').reverse().join('.')}</div>
-            {paymentMethod !== "None" && paymentNumber && (
-              <div>{paymentMethod.toUpperCase()} NO: {paymentNumber}</div>
-            )}
-          </div>
+          <div>DT: {adviceDate.split('-').reverse().join('.')}</div>
         </div>
 
         <div className="mb-6 text-[11pt] whitespace-pre-wrap leading-tight">
@@ -343,27 +345,29 @@ export default function TransferAdvice() {
               <th className="w-10">S.NO</th>
               <th className="w-28">TRANSFER<br/>AMOUNT</th>
               <th>AMOUNT IN WORDS</th>
-              <th className="w-32">A/C. NO<br/>(DEBIT)</th>
-              <th className="w-32">A/C. NO<br/>(CREDIT)</th>
+              <th className="w-28">A/C. NO<br/>(DEBIT)</th>
+              <th className="w-28">A/C. NO<br/>(CREDIT)</th>
               <th className="w-32">IN RESPECT OF</th>
+              <th className="w-24">PAYMENT<br/>METHOD</th>
             </tr>
           </thead>
           <tbody>
             {items.map((item, index) => (
               <tr key={item.id}>
                 <td>{index + 1}</td>
-                <td className="amount-col">{item.amount.toLocaleString('en-US')}</td>
-                <td className="words-col">{numberToWords(item.amount)}</td>
+                <td className="amount-col">{Number(item.amount).toLocaleString('en-US')}</td>
+                <td className="words-col text-[9pt] uppercase">{numberToWords(item.amount)}</td>
                 <td>{item.ac_debit}</td>
                 <td>{item.ac_credit}</td>
-                <td>{item.in_respect_of}</td>
+                <td className="words-col text-[9pt]">{item.in_respect_of}</td>
+                <td className="text-[9pt]">{item.payment_method && item.payment_method !== "None" ? `${item.payment_method}\n${item.payment_number}` : '-'}</td>
               </tr>
             ))}
             {/* Total Row */}
-            <tr className="font-bold bg-gray-100">
+            <tr className="font-bold border-t-2 border-black">
               <td></td>
               <td className="amount-col">{totalAmount.toLocaleString('en-US')}</td>
-              <td colSpan={4}></td>
+              <td colSpan={5}></td>
             </tr>
           </tbody>
         </table>

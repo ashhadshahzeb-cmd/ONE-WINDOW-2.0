@@ -16,6 +16,8 @@ interface AdviceItem {
   ac_debit: string;
   ac_credit: string;
   in_respect_of: string;
+  payment_method?: string;
+  payment_number?: string;
 }
 
 interface EditTransferAdviceModalProps {
@@ -30,8 +32,6 @@ export default function EditTransferAdviceModal({ isOpen, onClose, record, onSav
   const [adviceDate, setAdviceDate] = useState('');
   const [bankDetails, setBankDetails] = useState('');
   const [subject, setSubject] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('None');
-  const [paymentNumber, setPaymentNumber] = useState('');
   const [items, setItems] = useState<AdviceItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -42,8 +42,6 @@ export default function EditTransferAdviceModal({ isOpen, onClose, record, onSav
       setAdviceDate(record.date || '');
       setBankDetails(record.bank_name || '');
       setSubject(record.subject || '');
-      setPaymentMethod(record.payment_method || 'None');
-      setPaymentNumber(record.payment_number || '');
       fetchItems();
     }
   }, [isOpen, record]);
@@ -65,7 +63,9 @@ export default function EditTransferAdviceModal({ isOpen, onClose, record, onSav
           amount: Number(d.transfer_amount) || 0,
           ac_debit: d.ac_no_debit || '',
           ac_credit: d.ac_no_credit || '',
-          in_respect_of: d.in_respect_of || ''
+          in_respect_of: d.in_respect_of || '',
+          payment_method: d.payment_method || 'None',
+          payment_number: d.payment_number || ''
         })));
       } else {
         setItems([]);
@@ -84,7 +84,9 @@ export default function EditTransferAdviceModal({ isOpen, onClose, record, onSav
       amount: 0, 
       ac_debit: "09167900975803",
       ac_credit: "09167900975903", 
-      in_respect_of: "REGULAR SALARY" 
+      in_respect_of: "REGULAR SALARY",
+      payment_method: "None",
+      payment_number: ""
     }]);
   };
 
@@ -110,8 +112,6 @@ export default function EditTransferAdviceModal({ isOpen, onClose, record, onSav
           date: adviceDate,
           bank_name: bankDetails,
           subject: subject,
-          payment_method: paymentMethod !== "None" ? paymentMethod : null,
-          payment_number: paymentMethod !== "None" ? paymentNumber : null,
           total_amount: totalAmount
         })
         .eq('id', record.id);
@@ -137,6 +137,8 @@ export default function EditTransferAdviceModal({ isOpen, onClose, record, onSav
           ac_no_debit: item.ac_debit,
           ac_no_credit: item.ac_credit,
           in_respect_of: item.in_respect_of,
+          payment_method: item.payment_method !== "None" ? item.payment_method : null,
+          payment_number: item.payment_method !== "None" ? item.payment_number : null,
           created_at: new Date().toISOString()
         }));
 
@@ -186,26 +188,6 @@ export default function EditTransferAdviceModal({ isOpen, onClose, record, onSav
                 <Label>Subject</Label>
                 <Textarea value={subject} onChange={(e) => setSubject(e.target.value)} className="bg-[#1A2333] border-white/10 h-24" />
               </div>
-              <div className="space-y-2">
-                <Label>Payment Method</Label>
-                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                  <SelectTrigger className="bg-[#1A2333] border-white/10">
-                    <SelectValue placeholder="Select Method" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-[#1A2333] border-white/10 text-white">
-                    <SelectItem value="None">None</SelectItem>
-                    <SelectItem value="Cheque">Cheque</SelectItem>
-                    <SelectItem value="Voucher">Voucher</SelectItem>
-                    <SelectItem value="Digital">Digital</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {paymentMethod !== "None" && (
-                <div className="space-y-2">
-                  <Label>{paymentMethod} Number</Label>
-                  <Input value={paymentNumber} onChange={(e) => setPaymentNumber(e.target.value)} className="bg-[#1A2333] border-white/10" />
-                </div>
-              )}
             </div>
 
             <div className="space-y-4">
@@ -224,22 +206,66 @@ export default function EditTransferAdviceModal({ isOpen, onClose, record, onSav
                     </Button>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-xs text-white/60">Amount (Rs.)</Label>
-                      <Input type="number" value={item.amount || ''} onChange={(e) => updateItem(item.id, 'amount', Number(e.target.value))} className="bg-[#0B101E] border-white/10" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-white/50">Amount</Label>
+                      <Input 
+                        type="number" 
+                        value={item.amount || ''} 
+                        onChange={(e) => updateItem(item.id, 'amount', Number(e.target.value))}
+                        className="bg-[#0B101E] border-white/10" 
+                      />
                     </div>
-                    <div className="space-y-2 lg:col-span-3">
-                      <Label className="text-xs text-white/60">In Respect Of</Label>
-                      <Input value={item.in_respect_of} onChange={(e) => updateItem(item.id, 'in_respect_of', e.target.value)} className="bg-[#0B101E] border-white/10" />
+                    <div className="space-y-1">
+                      <Label className="text-xs text-white/50">A/C (Debit)</Label>
+                      <Input 
+                        value={item.ac_debit} 
+                        onChange={(e) => updateItem(item.id, 'ac_debit', e.target.value)}
+                        className="bg-[#0B101E] border-white/10" 
+                      />
                     </div>
-                    <div className="space-y-2 lg:col-span-2">
-                      <Label className="text-xs text-white/60">A/c No. (Debit)</Label>
-                      <Input value={item.ac_debit} onChange={(e) => updateItem(item.id, 'ac_debit', e.target.value)} className="bg-[#0B101E] border-white/10" />
+                    <div className="space-y-1">
+                      <Label className="text-xs text-white/50">A/C (Credit)</Label>
+                      <Input 
+                        value={item.ac_credit} 
+                        onChange={(e) => updateItem(item.id, 'ac_credit', e.target.value)}
+                        className="bg-[#0B101E] border-white/10" 
+                      />
                     </div>
-                    <div className="space-y-2 lg:col-span-2">
-                      <Label className="text-xs text-white/60">A/c No. (Credit)</Label>
-                      <Input value={item.ac_credit} onChange={(e) => updateItem(item.id, 'ac_credit', e.target.value)} className="bg-[#0B101E] border-white/10" />
+                    <div className="space-y-1">
+                      <Label className="text-xs text-white/50">In Respect Of</Label>
+                      <Input 
+                        value={item.in_respect_of} 
+                        onChange={(e) => updateItem(item.id, 'in_respect_of', e.target.value)}
+                        className="bg-[#0B101E] border-white/10" 
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-white/50">Payment Method</Label>
+                      <Select value={item.payment_method || "None"} onValueChange={(val) => updateItem(item.id, 'payment_method', val)}>
+                        <SelectTrigger className="bg-[#0B101E] border-white/10">
+                          <SelectValue placeholder="Method" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#1A2333] border-white/10 text-white">
+                          <SelectItem value="None">None</SelectItem>
+                          <SelectItem value="Cheque">Cheque</SelectItem>
+                          <SelectItem value="Voucher">Voucher</SelectItem>
+                          <SelectItem value="Digital">Digital</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      {item.payment_method !== "None" && (
+                        <>
+                          <Label className="text-xs text-white/50">Number</Label>
+                          <Input 
+                            value={item.payment_number || ''} 
+                            onChange={(e) => updateItem(item.id, 'payment_number', e.target.value)}
+                            placeholder="Number..."
+                            className="bg-[#0B101E] border-white/10" 
+                          />
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

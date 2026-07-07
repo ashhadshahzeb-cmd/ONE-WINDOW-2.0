@@ -491,12 +491,7 @@ export default function TransferAdviceRecords() {
 
                 <div className="flex justify-between font-bold mb-6 text-[11pt]">
                   <div>NO: {selectedAdvice.advice_no}</div>
-                  <div className="text-right">
-                    <div>DT: {selectedAdvice.date.split('-').reverse().join('.')}</div>
-                    {selectedAdvice.payment_method && selectedAdvice.payment_method !== "None" && selectedAdvice.payment_number && (
-                      <div>{selectedAdvice.payment_method.toUpperCase()} NO: {selectedAdvice.payment_number}</div>
-                    )}
-                  </div>
+                  <div>DT: {selectedAdvice.date.split('-').reverse().join('.')}</div>
                 </div>
 
                 <div className="mb-6 whitespace-pre-wrap leading-tight">
@@ -522,26 +517,28 @@ export default function TransferAdviceRecords() {
                       <th className="border border-black px-2 py-2 w-10">S.NO</th>
                       <th className="border border-black px-2 py-2 w-28">TRANSFER<br/>AMOUNT</th>
                       <th className="border border-black px-2 py-2">AMOUNT IN WORDS</th>
-                      <th className="border border-black px-2 py-2 w-32">A/C. NO<br/>(DEBIT)</th>
-                      <th className="border border-black px-2 py-2 w-32">A/C. NO<br/>(CREDIT)</th>
+                      <th className="border border-black px-2 py-2 w-28">A/C. NO<br/>(DEBIT)</th>
+                      <th className="border border-black px-2 py-2 w-28">A/C. NO<br/>(CREDIT)</th>
                       <th className="border border-black px-2 py-2 w-32">IN RESPECT OF</th>
+                      <th className="border border-black px-2 py-2 w-24">PAYMENT<br/>METHOD</th>
                     </tr>
                   </thead>
                   <tbody>
                     {selectedItems.map((item, index) => (
                       <tr key={item.id}>
-                        <td className="border border-black px-2 py-2 text-center">{index + 1}</td>
-                        <td className="border border-black px-2 py-2 text-right">{Number(item.transfer_amount).toLocaleString('en-US')}</td>
-                        <td className="border border-black px-2 py-2">{item.amount_in_words}</td>
-                        <td className="border border-black px-2 py-2 text-center">{item.ac_no_debit}</td>
-                        <td className="border border-black px-2 py-2 text-center">{item.ac_no_credit}</td>
-                        <td className="border border-black px-2 py-2 text-center">{item.in_respect_of}</td>
+                        <td className="border border-black px-2 py-1 text-center">{index + 1}</td>
+                        <td className="border border-black px-2 py-1 text-right">{Number(item.transfer_amount).toLocaleString('en-US')}</td>
+                        <td className="border border-black px-2 py-1 text-[9pt] uppercase">{item.amount_in_words}</td>
+                        <td className="border border-black px-2 py-1 text-center">{item.ac_no_debit}</td>
+                        <td className="border border-black px-2 py-1 text-center">{item.ac_no_credit}</td>
+                        <td className="border border-black px-2 py-1 text-[9pt] text-center">{item.in_respect_of}</td>
+                        <td className="border border-black px-2 py-1 text-[9pt] text-center">{item.payment_method && item.payment_method !== "None" ? `${item.payment_method}\n${item.payment_number}` : '-'}</td>
                       </tr>
                     ))}
-                    <tr className="font-bold bg-gray-100">
-                      <td className="border border-black px-2 py-2"></td>
-                      <td className="border border-black px-2 py-2 text-right">{Number(selectedAdvice.total_amount).toLocaleString('en-US')}</td>
-                      <td colSpan={4} className="border border-black px-2 py-2"></td>
+                    <tr className="font-bold border-t-2 border-black">
+                      <td className="border border-black px-2 py-1 text-center"></td>
+                      <td className="border border-black px-2 py-1 text-right">{Number(selectedAdvice.total_amount).toLocaleString('en-US')}</td>
+                      <td className="border border-black px-2 py-1" colSpan={5}></td>
                     </tr>
                   </tbody>
                 </table>
@@ -612,12 +609,7 @@ export default function TransferAdviceRecords() {
 
           <div className="flex justify-between font-bold mb-6 text-[11pt]">
             <div>NO: {selectedAdvice.advice_no}</div>
-            <div className="text-right">
-              <div>DT: {selectedAdvice.date.split('-').reverse().join('.')}</div>
-              {selectedAdvice.payment_method && selectedAdvice.payment_method !== "None" && selectedAdvice.payment_number && (
-                <div>{selectedAdvice.payment_method.toUpperCase()} NO: {selectedAdvice.payment_number}</div>
-              )}
-            </div>
+            <div>DT: {selectedAdvice.date.split('-').reverse().join('.')}</div>
           </div>
 
           <div className="mb-6 text-[11pt] whitespace-pre-wrap leading-tight">
@@ -643,9 +635,10 @@ export default function TransferAdviceRecords() {
                 <th className="w-10">S.NO</th>
                 <th className="w-28">TRANSFER<br/>AMOUNT</th>
                 <th>AMOUNT IN WORDS</th>
-                <th className="w-32">A/C. NO<br/>(DEBIT)</th>
-                <th className="w-32">A/C. NO<br/>(CREDIT)</th>
+                <th className="w-28">A/C. NO<br/>(DEBIT)</th>
+                <th className="w-28">A/C. NO<br/>(CREDIT)</th>
                 <th className="w-32">IN RESPECT OF</th>
+                <th className="w-24">PAYMENT<br/>METHOD</th>
               </tr>
             </thead>
             <tbody>
@@ -653,16 +646,17 @@ export default function TransferAdviceRecords() {
                 <tr key={item.id}>
                   <td>{index + 1}</td>
                   <td className="amount-col">{Number(item.transfer_amount).toLocaleString('en-US')}</td>
-                  <td className="words-col">{item.amount_in_words}</td>
+                  <td className="words-col text-[9pt] uppercase">{item.amount_in_words}</td>
                   <td>{item.ac_no_debit}</td>
                   <td>{item.ac_no_credit}</td>
-                  <td>{item.in_respect_of}</td>
+                  <td className="words-col text-[9pt]">{item.in_respect_of}</td>
+                  <td className="text-[9pt]">{item.payment_method && item.payment_method !== "None" ? `${item.payment_method}\n${item.payment_number}` : '-'}</td>
                 </tr>
               ))}
-              <tr className="font-bold bg-gray-100">
+              <tr className="font-bold border-t-2 border-black">
                 <td></td>
                 <td className="amount-col">{Number(selectedAdvice.total_amount).toLocaleString('en-US')}</td>
-                <td colSpan={4}></td>
+                <td colSpan={5}></td>
               </tr>
             </tbody>
           </table>

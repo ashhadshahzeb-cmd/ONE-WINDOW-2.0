@@ -6,8 +6,6 @@ CREATE TABLE IF NOT EXISTS public.transfer_advices (
     date DATE NOT NULL,
     bank_name TEXT NOT NULL,
     subject TEXT DEFAULT 'TRANSFER ADVICE.',
-    payment_method TEXT,
-    payment_number TEXT,
     total_amount NUMERIC NOT NULL,
     created_by TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -22,6 +20,8 @@ CREATE TABLE IF NOT EXISTS public.transfer_advice_items (
     ac_no_debit TEXT NOT NULL,
     ac_no_credit TEXT NOT NULL,
     in_respect_of TEXT NOT NULL,
+    payment_method TEXT,
+    payment_number TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
