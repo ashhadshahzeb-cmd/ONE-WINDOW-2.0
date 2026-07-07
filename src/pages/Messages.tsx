@@ -391,21 +391,67 @@ export default function Messages() {
                   const showHeader = index === 0 || filteredMessages[index - 1].sender_role !== msg.sender_role;
 
                   return (
-                    <div key={msg.id} className={cn("flex flex-col max-w-[70%]", isMe ? "ml-auto items-end" : "mr-auto items-start")}>
+                    <div key={msg.id} className={cn("flex flex-col max-w-[85%] md:max-w-[70%]", isMe ? "ml-auto items-end" : "mr-auto items-start")}>
                       {showHeader && !isMe && (
-                        <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-1 ml-2">
+                        <span className="text-[10px] text-white/50 uppercase tracking-widest font-bold mb-1.5 ml-3">
                           {msg.sender_name}
                         </span>
                       )}
-                      <div className={cn(
-                        "px-4 py-2.5 rounded-2xl text-sm shadow-sm relative group",
-                        isMe 
-                          ? "bg-primary text-primary-foreground rounded-br-sm" 
-                          : "bg-card border border-border/50 rounded-bl-sm"
-                      )}>
-                        {msg.message}
-                      </div>
-                      <span className="text-[9px] text-muted-foreground mt-1 px-1 opacity-60">
+                      
+                      {/* Message Content Bubble */}
+                      {msg.message.startsWith('[FILE_TRACKING_EDIT_REQ]') ? (
+                        <div className={cn(
+                          "px-5 py-4 rounded-2xl text-sm shadow-lg relative border",
+                          isMe 
+                            ? "bg-amber-500/20 border-amber-500/30 text-amber-100 rounded-br-sm" 
+                            : "bg-amber-500/10 border-amber-500/20 text-amber-100 rounded-bl-sm backdrop-blur-md"
+                        )}>
+                          <div className="flex items-start gap-3">
+                            <div className="p-2 bg-amber-500/20 rounded-lg">
+                              <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-amber-400 mb-1">File Edit Request</h4>
+                              <p className="text-xs opacity-80 mb-3">Tracking ID: {msg.message.split('::')[1]}</p>
+                              {!isMe && (
+                                <div className="flex gap-2">
+                                  <Button size="sm" className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 h-7 text-[10px] px-3">Approve</Button>
+                                  <Button size="sm" variant="ghost" className="text-white/50 hover:bg-white/5 hover:text-white h-7 text-[10px] px-3">Decline</Button>
+                                </div>
+                              )}
+                              {isMe && <span className="text-[10px] bg-amber-500/20 text-amber-400 px-2 py-1 rounded-md">Pending Approval</span>}
+                            </div>
+                          </div>
+                        </div>
+                      ) : msg.message.startsWith('[FILE_TRACKING_EDIT_APPROVED]') ? (
+                        <div className={cn(
+                          "px-5 py-4 rounded-2xl text-sm shadow-lg relative border",
+                          isMe 
+                            ? "bg-emerald-500/20 border-emerald-500/30 text-emerald-100 rounded-br-sm" 
+                            : "bg-emerald-500/10 border-emerald-500/20 text-emerald-100 rounded-bl-sm backdrop-blur-md"
+                        )}>
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-emerald-500/20 rounded-lg">
+                              <svg className="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-emerald-400">Edit Request Approved</h4>
+                              <p className="text-xs opacity-80">Tracking ID: {msg.message.split('::')[1]}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className={cn(
+                          "px-5 py-3 rounded-[1.25rem] text-[15px] shadow-sm relative group leading-relaxed max-w-full break-words",
+                          isMe 
+                            ? "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground rounded-br-sm shadow-[0_4px_20px_rgba(var(--primary),0.2)]" 
+                            : "bg-white/5 border border-white/10 text-white/90 rounded-bl-sm backdrop-blur-md"
+                        )}>
+                          {msg.message}
+                        </div>
+                      )}
+                      
+                      <span className="text-[9px] text-white/30 mt-1.5 px-2 font-medium">
                         {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
