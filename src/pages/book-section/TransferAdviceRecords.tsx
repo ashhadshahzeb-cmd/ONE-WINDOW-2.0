@@ -308,7 +308,7 @@ export default function TransferAdviceRecords() {
                           />
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">{record.date.split('-').reverse().join('-')}</td>
-                        <td className="px-4 py-3 font-medium">{record.advice_no}</td>
+                        <td className="px-4 py-3 font-medium whitespace-nowrap">{record.advice_no}</td>
                         <td className="px-4 py-3 max-w-xs truncate" title={record.bank_name}>{record.bank_name.split('\n')[0]}...</td>
                         <td className="px-4 py-3 max-w-[200px] truncate text-white/80" title={
                           record.transfer_advice_items 
@@ -323,7 +323,7 @@ export default function TransferAdviceRecords() {
                           {Number(record.total_amount).toLocaleString('en-US')}
                         </td>
                         <td className="px-4 py-3">{record.created_by}</td>
-                        <td className="px-4 py-3 text-center space-x-2">
+                        <td className="px-4 py-3 text-center whitespace-nowrap space-x-2">
                           <Button 
                             variant="secondary" 
                             size="sm" 
