@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import OutgoingCallModal from '@/components/OutgoingCallModal';
 import GroupCallModal from '@/components/GroupCallModal';
+import HuddleWindow from '@/components/HuddleWindow';
 import { toast } from 'sonner';
 
 interface ChatMessage {
@@ -40,6 +41,9 @@ export default function Messages() {
   // Dialing States
   const [isDialing, setIsDialing] = useState(false);
   const [dialingRoomId, setDialingRoomId] = useState<string | null>(null);
+  
+  // Active Huddle State
+  const [activeHuddleRoomId, setActiveHuddleRoomId] = useState<string | null>(null);
 
   const startVideoCall = async () => {
     if (!selectedContact || !userRole || !userName) return;
@@ -61,6 +65,7 @@ export default function Messages() {
 
     setIsDialing(true);
     setDialingRoomId(roomId);
+    setActiveHuddleRoomId(roomId); // Auto-join own huddle
   };
 
   const cancelCall = async () => {
@@ -101,7 +106,8 @@ export default function Messages() {
               // They accepted!
               setIsDialing(false);
               setDialingRoomId(null);
-              navigate(`/video-call/${dialingRoomId}`);
+              // They joined the huddle we started
+              toast.success(`${newMsg.sender_name} joined the Huddle!`);
             } else if (newMsg.message === `[CALL_DECLINED]::${dialingRoomId}`) {
               // They declined!
               setIsDialing(false);
@@ -290,14 +296,14 @@ export default function Messages() {
     if (payloads.length > 0) {
       const { error } = await supabase.from('messages').insert(payloads);
       if (error) {
-        toast.error('Failed to start group call: ' + error.message);
+        toast.error('Failed to start huddle: ' + error.message);
         console.error('Group call error:', error);
         return;
       }
     }
 
     setShowGroupCall(false);
-    navigate(`/video-call/${roomId}`);
+    setActiveHuddleRoomId(roomId);
   };
 
   return (
@@ -510,17 +516,42 @@ export default function Messages() {
                           </div>
                         ) : msg.message.startsWith('[CALL_') ? (
                           <div className={cn(
-                            "mt-2 px-4 py-2.5 rounded-xl text-xs font-bold border inline-flex items-center gap-2",
+                            "mt-2 px-4 py-2.5 rounded-xl text-xs font-bold border inline-flex items-center gap-3",
                             msg.message.startsWith('[CALL_ACCEPTED]') ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" :
                             msg.message.startsWith('[CALL_DECLINED]') ? "bg-red-500/10 border-red-500/20 text-red-400" :
                             msg.message.startsWith('[CALL_CANCELED]') ? "bg-zinc-500/10 border-zinc-500/20 text-zinc-400" :
                             "bg-sky-500/10 border-sky-500/20 text-sky-400"
                           )}>
-                            <Headphones className="w-3.5 h-3.5" />
-                            {msg.message.startsWith('[CALL_RING]') ? (isMe ? 'Started a Huddle' : 'Incoming Huddle') :
-                             msg.message.startsWith('[CALL_ACCEPTED]') ? 'Huddle Started' :
-                             msg.message.startsWith('[CALL_DECLINED]') ? (isMe ? 'Huddle Declined' : 'Missed Huddle') :
-                             'Huddle Canceled'}
+                            <div className="flex items-center gap-2">
+                              <Headphones className="w-3.5 h-3.5" />
+                              {msg.message.startsWith('[CALL_RING]') ? (isMe ? 'Started a Huddle' : 'Incoming Huddle') :
+                               msg.message.startsWith('[CALL_ACCEPTED]') ? 'Huddle Started' :
+                               msg.message.startsWith('[CALL_DECLINED]') ? (isMe ? 'Huddle Declined' : 'Missed Huddle') :
+                               'Huddle Canceled'}
+                            </div>
+                            
+                            {/* Join Button for Huddle */}
+                            {msg.message.startsWith('[CALL_RING]') && !isMe && !activeHuddleRoomId && (
+                              <Button 
+                                size="sm" 
+                                className="h-6 text-[10px] px-3 bg-white/10 hover:bg-white/20 text-white rounded-lg ml-2"
+                                onClick={() => {
+                                  const roomId = msg.message.split('::')[1];
+                                  setActiveHuddleRoomId(roomId);
+                                  
+                                  // Send Accepted message
+                                  supabase.from('messages').insert([{
+                                    sender_role: userRole,
+                                    sender_name: userName || userRole,
+                                    receiver_role: selectedContact.roleId,
+                                    receiver_name: selectedContact.displayName,
+                                    message: `[CALL_ACCEPTED]::${roomId}`
+                                  }]);
+                                }}
+                              >
+                                Join
+                              </Button>
+                            )}
                           </div>
                         ) : (
                           <div className="text-[15px] text-white/80 leading-relaxed break-words">
@@ -555,11 +586,26 @@ export default function Messages() {
             <div className="w-32 h-32 bg-white/5 rounded-full flex items-center justify-center mb-8 border border-white/10 shadow-[0_0_50px_rgba(255,255,255,0.02)] backdrop-blur-md">
               <MessageCircle className="w-12 h-12 text-white/30" />
             </div>
-            <h2 className="text-2xl font-black tracking-tight text-white/60">Select a Contact</h2>
+            <h2 className="text-2xl font-black tracking-tight text-white/60">Select a Contact or Channel</h2>
             <p className="text-sm font-medium mt-3 max-w-sm text-white/40 leading-relaxed">Choose someone from the left sidebar to start messaging. All conversations are end-to-end secured inside KW&SC Network.</p>
           </div>
         )}
+
+        {/* Huddle Window Overlay */}
+        {activeHuddleRoomId && (
+          <HuddleWindow 
+            roomId={activeHuddleRoomId} 
+            onLeave={() => setActiveHuddleRoomId(null)} 
+          />
+        )}
       </div>
+
+      <GroupCallModal 
+        isOpen={showGroupCall} 
+        onClose={() => setShowGroupCall(false)} 
+        onStartCall={startGroupCall}
+        contacts={contacts}
+      />
 
       {isDialing && selectedContact && (
         <OutgoingCallModal 

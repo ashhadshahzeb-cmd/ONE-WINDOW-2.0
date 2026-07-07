@@ -39,7 +39,6 @@ import Establishment from "./pages/book-section/Establishment";
 import PublicTracking from "./pages/PublicTracking";
 import MobileUpload from "./pages/MobileUpload";
 import Profile from "./pages/Profile";
-import VideoCall from "./pages/VideoCall";
 import CpFund from "./pages/regular-employee/CpFund";
 import Placeholder from "./pages/Placeholder";
 import UserManagement from "./pages/UserManagement";
@@ -117,7 +116,6 @@ const App = () => (
                             </ProtectedRoute>
                           } />
                           <Route path="/profile" element={<Profile />} />
-                          <Route path="/video-call/:roomId" element={<VideoCall />} />
                           <Route path="/chart-of-accounts" element={<ChartOfAccounts />} />
                           <Route path="/general-ledger" element={<GeneralLedger />} />
                           <Route path="/bank-accounts" element={<BankAccounts />} />
