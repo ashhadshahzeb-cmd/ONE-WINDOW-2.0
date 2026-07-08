@@ -76,7 +76,6 @@ export default function Messages() {
 
     setIsDialing(true);
     setDialingRoomId(roomId);
-    setActiveHuddleRoomId(roomId); // Auto-join own huddle
   };
 
   const cancelCall = async () => {
@@ -119,6 +118,7 @@ export default function Messages() {
               setDialingRoomId(null);
               // They joined the huddle we started
               toast.success(`${newMsg.sender_name} joined the Huddle!`);
+              setActiveHuddleRoomId(dialingRoomId);
             } else if (newMsg.message === `[CALL_DECLINED]::${dialingRoomId}`) {
               // They declined!
               setIsDialing(false);
