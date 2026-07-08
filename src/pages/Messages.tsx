@@ -49,7 +49,7 @@ export default function Messages() {
   const incomingRingAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    incomingRingAudioRef.current = new Audio('https://www.soundjay.com/phone/sounds/ringtone-1-01.mp3');
+    incomingRingAudioRef.current = new Audio('https://actions.google.com/sounds/v1/alarms/phone_ringing.ogg');
     incomingRingAudioRef.current.loop = true;
     return () => {
       incomingRingAudioRef.current?.pause();
