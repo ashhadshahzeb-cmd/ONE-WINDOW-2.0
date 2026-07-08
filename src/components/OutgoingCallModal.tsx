@@ -18,7 +18,11 @@ export default function OutgoingCallModal({ receiverName, receiverRole, receiver
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
       
       {/* Background Music Player with multiple fallbacks for reliability */}
-      <audio autoPlay loop className="hidden" ref={audioRef} onLoadedData={(e) => { e.currentTarget.volume = 0.5; }}>
+      <audio autoPlay loop className="hidden" ref={audioRef} onLoadedData={(e) => { e.currentTarget.volume = 0.4; }}>
+        {/* Soft Lofi Music */}
+        <source src="https://cdn.pixabay.com/audio/2022/05/27/audio_1808fbf07a.mp3" type="audio/mpeg" />
+        <source src="https://cdn.pixabay.com/audio/2022/03/15/audio_c8b82ecab7.mp3" type="audio/mpeg" />
+        {/* Fallbacks */}
         <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg" />
         <source src="https://raw.githubusercontent.com/mdn/webaudio-examples/master/audio-analyser/viper.mp3" type="audio/mpeg" />
         <source src="https://actions.google.com/sounds/v1/science_fiction/elevator_music.ogg" type="audio/ogg" />
