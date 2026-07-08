@@ -12,23 +12,18 @@ interface OutgoingCallModalProps {
 export default function OutgoingCallModal({ receiverName, receiverRole, receiverAvatar, onCancel }: OutgoingCallModalProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  useEffect(() => {
-    // Play outgoing background music (Slack Huddle style) using a reliable URL
-    audioRef.current = new Audio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3');
-    audioRef.current.loop = true;
-    audioRef.current.volume = 0.5;
-    audioRef.current.play().catch(e => console.error("Audio play failed:", e));
-
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-      }
-    };
-  }, []);
+  // Audio is now handled by the <audio> element below for better autoplay support
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+      
+      {/* Background Music Player with multiple fallbacks for reliability */}
+      <audio autoPlay loop className="hidden" ref={audioRef} onLoadedData={(e) => { e.currentTarget.volume = 0.5; }}>
+        <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg" />
+        <source src="https://raw.githubusercontent.com/mdn/webaudio-examples/master/audio-analyser/viper.mp3" type="audio/mpeg" />
+        <source src="https://actions.google.com/sounds/v1/science_fiction/elevator_music.ogg" type="audio/ogg" />
+      </audio>
+
       <div className="flex flex-col items-center text-center animate-in slide-in-from-bottom-10 duration-500">
         
         {/* Calling Avatar */}
