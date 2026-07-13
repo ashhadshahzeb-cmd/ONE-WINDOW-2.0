@@ -108,27 +108,36 @@ export default function HRMSDashboard() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div>
-        <h1 className="text-4xl font-black text-white">HRMS Dashboard</h1>
-        <p className="text-white/50 mt-2">Welcome to the Human Resource Management System.</p>
+      <div className="flex items-center gap-4">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/5 border border-white/10 flex items-center justify-center backdrop-blur-md relative overflow-hidden shrink-0 shadow-lg shadow-blue-500/10">
+          <div className="absolute inset-0 bg-blue-500/20 blur-xl animate-pulse"></div>
+          <Users className="w-7 h-7 text-blue-400 relative z-10" />
+        </div>
+        <div>
+          <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight">HRMS Dashboard</h1>
+          <p className="text-white/50 mt-1 text-sm font-medium">Welcome to the Human Resource Management System.</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         
         {/* Employees Card */}
         <Link to="/hrms/employees">
-          <div className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-3xl p-6 transition-all duration-300 group h-full flex flex-col justify-between">
-            <div>
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 bg-blue-500/10">
-                <Users className="w-6 h-6 text-blue-500" />
+          <div className="bg-[#09090b]/50 backdrop-blur-md border border-white/10 hover:border-white/20 hover:bg-white/[0.02] rounded-3xl p-6 transition-all duration-500 group h-full flex flex-col justify-between relative overflow-hidden shadow-2xl">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-blue-500/20 transition-all duration-500"></div>
+            <div className="relative z-10">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 bg-blue-500/10 border border-blue-500/20 shadow-inner">
+                <Users className="w-6 h-6 text-blue-400" />
               </div>
-              <h3 className="text-xl font-bold text-white group-hover:text-primary transition-colors">Employees</h3>
+              <h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors">Employees</h3>
               <p className="text-white/40 text-sm mt-1">Manage personnel</p>
             </div>
             {!isHRMSEmployee && (
-              <div className="mt-6 flex items-end justify-between">
-                <span className="text-3xl font-black text-white">{stats.employees}</span>
-                <ArrowRight className="w-5 h-5 text-white/20 group-hover:text-white group-hover:translate-x-1 transition-all" />
+              <div className="mt-6 flex items-end justify-between relative z-10">
+                <span className="text-4xl font-black text-white tracking-tighter">{stats.employees}</span>
+                <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
+                  <ArrowRight className="w-4 h-4 text-white/40 group-hover:text-blue-400 group-hover:translate-x-0.5 transition-all" />
+                </div>
               </div>
             )}
           </div>
@@ -136,18 +145,21 @@ export default function HRMSDashboard() {
 
         {/* Attendance Card */}
         <Link to="/hrms/attendance">
-          <div className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-3xl p-6 transition-all duration-300 group h-full flex flex-col justify-between">
-            <div>
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 bg-emerald-500/10">
-                <Activity className="w-6 h-6 text-emerald-500" />
+          <div className="bg-[#09090b]/50 backdrop-blur-md border border-white/10 hover:border-white/20 hover:bg-white/[0.02] rounded-3xl p-6 transition-all duration-500 group h-full flex flex-col justify-between relative overflow-hidden shadow-2xl">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-emerald-500/20 transition-all duration-500"></div>
+            <div className="relative z-10">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 bg-emerald-500/10 border border-emerald-500/20 shadow-inner">
+                <Activity className="w-6 h-6 text-emerald-400" />
               </div>
-              <h3 className="text-xl font-bold text-white group-hover:text-primary transition-colors">Attendance</h3>
+              <h3 className="text-xl font-bold text-white group-hover:text-emerald-400 transition-colors">Attendance</h3>
               <p className="text-white/40 text-sm mt-1">{isHRMSEmployee ? 'Mark daily check-in' : 'Today\'s presence'}</p>
             </div>
             {!isHRMSEmployee && (
-              <div className="mt-6 flex items-end justify-between">
-                <span className="text-3xl font-black text-white">{stats.presentToday}</span>
-                <ArrowRight className="w-5 h-5 text-white/20 group-hover:text-white group-hover:translate-x-1 transition-all" />
+              <div className="mt-6 flex items-end justify-between relative z-10">
+                <span className="text-4xl font-black text-white tracking-tighter">{stats.presentToday}</span>
+                <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors">
+                  <ArrowRight className="w-4 h-4 text-white/40 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all" />
+                </div>
               </div>
             )}
           </div>
@@ -155,34 +167,40 @@ export default function HRMSDashboard() {
 
         {/* Leaves Card */}
         <Link to="/hrms/leaves">
-          <div className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-3xl p-6 transition-all duration-300 group h-full flex flex-col justify-between">
-            <div>
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 bg-purple-500/10">
-                <Shield className="w-6 h-6 text-purple-500" />
+          <div className="bg-[#09090b]/50 backdrop-blur-md border border-white/10 hover:border-white/20 hover:bg-white/[0.02] rounded-3xl p-6 transition-all duration-500 group h-full flex flex-col justify-between relative overflow-hidden shadow-2xl">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-purple-500/20 transition-all duration-500"></div>
+            <div className="relative z-10">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 bg-purple-500/10 border border-purple-500/20 shadow-inner">
+                <Shield className="w-6 h-6 text-purple-400" />
               </div>
-              <h3 className="text-xl font-bold text-white group-hover:text-primary transition-colors">Leaves</h3>
+              <h3 className="text-xl font-bold text-white group-hover:text-purple-400 transition-colors">Leaves</h3>
               <p className="text-white/40 text-sm mt-1">{isHRMSEmployee ? 'My applications' : 'Pending requests'}</p>
             </div>
-            <div className="mt-6 flex items-end justify-between">
-              <span className="text-3xl font-black text-white">{isHRMSEmployee ? empStats.myLeaves : stats.pendingLeaves}</span>
-              <ArrowRight className="w-5 h-5 text-white/20 group-hover:text-white group-hover:translate-x-1 transition-all" />
+            <div className="mt-6 flex items-end justify-between relative z-10">
+              <span className="text-4xl font-black text-white tracking-tighter">{isHRMSEmployee ? empStats.myLeaves : stats.pendingLeaves}</span>
+              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-purple-500/20 transition-colors">
+                <ArrowRight className="w-4 h-4 text-white/40 group-hover:text-purple-400 group-hover:translate-x-0.5 transition-all" />
+              </div>
             </div>
           </div>
         </Link>
 
         {/* Payroll Card */}
         <Link to="/hrms/payroll">
-          <div className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-3xl p-6 transition-all duration-300 group h-full flex flex-col justify-between">
-            <div>
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 bg-orange-500/10">
-                <Wallet className="w-6 h-6 text-orange-500" />
+          <div className="bg-[#09090b]/50 backdrop-blur-md border border-white/10 hover:border-white/20 hover:bg-white/[0.02] rounded-3xl p-6 transition-all duration-500 group h-full flex flex-col justify-between relative overflow-hidden shadow-2xl">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-orange-500/20 transition-all duration-500"></div>
+            <div className="relative z-10">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 bg-orange-500/10 border border-orange-500/20 shadow-inner">
+                <Wallet className="w-6 h-6 text-orange-400" />
               </div>
-              <h3 className="text-xl font-bold text-white group-hover:text-primary transition-colors">Payroll</h3>
+              <h3 className="text-xl font-bold text-white group-hover:text-orange-400 transition-colors">Payroll</h3>
               <p className="text-white/40 text-sm mt-1">{isHRMSEmployee ? 'My payslips' : 'Processed this month'}</p>
             </div>
-            <div className="mt-6 flex items-end justify-between">
-              <span className="text-3xl font-black text-white">{isHRMSEmployee ? empStats.myPayslips : stats.payrollProcessed}</span>
-              <ArrowRight className="w-5 h-5 text-white/20 group-hover:text-white group-hover:translate-x-1 transition-all" />
+            <div className="mt-6 flex items-end justify-between relative z-10">
+              <span className="text-4xl font-black text-white tracking-tighter">{isHRMSEmployee ? empStats.myPayslips : stats.payrollProcessed}</span>
+              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-orange-500/20 transition-colors">
+                <ArrowRight className="w-4 h-4 text-white/40 group-hover:text-orange-400 group-hover:translate-x-0.5 transition-all" />
+              </div>
             </div>
           </div>
         </Link>
@@ -190,8 +208,8 @@ export default function HRMSDashboard() {
       </div>
 
       {/* Notice Board Section */}
-      <div className="bg-white/5 border border-white/10 rounded-3xl p-6 md:p-8 relative overflow-hidden mt-8">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
+      <div className="bg-[#09090b]/50 backdrop-blur-md border border-white/10 rounded-3xl p-6 md:p-8 relative overflow-hidden mt-8 shadow-2xl">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none"></div>
         
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4 relative z-10">
           <div className="flex items-center gap-3">
