@@ -35,23 +35,18 @@ export default function FileAnalytics() {
         setRecords(localData);
       }
 
-      // Then fetch from Supabase to ensure it's up to date
+      // Then fetch from Supabase to ensure it's up to date.
+      // We only fetch latest 1000 records without heavy columns (like history/file_image) to prevent timeout
       const { data, error } = await supabase
         .from('file_tracking_records' as any)
-        .select('*')
-        .order('created_at', { ascending: true });
+        .select('main_category, mark_to, created_at')
+        .order('created_at', { ascending: false })
+        .limit(1000);
 
       if (error) throw error;
       
       if (data && data.length > 0) {
-         const activeData = data.filter((r: any) => {
-           if (r.history && r.history.length > 0) {
-             const lastItem = r.history[r.history.length - 1];
-             if (lastItem.action === "TRASHED") return false;
-           }
-           return true;
-         });
-         setRecords(activeData);
+         setRecords(data.reverse());
       }
     } catch (err) {
       console.error(err);
