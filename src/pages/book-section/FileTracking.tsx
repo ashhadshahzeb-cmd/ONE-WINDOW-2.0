@@ -308,6 +308,10 @@ export default function FileTracking() {
         diaryNumber: deletedRecord?.cfo_diary_number,
         receivingNumber: deletedRecord?.receiving_number,
         subject: deletedRecord?.subject,
+        details: { 
+          before: deletedRecord,
+          after: { ...deletedRecord, status: 'trashed' } 
+        }
       });
 
       toast.success(isOnline ? "Record deleted successfully." : "Deleted locally. Will sync when online.");
@@ -372,11 +376,15 @@ export default function FileTracking() {
         logActivity({
           userRole: currentRole || 'unknown',
           userName: userName || sections.find(s => s.id === currentRole)?.name || currentRole || 'Unknown',
-          action: 'BULK_EDIT_DATE',
+          action: 'BULK_EDIT_DATE' as any,
           recordId: id,
           diaryNumber: record.cfo_diary_number,
           receivingNumber: record.receiving_number,
           subject: record.subject,
+          details: {
+            before: record,
+            after: { ...record, ...updatePayload }
+          }
         });
       }
 
@@ -1350,11 +1358,15 @@ export default function FileTracking() {
           logActivity({
             userRole: currentRole || 'unknown',
             userName: userName || sections.find((s: any) => s.id === currentRole)?.name || currentRole || 'Unknown',
-            action: 'BULK_EDIT_DATE',
+            action: 'BULK_EDIT_DATE' as any,
             recordId: ticket.id,
             diaryNumber: ticket.cfo_diary_number,
             receivingNumber: ticket.receiving_number,
             subject: ticket.subject,
+            details: {
+              before: ticket,
+              after: { ...ticket, ...updatePayload }
+            }
           });
           
           setRecords(prev => prev.map(r => r.id === ticket.id ? { ...r, ...updatePayload } : r));
