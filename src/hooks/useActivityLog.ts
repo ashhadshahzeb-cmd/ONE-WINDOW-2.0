@@ -236,3 +236,49 @@ export async function fetchOnlineUsers(): Promise<{ user_role: string; user_name
     return [];
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Hourly Activity Stats (Last 24 Hours)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface HourlyActivityStat {
+  hour: string; // "14:00"
+  count: number;
+}
+
+export async function fetchHourlyActivityStats(): Promise<HourlyActivityStat[]> {
+  try {
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+    const { data, error } = await supabase
+      .from('activity_log' as any)
+      .select('created_at')
+      .gte('created_at', twentyFourHoursAgo)
+      .order('created_at', { ascending: true });
+
+    if (error || !data) return [];
+
+    // Initialize the last 24 hours with 0 count
+    const hourlyMap = new Map<string, number>();
+    const now = new Date();
+    for (let i = 23; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 60 * 60 * 1000);
+      const hourKey = `${d.getHours().toString().padStart(2, '0')}:00`;
+      hourlyMap.set(hourKey, 0);
+    }
+
+    // Group logs by hour
+    for (const row of data as any[]) {
+      const date = new Date(row.created_at);
+      const hourKey = `${date.getHours().toString().padStart(2, '0')}:00`;
+      if (hourlyMap.has(hourKey)) {
+        hourlyMap.set(hourKey, hourlyMap.get(hourKey)! + 1);
+      }
+    }
+
+    return Array.from(hourlyMap.entries()).map(([hour, count]) => ({ hour, count }));
+  } catch (err) {
+    console.error('[ActivityLog] Hourly stats error:', err);
+    return [];
+  }
+}
