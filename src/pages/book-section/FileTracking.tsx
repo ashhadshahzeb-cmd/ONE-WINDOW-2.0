@@ -1109,6 +1109,9 @@ export default function FileTracking() {
           file_image: fileImage || undefined
         };
 
+        // Get old record before modification for activity log diff
+        const oldRecord = await db.records.where('id').equals(editingRecordId as string).first();
+
         // Update locally
         await db.records.where('id').equals(editingRecordId as string).modify({
           ...localUpdatePayload,
@@ -1131,7 +1134,10 @@ export default function FileTracking() {
           diaryNumber: formData.cfo_diary_number,
           receivingNumber: formData.receiving_number,
           subject: formData.subject,
-          details: { updated_fields: ['multiple'] }
+          details: { 
+            before: oldRecord,
+            after: { id: editingRecordId, ...updatePayload }
+          }
         });
 
         toast.success(isOnline ? "Record updated successfully!" : "Saved locally. Will sync when online.");
@@ -1195,7 +1201,10 @@ export default function FileTracking() {
           diaryNumber: formData.cfo_diary_number,
           receivingNumber: formData.receiving_number,
           subject: formData.subject,
-          details: { mark_to: formData.mark_to }
+          details: { 
+            before: existingRecord,
+            after: { ...existingRecord, ...updatePayload }
+          }
         });
 
         toast.success(isOnline ? `File forwarded to ${formData.mark_to}` : "Forwarded locally. Will sync when online.");
