@@ -446,6 +446,7 @@ export default function FileTracking() {
               voucher_code: recordToEdit.voucher_code || "",
             });
             setIsEditingMode(true);
+            setEditingRecordId(recordToEdit.id);
             
           } else if (newMsg.receiver_role === userRole && newMsg.message.startsWith('[FILE_TRACKING_EDIT_REJECTED]::' + recordToEdit.id)) {
             toast.error("Admin rejected edit request.");
@@ -489,6 +490,7 @@ export default function FileTracking() {
         voucher_code: record.voucher_code || "",
       });
       setIsEditingMode(true);
+      setEditingRecordId(record.id);
     } else {
       setApprovalStatus("waiting");
       setIsEditModalOpen(true);
