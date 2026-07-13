@@ -76,24 +76,45 @@ const DiffViewer = ({ before, after }: { before: any, after: any }) => {
   }
 
   return (
-    <ScrollArea className="h-64 bg-black/60 rounded-xl border border-white/10 p-4">
-      <div className="space-y-3">
-        {changes.map((c, i) => (
-          <div key={i} className="flex flex-col bg-white/[0.03] p-3 rounded-lg border border-white/[0.05]">
-            <span className="text-[10px] text-white/50 font-bold mb-2 tracking-wider">{c.key}</span>
-            <div className="flex items-center gap-3 text-xs font-mono">
-              <span className="text-rose-400 bg-rose-500/10 px-2 py-1 rounded max-w-[45%] truncate border border-rose-500/20" title={c.oldVal}>
-                {c.oldVal}
-              </span>
-              <span className="text-white/30 text-[10px]">➔</span>
-              <span className="text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded max-w-[45%] truncate border border-emerald-500/20" title={c.newVal}>
-                {c.newVal}
-              </span>
-            </div>
+    <div className="grid grid-cols-2 gap-4">
+      {/* Before Column */}
+      <div className="space-y-2">
+        <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-bold uppercase px-3 py-1.5 rounded-t-lg flex items-center justify-between">
+          <span>Before Change (Old Value)</span>
+        </div>
+        <ScrollArea className="h-64 bg-black/60 rounded-b-lg border border-white/5 border-t-0 p-4">
+          <div className="space-y-4">
+            {changes.map((c, i) => (
+              <div key={`old-${i}`} className="space-y-1">
+                <div className="text-[9px] text-rose-400/70 font-bold uppercase tracking-wider">{c.key}</div>
+                <div className="text-xs font-mono text-rose-200 bg-rose-500/10 p-2 rounded border border-rose-500/20 break-words whitespace-pre-wrap">
+                  {c.oldVal}
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        </ScrollArea>
       </div>
-    </ScrollArea>
+
+      {/* After Column */}
+      <div className="space-y-2">
+        <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase px-3 py-1.5 rounded-t-lg flex items-center justify-between">
+          <span>After Change (New Value)</span>
+        </div>
+        <ScrollArea className="h-64 bg-black/60 rounded-b-lg border border-white/5 border-t-0 p-4">
+          <div className="space-y-4">
+            {changes.map((c, i) => (
+              <div key={`new-${i}`} className="space-y-1">
+                <div className="text-[9px] text-emerald-400/70 font-bold uppercase tracking-wider">{c.key}</div>
+                <div className="text-xs font-mono text-emerald-200 bg-emerald-500/10 p-2 rounded border border-emerald-500/20 break-words whitespace-pre-wrap">
+                  {c.newVal}
+                </div>
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
+      </div>
+    </div>
   );
 };
 
