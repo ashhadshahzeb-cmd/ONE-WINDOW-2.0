@@ -1,4 +1,4 @@
-package com.kwsb.tracking;
+package com.kwsb.onewindow;
 
 import com.getcapacitor.BridgeActivity;
 

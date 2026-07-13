@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, FileText, Printer, Loader2, X, Trash2 } from "lucide-react";
+import { Search, FileText, Printer, Loader2, X, Trash2, Phone, Globe, Calendar } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -244,145 +244,190 @@ export default function TransferAdviceRecords() {
     .reduce((sum, record) => sum + (Number(record.total_amount) || 0), 0);
 
   return (
-    <div className="container mx-auto p-4 space-y-6">
-      <div className="flex justify-between items-center no-print">
-        <h1 className="text-2xl font-bold text-white">Transfer Advice Records</h1>
-        <div className="space-x-2">
-          {selectedRecordIds.length > 0 && (
-            <Button onClick={handleOpenBulkPrintConfig} className="bg-sky-600 hover:bg-sky-700 text-white font-bold">
-              <Printer className="w-4 h-4 mr-2" /> Print Selected ({selectedRecordIds.length})
-            </Button>
-          )}
-          <Button onClick={fetchRecords} variant="outline" className="text-white border-white/20">
-            Refresh Data
-          </Button>
-        </div>
-      </div>
-
-      <Card className="bg-[#0B101E] border-white/10 text-white shadow-xl no-print">
-        <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <CardTitle>History</CardTitle>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-2 bg-[#1A2333] border border-white/10 rounded-md p-1 px-2">
-              <Label className="text-xs text-white/50">From</Label>
-              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-8 border-0 bg-transparent focus-visible:ring-0 w-32" />
-              <Label className="text-xs text-white/50">To</Label>
-              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-8 border-0 bg-transparent focus-visible:ring-0 w-32" />
+    <div className="min-h-screen bg-[#F8FAFC] py-8 px-4 sm:px-6 lg:px-8 font-sans">
+      <div className="max-w-[1400px] mx-auto bg-white shadow-2xl rounded-3xl overflow-hidden relative border border-slate-100">
+        <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-[#F3F6FF] to-transparent pointer-events-none opacity-50" />
+        
+        <div className="p-8 sm:p-12 relative z-10">
+          
+          {/* HEADER: LOGO AND HELPLINE */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-12">
+            <div className="flex items-center space-x-4 mb-4 sm:mb-0">
+              <div className="w-16 h-16 rounded-full bg-[#273D81] flex items-center justify-center text-white border-4 border-[#EAEFFD] shadow-sm">
+                <span className="font-black text-xl">KWSC</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xl font-bold text-slate-900 leading-tight">Karachi Water &</span>
+                <span className="text-xl font-bold text-slate-900 leading-tight">Sewerage Corporation</span>
+              </div>
             </div>
-            <div className="relative w-64">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+
+            <div className="flex items-center space-x-4">
+              <Button onClick={fetchRecords} variant="outline" className="text-[#1C3B70] border-[#1C3B70] hover:bg-[#1C3B70] hover:text-white transition-colors">
+                Refresh Data
+              </Button>
+              <div className="flex items-center">
+                <div className="bg-[#273D81] rounded-full p-2 mr-3 text-white">
+                  <Phone className="w-5 h-5 fill-current" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold text-[#273D81] uppercase tracking-wider leading-none">Helpline</span>
+                  <span className="text-2xl font-black text-[#273D81] leading-none">NUMBER 1334</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* MAIN TITLE */}
+          <div className="text-center mb-10 space-y-2">
+            <h2 className="text-4xl sm:text-5xl font-black text-[#5B75C7] tracking-tight">TRANSFER ADVICE RECORDS</h2>
+            <div className="w-full max-w-4xl mx-auto h-[2px] bg-slate-200 mt-6" />
+          </div>
+
+          {/* BULK PRINT BUTTON (IF ANY) */}
+          {selectedRecordIds.length > 0 && (
+            <div className="flex justify-end mb-4 no-print">
+              <Button onClick={handleOpenBulkPrintConfig} className="bg-[#1C3B70] hover:bg-[#0F2243] text-white font-bold shadow-sm">
+                <Printer className="w-4 h-4 mr-2" /> Print Selected ({selectedRecordIds.length})
+              </Button>
+            </div>
+          )}
+
+      <Card className="no-print bg-white border-slate-200 shadow-md">
+        <CardHeader className="flex flex-col md:flex-row justify-between items-center bg-[#F3F6FF] border-b border-slate-100 rounded-t-xl">
+          <CardTitle className="text-2xl font-black text-[#1C3B70]">History</CardTitle>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg p-1 px-3 shadow-sm">
+              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">From</Label>
+              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-9 border-0 bg-transparent focus-visible:ring-0 w-[130px] text-slate-700" />
+              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">To</Label>
+              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-9 border-0 bg-transparent focus-visible:ring-0 w-[130px] text-slate-700" />
+            </div>
+            <div className="relative w-72">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
               <Input
                 placeholder="Search Ref No, Bank, Date..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8 bg-[#1A2333] border-white/10 h-10"
+                className="pl-9 bg-white border-slate-200 text-slate-700 h-10 shadow-sm focus:ring-[#1C3B70] rounded-lg"
               />
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {loading ? (
             <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 animate-spin" /></div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="text-xs uppercase bg-[#1A2333]">
-                  <tr>
-                    <th className="px-4 py-3 w-10 text-center">
-                      <button onClick={handleSelectAll} className="text-white/50 hover:text-white" title="Select All">
-                        <CheckSquare className={`w-4 h-4 ${selectedRecordIds.length === filteredRecords.length && filteredRecords.length > 0 ? 'text-sky-400' : ''}`} />
-                      </button>
-                    </th>
-                    <th className="px-4 py-3">Date</th>
-                    <th className="px-4 py-3">Advice No</th>
-                    <th className="px-4 py-3">Bank Details</th>
-                    <th className="px-4 py-3">In Respect Of</th>
-                    <th className="px-4 py-3 text-right">Total Amount</th>
-                    <th className="px-4 py-3">Created By</th>
-                    <th className="px-4 py-3 text-center">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredRecords.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
-                        No records found.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredRecords.map((record) => (
-                      <tr key={record.id} className={`border-b border-white/10 hover:bg-white/5 transition-colors ${selectedRecordIds.includes(record.id) ? 'bg-sky-900/20' : ''}`}>
-                        <td className="px-4 py-3 text-center">
+                        <div className="p-4 sm:p-6 bg-[#F8FAFC]">
+              <div className="flex justify-between items-center mb-6">
+                <div className="flex items-center space-x-2">
+                  <button onClick={handleSelectAll} className="flex items-center text-sm font-semibold text-slate-500 hover:text-[#1C3B70] transition-colors">
+                    <CheckSquare className={`w-5 h-5 mr-2 ${selectedRecordIds.length === filteredRecords.length && filteredRecords.length > 0 ? 'text-[#466399] fill-[#1C3B70]' : 'text-slate-400'}`} />
+                    Select All
+                  </button>
+                </div>
+                {selectedRecordIds.length > 0 && (
+                  <div className="text-right text-sm font-bold text-[#1C3B70] uppercase tracking-wider">
+                    Total Selected: <span className="text-[#059669] text-xl ml-2">{selectedTotalAmount.toLocaleString('en-US')}</span>
+                  </div>
+                )}
+              </div>
+              
+              {filteredRecords.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 font-medium bg-white rounded-xl shadow-sm border border-slate-100">
+                  No records found.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+                  {filteredRecords.map((record) => {
+                    const dateParts = record.date.split('-');
+                    const dateObj = new Date(dateParts[0], parseInt(dateParts[1]) - 1, dateParts[2]);
+                    const formattedDate = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                    
+                    const inRespectOfList = record.transfer_advice_items 
+                      ? Array.from(new Set(record.transfer_advice_items.map((i: any) => i.in_respect_of))).filter(Boolean)
+                      : [];
+                    const inRespectOfText = inRespectOfList.length > 0 ? inRespectOfList[0] + (inRespectOfList.length > 1 ? '...' : '') : 'N/A';
+                    
+                    const isSelected = selectedRecordIds.includes(record.id);
+                    
+                    return (
+                      <div 
+                        key={record.id} 
+                        className={`flex items-center justify-between p-2 sm:p-4 rounded-xl border ${isSelected ? 'bg-[#EAEFFD]/30 border-[#273D81] ring-1 ring-[#273D81]' : 'bg-white border-slate-100 hover:shadow-md'} transition-all duration-200 cursor-pointer overflow-hidden`}
+                        onClick={() => handleToggleSelect(record.id)}
+                      >
+                        {/* LEFT SECTION: Checkbox, Icon, Date */}
+                        <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
                           <input 
                             type="checkbox" 
-                            checked={selectedRecordIds.includes(record.id)}
-                            onChange={() => handleToggleSelect(record.id)}
-                            className="w-4 h-4 rounded border-white/20 bg-[#0B101E] text-sky-500 focus:ring-sky-500 focus:ring-offset-[#0B101E]"
+                            checked={isSelected}
+                            onChange={(e) => { e.stopPropagation(); handleToggleSelect(record.id); }}
+                            className="w-4 h-4 rounded border-slate-300 text-[#273D81] focus:ring-[#273D81] cursor-pointer"
                           />
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">{record.date.split('-').reverse().join('-')}</td>
-                        <td className="px-4 py-3 font-medium whitespace-nowrap">{record.advice_no}</td>
-                        <td className="px-4 py-3 max-w-xs truncate" title={record.bank_name}>{record.bank_name.split('\n')[0]}...</td>
-                        <td className="px-4 py-3 max-w-[200px] truncate text-white/80" title={
-                          record.transfer_advice_items 
-                            ? Array.from(new Set(record.transfer_advice_items.map((i: any) => i.in_respect_of))).filter(Boolean).join(', ') 
-                            : 'N/A'
-                        }>
-                          {record.transfer_advice_items 
-                            ? Array.from(new Set(record.transfer_advice_items.map((i: any) => i.in_respect_of))).filter(Boolean).join(', ') || 'N/A'
-                            : 'N/A'}
-                        </td>
-                        <td className="px-4 py-3 text-right font-bold text-green-400">
-                          {Number(record.total_amount).toLocaleString('en-US')}
-                        </td>
-                        <td className="px-4 py-3">{record.created_by}</td>
-                        <td className="px-4 py-3 text-center whitespace-nowrap space-x-2">
-                          <Button 
-                            variant="secondary" 
-                            size="sm" 
-                            onClick={() => handleView(record)}
-                            className="bg-blue-600 hover:bg-blue-700 text-white"
-                          >
-                            <FileText className="w-4 h-4 mr-2" /> View
-                          </Button>
-                          <Button 
-                            variant="secondary" 
-                            size="sm" 
-                            onClick={() => handleEditClick(record)}
-                            className="bg-amber-600 hover:bg-amber-700 text-white"
-                          >
-                            <FileEdit className="w-4 h-4 mr-2" /> Edit
-                          </Button>
-                          <Button 
-                            variant="destructive" 
-                            size="sm" 
-                            onClick={() => handleDelete(record.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-                {selectedRecordIds.length > 0 && (
-                  <tfoot className="bg-sky-900/40 border-t-2 border-sky-500 font-bold">
-                    <tr>
-                      <td colSpan={5} className="px-4 py-4 text-right text-white uppercase text-xs tracking-wider">
-                        Total Amount of Selected Entries:
-                      </td>
-                      <td className="px-4 py-4 text-right text-green-400 text-lg">
-                        {selectedTotalAmount.toLocaleString('en-US')}
-                      </td>
-                      <td colSpan={2}></td>
-                    </tr>
-                  </tfoot>
-                )}
-              </table>
+                          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#EAEFFD] flex items-center justify-center shrink-0 shadow-sm border border-white">
+                            <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-[#273D81]" />
+                          </div>
+                          <span className="font-bold text-[#273D81] text-[10px] sm:text-xs whitespace-nowrap">{formattedDate}</span>
+                        </div>
+
+                        {/* MIDDLE SECTION: Advice No & Bank */}
+                        <div className="flex flex-col border-l-2 border-[#273D81] pl-2 sm:pl-3 ml-2 sm:ml-4 flex-1 min-w-0">
+                          <span className="font-bold text-[#273D81] text-[9px] sm:text-[11px] truncate" title={record.advice_no}>{record.advice_no.split('/').pop() || record.advice_no}</span>
+                          <span className="text-slate-500 font-medium text-[8px] sm:text-[10px] truncate leading-tight" title={record.bank_name}>{record.bank_name.split('\n')[0]}</span>
+                        </div>
+
+                        {/* MIDDLE RIGHT: In Respect Of */}
+                        <div className="flex-1 text-center px-2 shrink-0 hidden md:block min-w-0">
+                          <span className="text-slate-700 font-semibold text-[9px] sm:text-[10px] truncate block w-full" title={inRespectOfText}>{inRespectOfText}</span>
+                        </div>
+
+                        {/* RIGHT SECTION: Amount & Actions */}
+                        <div className="flex flex-col items-end shrink-0 space-y-1 sm:space-y-2 ml-2">
+                          <div className="flex items-center space-x-1">
+                            <span className="text-[8px] sm:text-[10px] text-emerald-500 font-bold hidden sm:inline">PKR</span>
+                            <span className="text-emerald-500 font-black text-[11px] sm:text-[14px]">{Number(record.total_amount).toLocaleString('en-US')}</span>
+                          </div>
+                          
+                          <div className="flex items-center space-x-1 sm:space-x-2" onClick={e => e.stopPropagation()}>
+                            <button onClick={() => handleView(record)} className="p-1 sm:p-1.5 bg-[#EAEFFD] text-[#273D81] hover:bg-[#273D81] hover:text-white rounded-md transition-colors" title="View">
+                              <FileText className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                            </button>
+                            <button onClick={() => handleEditClick(record)} className="p-1 sm:p-1.5 bg-amber-50 text-amber-500 hover:bg-amber-500 hover:text-white rounded-md transition-colors" title="Edit">
+                              <FileEdit className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                            </button>
+                            <button onClick={() => handleDelete(record.id)} className="p-1 sm:p-1.5 bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white rounded-md transition-colors" title="Delete">
+                              <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* FOOTER */}
+      <div className="mt-12 text-center text-slate-600 text-sm sm:text-lg max-w-4xl mx-auto mb-12 font-medium leading-relaxed">
+        The table above displays the complete history of Transfer Advice entries generated by the Karachi Water & Sewerage Corporation, reflecting all financial disbursals.
+      </div>
+
+      <div className="bg-[#273D81] rounded-full py-3 sm:py-4 px-6 sm:px-8 flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-4 text-white w-max mx-auto shadow-lg no-print">
+        <div className="flex items-center font-semibold text-sm sm:text-lg tracking-wide border-b sm:border-b-0 sm:border-r border-white/30 pb-2 sm:pb-0 sm:pr-4">
+          <Globe className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+          www.kwsc.gos.pk
+        </div>
+        <div className="flex items-center space-x-2 pl-2">
+          <span className="font-bold text-sm sm:text-lg tracking-wide">KWSCOfficial</span>
+        </div>
+      </div>
+
+      </div>
+    </div>
 
       {/* --- BULK PRINT CONFIG MODAL --- */}
       <Dialog open={isBulkPrintConfigOpen} onOpenChange={setIsBulkPrintConfigOpen}>

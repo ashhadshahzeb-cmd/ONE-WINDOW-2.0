@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.kwsb.tracking',
-  appName: 'KWSC Tracking',
+  appId: 'com.kwsb.onewindow',
+  appName: 'ONE-WINDOW',
   webDir: 'dist'
 };
 

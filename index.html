@@ -23,6 +23,21 @@
 
 <body>
   <div id="root"></div>
+  <script>
+    window.addEventListener('error', function(e) {
+      var err = document.createElement('div');
+      err.style.cssText = 'color:red;z-index:9999;position:fixed;top:0;left:0;background:white;padding:20px;width:100%;height:100vh;overflow:auto;font-family:monospace;';
+      err.innerHTML = '<h2>Application Error</h2><p>' + e.message + '</p><pre>' + (e.error ? e.error.stack : '') + '</pre>';
+      document.body.appendChild(err);
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+      var err = document.createElement('div');
+      err.style.cssText = 'color:red;z-index:9999;position:fixed;top:0;left:0;background:white;padding:20px;width:100%;height:100vh;overflow:auto;font-family:monospace;';
+      err.innerHTML = '<h2>Unhandled Promise Rejection</h2><p>' + e.reason + '</p>';
+      document.body.appendChild(err);
+    });
+  </script>
+  <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
   <script type="module" src="/src/main.tsx"></script>
 </body>
 

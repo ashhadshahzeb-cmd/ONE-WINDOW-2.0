@@ -149,6 +149,14 @@ export default function FileTracking() {
   const [totalRecords, setTotalRecords] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
   const [selectedBill, setSelectedBill] = useState<any>(null);
   const [coveringSlipPrintDate, setCoveringSlipPrintDate] = useState(getLocalDateString());
   const [coveringSlipCreatedDate, setCoveringSlipCreatedDate] = useState(getLocalDateString());
@@ -258,15 +266,36 @@ export default function FileTracking() {
     if (!recordToDelete) return;
 
     try {
-      // Delete from local IndexedDB immediately
+      // Soft delete: update status to trashed instead of physical deletion
       const deletedRecord = records.find(r => r.id === recordToDelete);
-      await db.records.where('id').equals(recordToDelete).modify({ deleted_locally: true });
+      if (!deletedRecord) return;
 
-      // Enqueue for remote deletion
+      const newHistoryItem = {
+        date: new Date().toISOString(),
+        processed_by: userName || currentRole || 'Admin',
+        action: "TRASHED",
+        remarks: "Moved to Trash Box",
+      };
+
+      const updatedHistory = [...(deletedRecord.history || []), newHistoryItem];
+
+      // Update local IndexedDB immediately
+      await db.records.where('id').equals(recordToDelete).modify({ 
+        status: 'trashed',
+        history: updatedHistory,
+        is_dirty: true
+      });
+
+      // Enqueue for remote update (not delete)
       await enqueue({
-        action: 'delete',
+        action: 'update',
         table: 'file_tracking_records',
-        payload: { id: recordToDelete },
+        payload: { 
+          id: recordToDelete, 
+          status: 'trashed',
+          history: updatedHistory,
+          is_dirty: true
+        },
         record_id: deletedRecord?.receiving_number,
       });
 
@@ -1367,7 +1396,54 @@ export default function FileTracking() {
 
   useEffect(() => {
     setCurrentPage(0);
-  }, [filterCategory, filterSubCategory, filterSection, filterStatus, sortOrder, searchQuery, activeTab, viewingRole, reportDateFilter, customFilterStartDate, customFilterEndDate]);
+  }, [filterCategory, filterSubCategory, filterSection, filterStatus, sortOrder, debouncedSearchQuery, activeTab, viewingRole, reportDateFilter, customFilterStartDate, customFilterEndDate]);
+
+  const handleRestoreRecord = async (file: any) => {
+    try {
+      let previousStatus = 'active';
+      if (file.history) {
+        // Look for the last non-TRASHED action to determine if it was EXITED or just active
+        const lastAction = [...file.history].reverse().find((h: any) => h.action !== 'TRASHED' && h.action !== 'RESTORED');
+        if (lastAction && lastAction.action === 'EXITED') {
+           previousStatus = 'exited';
+        }
+      }
+
+      const newHistoryItem = {
+        date: new Date().toISOString(),
+        processed_by: userName || currentRole || 'Admin',
+        action: "RESTORED",
+        remarks: "Restored from Trash Box",
+      };
+
+      const updatedHistory = [...(file.history || []), newHistoryItem];
+
+      // Update local IndexedDB
+      await db.records.where('id').equals(file.id).modify({ 
+        status: previousStatus,
+        history: updatedHistory,
+        is_dirty: true
+      });
+
+      // Enqueue remote update
+      await enqueue({
+        action: 'update',
+        table: 'file_tracking_records',
+        payload: { 
+          id: file.id, 
+          status: previousStatus,
+          history: updatedHistory,
+          is_dirty: true
+        },
+        record_id: file.receiving_number,
+      });
+      
+      toast.success("Record restored successfully.");
+      fetchRecords(currentPage);
+    } catch (err: any) {
+      toast.error("Failed to restore record.");
+    }
+  };
 
   const fetchRecords = async (page = 0) => {
     setIsLoading(true);
@@ -1379,37 +1455,43 @@ export default function FileTracking() {
         subCategory: d.sub_category || d.subCategory,
       }));
 
-      // 1. Tab & Role Filters
-      if (activeTab === 'tray' || activeTab === 'timeline' || activeTab === 'returned_files') {
-        const effectiveRole = effectiveViewingRole;
-        if (!(currentRole === 'cfo' || isAdmin)) {
-          if (activeTab === 'tray') {
-            mapped = mapped.filter(r => r.mark_to === effectiveRole);
-          } else if (activeTab === 'returned_files') {
-            mapped = mapped.filter(r => r.additional_mark_to === currentRole);
-          } else {
-            const procName = sections.find(s => s.id === effectiveRole)?.name;
-            mapped = mapped.filter(r => r.mark_to === effectiveRole || (r.history && r.history.some((h: any) => h.processed_by === procName)));
-          }
-        } else if (currentRole === 'cfo' || isAdmin) {
-          if (activeTab === 'tray') {
-            mapped = mapped.filter(r => r.mark_to === effectiveRole);
-          } else if (activeTab === 'returned_files') {
-            if (viewingRole === 'cfo' || viewingRole === 'admin') {
-              mapped = mapped.filter(r => r.additional_mark_to && r.additional_mark_to.trim() !== '');
+
+      // 1. Role-based & Status filters
+      if (activeTab === 'trash_box') {
+        mapped = mapped.filter(r => r.status === 'trashed');
+      } else {
+        mapped = mapped.filter(r => r.status !== 'trashed');
+        
+        if (activeTab === 'tray' || activeTab === 'timeline' || activeTab === 'returned_files') {
+          const effectiveRole = effectiveViewingRole;
+          if (!(currentRole === 'cfo' || isAdmin)) {
+            if (activeTab === 'tray') {
+              mapped = mapped.filter(r => r.mark_to === effectiveRole);
+            } else if (activeTab === 'returned_files') {
+              mapped = mapped.filter(r => r.additional_mark_to === currentRole);
             } else {
-              mapped = mapped.filter(r => r.additional_mark_to === effectiveRole);
+              mapped = mapped.filter(r => r.mark_to === effectiveRole || (r.history && r.history.some((h: any) => h.processed_by === sections.find(s => s.id === effectiveRole)?.name)));
+            }
+          } else if (currentRole === 'cfo' || isAdmin) {
+            if (activeTab === 'tray') {
+              mapped = mapped.filter(r => r.mark_to === effectiveRole);
+            } else if (activeTab === 'returned_files') {
+              if (viewingRole === 'cfo' || viewingRole === 'admin') {
+                mapped = mapped.filter(r => r.additional_mark_to);
+              } else {
+                mapped = mapped.filter(r => r.additional_mark_to === effectiveRole);
+              }
             }
           }
+        } else if (activeTab === 'cfo_all_files') {
+          if (filterStatus === 'exited') {
+            mapped = mapped.filter(r => r.mark_to === 'exited');
+          } else {
+            mapped = mapped.filter(r => r.mark_to === 'cfo');
+          }
+        } else if (activeTab === 'bulk_modified') {
+          mapped = mapped.filter(r => r.history && r.history.some((h: any) => h.action === 'BULK_DATE_EDITED'));
         }
-      } else if (activeTab === 'cfo_all_files') {
-        if (filterStatus === 'exited') {
-          mapped = mapped.filter(r => r.mark_to === 'exited');
-        } else {
-          mapped = mapped.filter(r => r.mark_to !== 'exited');
-        }
-      } else if (activeTab === 'bulk_modified') {
-        mapped = mapped.filter(r => r.history && r.history.some((h: any) => h.action === 'BULK_DATE_EDITED'));
       }
 
       // 2. Category & Section Filters
@@ -1418,8 +1500,8 @@ export default function FileTracking() {
       if (filterSection !== 'all') mapped = mapped.filter(r => r.mark_to === filterSection);
 
       // 3. Search Filter
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase();
+      if (debouncedSearchQuery) {
+        const q = debouncedSearchQuery.toLowerCase();
         mapped = mapped.filter(r => 
           (r.cfo_diary_number && r.cfo_diary_number.toLowerCase().includes(q)) ||
           (r.receiving_number && r.receiving_number.toLowerCase().includes(q)) ||
@@ -1453,7 +1535,12 @@ export default function FileTracking() {
         .select('*', { count: 'exact' });
 
       // Apply Role-based filtering at the DB level
-      if (activeTab === 'tray' || activeTab === 'timeline' || activeTab === 'returned_files') {
+      if (activeTab === 'trash_box') {
+        query = query.eq('status', 'trashed');
+      } else {
+        query = query.neq('status', 'trashed');
+        
+        if (activeTab === 'tray' || activeTab === 'timeline' || activeTab === 'returned_files') {
         const effectiveRole = effectiveViewingRole;
         if (!(currentRole === 'cfo' || isAdmin)) {
           if (activeTab === 'tray') {
@@ -1478,10 +1565,11 @@ export default function FileTracking() {
         if (filterStatus === 'exited') {
           query = query.eq('mark_to', 'exited');
         } else {
-          query = query.neq('mark_to', 'exited');
+          query = query.eq('mark_to', 'cfo');
         }
       } else if (activeTab === 'bulk_modified') {
         query = query.contains('history', '[{"action": "BULK_DATE_EDITED"}]');
+      }
       }
 
       // Apply Category filter
@@ -1533,8 +1621,8 @@ export default function FileTracking() {
       }
 
       // Apply Search filter
-      if (searchQuery) {
-        const q = `%${searchQuery.toLowerCase()}%`;
+      if (debouncedSearchQuery) {
+        const q = `%${debouncedSearchQuery.toLowerCase()}%`;
         query = query.or(`cfo_diary_number.ilike.${q},receiving_number.ilike.${q},subject.ilike.${q},received_from.ilike.${q},tracking_id.ilike.${q}`);
       }
 
@@ -1732,8 +1820,8 @@ export default function FileTracking() {
         }
       }
 
-      if (searchQuery) {
-        const q = `%${searchQuery.toLowerCase()}%`;
+      if (debouncedSearchQuery) {
+        const q = `%${debouncedSearchQuery.toLowerCase()}%`;
         query = query.or(`cfo_diary_number.ilike.${q},receiving_number.ilike.${q},subject.ilike.${q},received_from.ilike.${q},tracking_id.ilike.${q}`);
       }
 
@@ -1832,7 +1920,7 @@ export default function FileTracking() {
     } else {
       fetchRecords(currentPage);
     }
-  }, [currentPage, filterCategory, filterSubCategory, filterSection, filterStatus, sortOrder, searchQuery, activeTab, viewingRole, reportDateFilter, customFilterStartDate, customFilterEndDate]);
+  }, [currentPage, filterCategory, filterSubCategory, filterSection, filterStatus, sortOrder, debouncedSearchQuery, activeTab, viewingRole, reportDateFilter, customFilterStartDate, customFilterEndDate]);
 
 
   useEffect(() => {
@@ -2003,15 +2091,27 @@ export default function FileTracking() {
       
       const newHistory = [...(file.history || []), snapshot];
 
-      const { error } = await supabase
-        .from('file_tracking_records' as any)
-        .update({
-          mark_to: additionalMarkTo || 'exited',
+      let updatePayload: any = {
+        mark_to: additionalMarkTo || 'exited',
         additional_mark_to: additionalMarkTo,
         remarks: exitRemarks ? (file.remarks ? file.remarks + ' | ' + exitRemarks : exitRemarks) : file.remarks,
-          history: newHistory
-        })
+        history: newHistory
+      };
+
+      let { error } = await supabase
+        .from('file_tracking_records' as any)
+        .update(updatePayload)
         .eq('id', file.id);
+
+      // Fallback if additional_mark_to column does not exist
+      if (error && (error.code === '42703' || error.code === 'PGRST204')) {
+        delete updatePayload.additional_mark_to;
+        const retry = await supabase
+          .from('file_tracking_records' as any)
+          .update(updatePayload)
+          .eq('id', file.id);
+        error = retry.error;
+      }
 
       if (error) throw error;
 
@@ -2328,6 +2428,14 @@ export default function FileTracking() {
                     className="flex items-center gap-2 px-6 py-2.5 rounded-xl data-[state=active]:bg-[#14b8a6] data-[state=active]:text-[#0f1115] text-white/50 hover:text-white transition-all font-black text-sm"
                   >
                     <Building2 className="w-4 h-4" /> CFO Dashboard
+                  </TabsTrigger>
+                )}
+                {isAdmin && (
+                  <TabsTrigger
+                    value="trash_box"
+                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl data-[state=active]:bg-[#ef4444] data-[state=active]:text-white text-white/50 hover:text-red-400 transition-all font-black text-sm"
+                  >
+                    <Trash2 className="w-4 h-4" /> Trash Box
                   </TabsTrigger>
                 )}
           </TabsList>
@@ -4877,6 +4985,74 @@ export default function FileTracking() {
             </CardContent>
           </Card>
         </TabsContent>
+        {isAdmin && (
+        <TabsContent value="trash_box" className="mt-6 space-y-6">
+          <Card className="glass-card border-none shadow-2xl">
+            <CardHeader className="flex flex-col md:flex-row md:items-center justify-between pb-6 gap-4">
+              <div>
+                <CardTitle className="text-2xl font-black flex items-center gap-3 text-red-500">
+                  <Trash2 className="w-6 h-6 text-red-500" />
+                  Trash Box
+                </CardTitle>
+                <p className="text-xs text-white/40 mt-2 font-medium">View and restore deleted files</p>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-2xl border border-white/5 overflow-hidden bg-black/20">
+                <Table>
+                  <TableHeader className="bg-white/5">
+                    <TableRow>
+                      <TableHead className="font-black text-[10px] uppercase tracking-widest">Diary No</TableHead>
+                      <TableHead className="font-black text-[10px] uppercase tracking-widest">Subject</TableHead>
+                      <TableHead className="font-black text-[10px] uppercase tracking-widest">Category</TableHead>
+                      <TableHead className="font-black text-[10px] uppercase tracking-widest">Amount</TableHead>
+                      <TableHead className="text-right font-black text-[10px] uppercase tracking-widest pr-6">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="h-32 text-center text-white/30 font-medium">
+                          <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#14b8a6]" />
+                        </TableCell>
+                      </TableRow>
+                    ) : records.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="h-32 text-center text-white/30 font-medium">No trashed files found.</TableCell>
+                      </TableRow>
+                    ) : (
+                      records.map((file, i) => (
+                        <TableRow key={i} className="hover:bg-white/5 border-white/5 transition-colors opacity-70">
+                          <TableCell className="font-mono text-xs font-bold text-red-400">{file.cfo_diary_number}</TableCell>
+                          <TableCell>
+                            <div className="font-semibold text-sm line-through decoration-red-500/50">{file.subject}</div>
+                            <div className="text-[10px] text-white/40">{file.receiving_number}</div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-[9px] uppercase border-white/10 bg-white/5">{mainCatReadable(file.mainCategory)}</Badge>
+                          </TableCell>
+                          <TableCell className="font-black text-xs text-emerald-400/50">{formatCurrency(file.amount || 0)}</TableCell>
+                          <TableCell className="text-right pr-6">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-8 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 font-bold text-[10px] uppercase tracking-widest"
+                              onClick={() => handleRestoreRecord(file)}
+                            >
+                              <RefreshCw className="w-3 h-3 mr-2" />
+                              Restore
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        )}
       </Tabs>
 
       <style>{`

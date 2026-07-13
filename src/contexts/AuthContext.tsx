@@ -15,6 +15,7 @@ export interface DepartmentUser {
 }
 
 export const DEFAULT_DEPARTMENT_USERS: DepartmentUser[] = [
+  { email: 'hr.admin@kwsb.gov.pk',         password: 'hradmin',      roleId: 'hr_admin',          displayName: 'HR ADMIN' },
   { email: 'admin@kwsb.gov.pk',            password: 'admin',        roleId: 'admin',             displayName: 'SYSTEM ADMINISTRATOR' },
   { email: 'cfo@kwsb.gov.pk',              password: 'cfo@12345',    roleId: 'cfo',              displayName: 'CFO' },
   { email: 'cia@kwsb.gov.pk',              password: 'cia@12345',    roleId: 'cia',              displayName: 'CIA' },
@@ -67,10 +68,17 @@ const LOCAL_AUTH_KEY = 'kwsb_local_auth';
 export const CUSTOM_USERS_KEY = 'kwsb_custom_users';
 
 export const getDepartmentUsers = (): DepartmentUser[] => {
-  const custom = localStorage.getItem(CUSTOM_USERS_KEY);
-  if (custom) {
+  const customStr = localStorage.getItem(CUSTOM_USERS_KEY);
+  if (customStr) {
     try {
-      return JSON.parse(custom);
+      const customUsers = JSON.parse(customStr);
+      const merged = [...customUsers];
+      DEFAULT_DEPARTMENT_USERS.forEach(defaultUser => {
+        if (!merged.find(u => u.email === defaultUser.email)) {
+          merged.push(defaultUser);
+        }
+      });
+      return merged;
     } catch {
       return DEFAULT_DEPARTMENT_USERS;
     }
@@ -283,6 +291,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     if (!match || match.password !== trimPass) {
+      // HRMS Fallback
+      try {
+        const { data: hrmsData, error: hrmsError } = await supabase
+          .from('hrms_employees')
+          .select('*')
+          .eq('email', trimEmail)
+          .maybeSingle();
+        
+        if (hrmsData && !hrmsError && hrmsData.password === trimPass) {
+          // Valid HRMS employee
+          localStorage.setItem('kwsb_hrms_emp_id', hrmsData.id);
+          localStorage.setItem(LOCAL_AUTH_KEY, JSON.stringify({
+            roleId: 'hrms_employee',
+            displayName: hrmsData.name,
+            email: hrmsData.email,
+          }));
+
+          setUserRole('hrms_employee');
+          setUserName(hrmsData.name);
+          setIsLocalAuth(true);
+          setIsAdmin(false);
+          setAllowOverrideDates(false);
+          setIsTransferUser(false);
+
+          logActivity({
+            userRole: 'hrms_employee',
+            userName: hrmsData.name,
+            action: 'LOGIN',
+            details: { email: hrmsData.email, method: 'hrms_fallback' },
+          });
+
+          return { success: true };
+        }
+      } catch (e) {
+        console.error('HRMS Fallback error', e);
+      }
+
       return { success: false, error: 'Invalid email or password. Please check your credentials.' };
     }
 

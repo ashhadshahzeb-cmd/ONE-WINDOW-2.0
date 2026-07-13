@@ -45,6 +45,15 @@ import UserManagement from "./pages/UserManagement";
 import Messages from "./pages/Messages";
 import TrackingPortal from "./pages/TrackingPortal";
 
+// HRMS Imports
+import HRMSDashboard from "./pages/hrms/HRMSDashboard";
+import Employees from "./pages/hrms/Employees";
+import Attendance from './pages/hrms/Attendance';
+import LeaveManagement from './pages/hrms/LeaveManagement';
+import Payroll from './pages/hrms/Payroll';
+import HRMSProfile from './pages/hrms/Profile';
+import HRMSLayout from './components/HRMSLayout';
+
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import AuthPage from "./pages/Auth";
@@ -54,7 +63,9 @@ import AdminConfig from "./pages/AdminConfig";
 import ActivityLog from "./pages/ActivityLog";
 import FileAnalytics from "./pages/FileAnalytics";
 import MaintenanceScreen from "./pages/MaintenanceScreen";
+import RevenueCollection from "./pages/RevenueCollection";
 import { useAppConfig } from "@/hooks/useAppConfig";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 const queryClient = new QueryClient();
 
@@ -62,6 +73,12 @@ const DashboardRedirect = () => {
   const { userRole } = useAuth();
   const isRestrictedAsstCFO = userRole?.startsWith('sub_cfo_') && userRole !== 'sub_cfo';
   const isEmpOperator = userRole === 'emp_operator';
+  const isHRMSEmployee = userRole === 'hrms_employee';
+  const isHRAdmin = userRole === 'hr_admin';
+  
+  if (isHRMSEmployee || isHRAdmin) {
+    return <Navigate to="/hrms/dashboard" replace />;
+  }
   
   if (isRestrictedAsstCFO) {
     return <Navigate to="/book-section/file-tracking" replace />;
@@ -89,6 +106,11 @@ const MaintenanceGuard = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+const PushNotificationManager = () => {
+  usePushNotifications();
+  return null;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -96,6 +118,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <AuthProvider>
+          <PushNotificationManager />
           <VoiceProvider>
             <BrowserRouter>
               <Routes>
@@ -103,6 +126,15 @@ const App = () => (
                 <Route path="/track" element={<TrackingPortal />} />
                 <Route path="/public-track/:diaryNo/*" element={<PublicTracking />} />
                 <Route path="/mobile-upload/:sessionId" element={<MobileUpload />} />
+                
+                {/* HRMS Routes Top-Level (Outside of Main Layout) */}
+                <Route path="/hrms/dashboard" element={<ProtectedRoute><HRMSLayout><HRMSDashboard /></HRMSLayout></ProtectedRoute>} />
+                <Route path="/hrms/employees" element={<ProtectedRoute><HRMSLayout><Employees /></HRMSLayout></ProtectedRoute>} />
+                <Route path="/hrms/attendance" element={<ProtectedRoute><HRMSLayout><Attendance /></HRMSLayout></ProtectedRoute>} />
+                <Route path="/hrms/leaves" element={<ProtectedRoute><HRMSLayout><LeaveManagement /></HRMSLayout></ProtectedRoute>} />
+                <Route path="/hrms/payroll" element={<ProtectedRoute><HRMSLayout><Payroll /></HRMSLayout></ProtectedRoute>} />
+                <Route path="/hrms/profile" element={<ProtectedRoute><HRMSLayout><HRMSProfile /></HRMSLayout></ProtectedRoute>} />
+
                 <Route
                   path="/*"
                   element={
@@ -150,6 +182,8 @@ const App = () => (
                           <Route path="/book-section/cheque-record" element={<ChequeRecord />} />
                           <Route path="/book-section/books" element={<Books />} />
                           <Route path="/book-section/establishment" element={<Establishment />} />
+                          <Route path="/revenue-collection" element={<RevenueCollection />} />
+                          <Route path="/public-tracking" element={<PublicTracking />} />
                           <Route path="/regular-employee/cp-fund" element={<CpFund />} />
                           <Route path="/regular-employee/supp-salary" element={<CpFund title="Supp Salary" />} />
                           <Route path="/regular-employee/house-building" element={<CpFund title="House Building" />} />
@@ -166,7 +200,7 @@ const App = () => (
                           <Route path="/retired-employee/funeral-charges" element={<CpFund title="Funeral Charges" />} />
                           <Route path="/retired-employee/group-insurance" element={<CpFund title="Group Insurance" />} />
 
-                          <Route path="*" element={<NotFound />} />
+                          {/* Main Routes */}                <Route path="*" element={<NotFound />} />
                         </Routes>
                       </Layout>
                     </MaintenanceGuard>

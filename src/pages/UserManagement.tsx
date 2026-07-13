@@ -27,6 +27,8 @@ const AVAILABLE_ROLES = [
   { id: 'sub_cfo_2', label: 'Asst. CFO 2 (Restricted)' },
   { id: 'sub_cfo_3', label: 'Asst. CFO 3 (Restricted)' },
   { id: 'sub_cfo_4', label: 'Asst. CFO 4 (Restricted)' },
+  { id: 'sub_cfo_5', label: 'Asst. CFO 5 (Restricted)' },
+  { id: 'sub_cfo_6', label: 'Asst. CFO 6 (Restricted)' },
   { id: 'books', label: 'Books Section' },
   { id: 'establishment', label: 'Establishment Section' },
   { id: 'director_audit', label: 'Director Audit' },

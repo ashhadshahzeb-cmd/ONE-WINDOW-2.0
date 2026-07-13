@@ -35,6 +35,7 @@ import { useTheme } from "@/components/ThemeProvider";
 import NotificationListener from "@/components/NotificationListener";
 import OfflineIndicator from "@/components/OfflineIndicator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { useAutoLogout } from "@/hooks/useAutoLogout";
@@ -52,6 +53,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const isCFORole = userRole === 'cfo' || userRole === 'admin' || userRole === 'sub_cfo' || userRole?.startsWith('sub_cfo_') || isAdmin;
   const isRestrictedAsstCFO = userRole?.startsWith('sub_cfo_') && userRole !== 'sub_cfo';
   const isEmpOperator = userRole === 'emp_operator';
+  const isHRMSEmployee = userRole === 'hrms_employee';
 
   const [showSplash, setShowSplash] = useState(() => {
     if (!isCFORole) return false;
@@ -63,21 +65,22 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   };
 
   const topNavItems = [
-    { to: "/", icon: LayoutDashboard, label: "Dashboard", visible: !isRestrictedAsstCFO && !isEmpOperator && !isTransferUser },
-    { to: "/book-section/file-tracking", icon: Shield, label: "File Tracking", visible: !isEmpOperator && !isTransferUser },
-    { to: "/bank-entries", icon: Landmark, label: "Bank Entries", visible: !isEmpOperator && !isTransferUser },
-    { to: "/budget-control", icon: Wallet, label: "Budget Control", visible: (userRole === 'admin' || userRole === 'cfo') && !isTransferUser },
-    { to: "/notice-board", icon: Megaphone, label: "Notice Board", visible: !isTransferUser },
-    { to: "/messages", icon: MessageCircle, label: "Messages", visible: !isTransferUser },
-    { to: "/user-management", icon: Users, label: "User Management", visible: userRole === 'admin' && !isTransferUser },
-    { to: "/admin-config", icon: Settings2, label: "Admin Config", visible: userRole === 'admin' && !isTransferUser },
-    { to: "/activity-log", icon: Activity, label: "Activity Log", visible: userRole === 'admin' && !isTransferUser },
-    { to: "/file-analytics", icon: BarChart3, label: "File Analytics", visible: (userRole === 'admin' || userRole === 'cfo') && !isTransferUser },
+    { to: "/", icon: LayoutDashboard, label: "Dashboard", visible: !isRestrictedAsstCFO && !isEmpOperator && !isTransferUser && !isHRMSEmployee },
+    { to: "/book-section/file-tracking", icon: Shield, label: "File Tracking", visible: !isEmpOperator && !isTransferUser && !isHRMSEmployee },
+    { to: "/bank-entries", icon: Landmark, label: "Bank Entries", visible: !isEmpOperator && !isTransferUser && !isHRMSEmployee },
+    { to: "/budget-control", icon: Wallet, label: "Budget Control", visible: (userRole === 'admin' || userRole === 'cfo') && !isTransferUser && !isHRMSEmployee },
+    { to: "/notice-board", icon: Megaphone, label: "Notice Board", visible: !isTransferUser && !isHRMSEmployee },
+    { to: "/messages", icon: MessageCircle, label: "Messages", visible: !isTransferUser && !isHRMSEmployee },
+    { to: "/user-management", icon: Users, label: "User Management", visible: userRole === 'admin' && !isTransferUser && !isHRMSEmployee },
+    { to: "/admin-config", icon: Settings2, label: "Admin Config", visible: userRole === 'admin' && !isTransferUser && !isHRMSEmployee },
+    { to: "/activity-log", icon: Activity, label: "Activity Log", visible: userRole === 'admin' && !isTransferUser && !isHRMSEmployee },
+    { to: "/file-analytics", icon: BarChart3, label: "File Analytics", visible: (userRole === 'admin' || userRole === 'cfo') && !isTransferUser && !isHRMSEmployee },
+    { to: "/revenue-collection", icon: BarChart3, label: "Revenue Dashboard", visible: (userRole === 'admin' || userRole === 'cfo') && !isTransferUser && !isHRMSEmployee },
   ].filter(item => item.visible);
 
   const categories = [];
 
-  if (!isRestrictedAsstCFO && !isEmpOperator && !isTransferUser) {
+  if (!isRestrictedAsstCFO && !isEmpOperator && !isTransferUser && !isHRMSEmployee) {
     categories.push({
       id: "collection-operations",
       label: "Collection Operations",
@@ -88,7 +91,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     });
   }
 
-  if ((userRole || isAdmin) && !isRestrictedAsstCFO && !isTransferUser) {
+  if ((userRole || isAdmin) && !isRestrictedAsstCFO && !isTransferUser && !isHRMSEmployee) {
     categories.push({
       id: "book-section",
       label: "Sections Management",
@@ -107,13 +110,27 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     });
   }
 
-  if (isAdmin || isTransferUser) {
+  if ((isAdmin || isTransferUser) && !isHRMSEmployee) {
     categories.push({
       id: "transfer-operations",
       label: "Transfer Operations",
       items: [
         { to: "/book-section/transfer-advice", icon: ArrowLeftRight, label: "Transfer Advice", visible: true },
         { to: "/book-section/transfer-advice-records", icon: ListTree, label: "Transfer Records", visible: true },
+      ].filter(item => item.visible)
+    });
+  }
+
+  if (isCFORole || isAdmin || isHRMSEmployee) {
+    categories.push({
+      id: "hrms-system",
+      label: "HRMS System",
+      items: [
+        { to: "/hrms/dashboard", icon: LayoutDashboard, label: "HR Dashboard", visible: true },
+        { to: "/hrms/employees", icon: Users, label: "Employees", visible: isCFORole || isAdmin },
+        { to: "/hrms/attendance", icon: Activity, label: "Attendance", visible: true },
+        { to: "/hrms/leaves", icon: Shield, label: "Leave Management", visible: true },
+        { to: "/hrms/payroll", icon: Wallet, label: "Payroll", visible: true },
       ].filter(item => item.visible)
     });
   }
@@ -163,6 +180,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
         <ScrollArea className="flex-1 px-4 py-6">
           <div className="space-y-6">
+
             <div className="space-y-1">
               {topNavItems.map((item) => (
                 <Link key={item.to} to={item.to} className={cn(

@@ -12,7 +12,15 @@ import {
   CheckCircle2,
   Clock,
   ShieldCheck,
-  QrCode
+  QrCode,
+  UserCheck,
+  FileText,
+  Building,
+  MessageSquare,
+  CalendarCheck,
+  CalendarDays,
+  FolderTree,
+  FileSignature
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -46,6 +54,16 @@ export default function PublicTracking() {
             status: "In-Progress",
             amount: data.amount || 0,
             forward_to: data.mark_to,
+            handover_person_name: data.handover_person_name,
+            file_purpose: data.file_purpose,
+            received_from: data.received_from,
+            remarks: data.remarks,
+            registration_date: data.created_at,
+            outward_date: data.outward_date,
+            print_date: data.print_date,
+            inward_date: data.inward_date,
+            date_of_sign: data.date_of_sign,
+            department_number: data.employee_number,
             history: data.history || []
           });
         } else {
@@ -148,6 +166,81 @@ export default function PublicTracking() {
                 </div>
               </div>
 
+              {record?.file_purpose && (
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-600 shrink-0">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-zinc-400 uppercase">File Purpose / Description</span>
+                    <p className="text-sm font-bold text-zinc-800 leading-tight">{record.file_purpose}</p>
+                  </div>
+                </div>
+              )}
+
+              {record?.mainCategory && (
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 flex items-center justify-center text-cyan-600 shrink-0">
+                    <FolderTree className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-zinc-400 uppercase">Category</span>
+                    <p className="text-sm font-bold text-zinc-800 leading-tight">
+                      {record.mainCategory.replace(/_/g, ' ').toUpperCase()}
+                      {record.subCategory && ` / ${record.subCategory.replace(/_/g, ' ').toUpperCase()}`}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {record?.department_number && (
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-600 shrink-0">
+                    <Building className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-zinc-400 uppercase">Department Number</span>
+                    <p className="text-sm font-bold text-zinc-800 leading-tight">{record.department_number}</p>
+                  </div>
+                </div>
+              )}
+
+              {record?.handover_person_name && (
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-600 shrink-0">
+                    <UserCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-zinc-400 uppercase">Handover Person / Owner</span>
+                    <p className="text-sm font-bold text-zinc-800 leading-tight">{record.handover_person_name}</p>
+                  </div>
+                </div>
+              )}
+
+              {record?.received_from && (
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-600 shrink-0">
+                    <Building className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-zinc-400 uppercase">Received From Section</span>
+                    <p className="text-sm font-bold text-zinc-800 leading-tight">{record.received_from}</p>
+                  </div>
+                </div>
+              )}
+
+              {record?.remarks && (
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-600 shrink-0">
+                    <MessageSquare className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-zinc-400 uppercase">Remarks</span>
+                    <p className="text-sm font-bold text-zinc-800 leading-tight">{record.remarks}</p>
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-start gap-4">
                 <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-600 shrink-0">
                   <Building2 className="w-5 h-5" />
@@ -158,15 +251,74 @@ export default function PublicTracking() {
                 </div>
               </div>
 
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 shrink-0">
-                  <Clock className="w-5 h-5" />
+              <div className="grid grid-cols-2 gap-4 mt-2">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-teal-500/10 flex items-center justify-center text-teal-600 shrink-0">
+                    <CalendarCheck className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-[9px] font-bold text-zinc-400 uppercase">Registration Date</span>
+                    <p className="text-xs font-bold text-zinc-800">{record?.registration_date ? new Date(record.registration_date).toLocaleDateString() : 'N/A'}</p>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-[10px] font-bold text-zinc-400 uppercase">Net Amount</span>
-                  <p className="text-sm font-black text-emerald-600 tracking-tight">PKR {record?.amount?.toLocaleString()}</p>
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-teal-500/10 flex items-center justify-center text-teal-600 shrink-0">
+                    <CalendarCheck className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-[9px] font-bold text-zinc-400 uppercase">Outward Date</span>
+                    <p className="text-xs font-bold text-zinc-800">{record?.outward_date ? new Date(record.outward_date).toLocaleDateString() : 'N/A'}</p>
+                  </div>
                 </div>
+                
+                {record?.inward_date && (
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-sky-500/10 flex items-center justify-center text-sky-600 shrink-0">
+                      <CalendarDays className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-[9px] font-bold text-zinc-400 uppercase">Inward Date</span>
+                      <p className="text-xs font-bold text-zinc-800">{new Date(record.inward_date).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                )}
+                
+                {record?.date_of_sign && (
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600 shrink-0">
+                      <FileSignature className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-[9px] font-bold text-zinc-400 uppercase">Date of Sign</span>
+                      <p className="text-xs font-bold text-zinc-800">{new Date(record.date_of_sign).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                )}
+                
+                {record?.print_date && (
+                  <div className="flex items-start gap-3 col-span-2">
+                    <div className="w-8 h-8 rounded-lg bg-zinc-500/10 flex items-center justify-center text-zinc-600 shrink-0">
+                      <CalendarCheck className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-[9px] font-bold text-zinc-400 uppercase">Print Date</span>
+                      <p className="text-xs font-bold text-zinc-800">{new Date(record.print_date).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                )}
               </div>
+
+              {record?.amount > 0 && (
+                <div className="flex items-start gap-4 mt-4 pt-4 border-t border-zinc-100">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 shrink-0">
+                    <Clock className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-zinc-400 uppercase">Net Amount</span>
+                    <p className="text-sm font-black text-emerald-600 tracking-tight">PKR {record?.amount?.toLocaleString()}</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Timeline */}
