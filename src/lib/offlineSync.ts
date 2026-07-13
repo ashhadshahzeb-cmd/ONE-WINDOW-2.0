@@ -74,9 +74,9 @@ export async function processOfflineQueue() {
         const { is_dirty, deleted_locally, file_image, ...cleanPayload } = mutation.payload;
         let { error: err } = await supabase.from(mutation.table as any).insert(cleanPayload);
         
-        // If it fails because the column additional_mark_to does not exist (code 42703 or PGRST204), retry without it
-        if (err && (err.code === '42703' || err.code === 'PGRST204') && cleanPayload.additional_mark_to !== undefined) {
-          const { additional_mark_to, ...safePayload } = cleanPayload;
+        // If it fails because columns don't exist (code 42703 or PGRST204), retry without them
+        if (err && (err.code === '42703' || err.code === 'PGRST204')) {
+          const { additional_mark_to, status, ...safePayload } = cleanPayload as any;
           const retry = await supabase.from(mutation.table as any).insert(safePayload);
           err = retry.error;
         }
@@ -88,8 +88,8 @@ export async function processOfflineQueue() {
         const matchField = id ? { id } : { receiving_number: updateData.receiving_number };
         let { error: err } = await supabase.from(mutation.table as any).update(updateData).match(matchField);
         
-        if (err && (err.code === '42703' || err.code === 'PGRST204') && updateData.additional_mark_to !== undefined) {
-          const { additional_mark_to, ...safeUpdateData } = updateData;
+        if (err && (err.code === '42703' || err.code === 'PGRST204')) {
+          const { additional_mark_to, status, ...safeUpdateData } = updateData as any;
           const retry = await supabase.from(mutation.table as any).update(safeUpdateData).match(matchField);
           err = retry.error;
         }

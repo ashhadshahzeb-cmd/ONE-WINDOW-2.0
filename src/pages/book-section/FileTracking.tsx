@@ -1534,11 +1534,14 @@ export default function FileTracking() {
         .from('file_tracking_records' as any)
         .select('*', { count: 'exact' });
 
-      // Apply Role-based filtering at the DB level
-      if (activeTab === 'trash_box') {
-        query = query.eq('status', 'trashed');
+      // Remove status filtering from Supabase query since the column doesn't exist in Supabase.
+      // Trashed files will be fetched but filtered out locally in UI, or we can filter by history.
+      if (activeTab === 'trash_box' && isAdmin) {
+        // Only fetch records where history contains "TRASHED"
+        query = query.contains('history', '[{"action": "TRASHED"}]');
       } else {
-        query = query.neq('status', 'trashed');
+        // Fetch all records, we rely on local IndexedDB to filter out 'trashed' status
+      }
         
         if (activeTab === 'tray' || activeTab === 'timeline' || activeTab === 'returned_files') {
         const effectiveRole = effectiveViewingRole;
@@ -1569,7 +1572,6 @@ export default function FileTracking() {
         }
       } else if (activeTab === 'bulk_modified') {
         query = query.contains('history', '[{"action": "BULK_DATE_EDITED"}]');
-      }
       }
 
       // Apply Category filter

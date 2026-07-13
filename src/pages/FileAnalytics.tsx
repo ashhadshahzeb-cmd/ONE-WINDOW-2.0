@@ -39,13 +39,19 @@ export default function FileAnalytics() {
       const { data, error } = await supabase
         .from('file_tracking_records' as any)
         .select('*')
-        .neq('status', 'trashed')
         .order('created_at', { ascending: true });
 
       if (error) throw error;
       
       if (data && data.length > 0) {
-         setRecords(data);
+         const activeData = data.filter((r: any) => {
+           if (r.history && r.history.length > 0) {
+             const lastItem = r.history[r.history.length - 1];
+             if (lastItem.action === "TRASHED") return false;
+           }
+           return true;
+         });
+         setRecords(activeData);
       }
     } catch (err) {
       console.error(err);
