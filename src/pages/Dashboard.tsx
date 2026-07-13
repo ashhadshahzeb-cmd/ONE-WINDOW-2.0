@@ -1,15 +1,11 @@
 import {
   TrendingUp,
-  TrendingDown,
   Wallet,
-  Clock,
   Landmark,
   ArrowUpRight,
   ArrowDownRight,
-  Activity,
   BarChart3,
-  List,
-  Sparkles
+  List
 } from "lucide-react";
 import { bankAccounts, transactions, monthlyData, formatCurrency } from "@/lib/mock-data";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
@@ -19,11 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const totalBalance = bankAccounts.reduce((s, b) => s + (b.currency === 'PKR' ? b.balance : b.balance * 280), 0);
-const totalIncome = 2775000;
-const totalExpenses = 1450800;
-const pendingCount = transactions.filter(t => t.status === 'pending').length;
 
-// Smart Mock Data Generator for Chart Breakdown
 const generateMockBreakdown = (amount: number, type: 'Income' | 'Expense', month: string) => {
   const pieces = type === 'Income' ? [0.4, 0.35, 0.25] : [0.5, 0.3, 0.2];
   const descriptions = type === 'Income' 
@@ -47,18 +39,10 @@ export default function Dashboard() {
 
   return (
     <div className="relative min-h-screen w-full pb-20">
-      {/* ANIMATED AMBIENT BACKGROUND */}
-      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none opacity-40">
-        <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-emerald-500/20 blur-[120px] animate-pulse" style={{ animationDuration: '8s' }} />
-        <div className="absolute top-[20%] -right-[10%] w-[40%] h-[40%] rounded-full bg-sky-500/20 blur-[120px] animate-pulse" style={{ animationDuration: '12s', animationDelay: '1s' }} />
-        <div className="absolute -bottom-[20%] left-[20%] w-[60%] h-[60%] rounded-full bg-indigo-500/20 blur-[120px] animate-pulse" style={{ animationDuration: '10s', animationDelay: '2s' }} />
-      </div>
-
-      {/* FOREGROUND CONTENT */}
       <div className={cn("relative z-10 space-y-6 transition-all duration-1000", mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8")}>
         
         {/* HEADER */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#0f1115]/80 p-6 rounded-[28px] border border-white/5 backdrop-blur-xl shadow-2xl mb-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#0f1115]/80 p-6 rounded-[28px] border border-white/5 backdrop-blur-xl shadow-2xl">
           <div className="space-y-1">
             <h1 className="text-2xl font-black flex items-center gap-3 text-white tracking-tighter">
               <div className="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center">
@@ -71,110 +55,31 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="flex gap-4">
-            <div className="bg-white/5 border border-white/10 px-4 py-2 rounded-xl flex items-center gap-2 shadow-xl">
-              <Sparkles className="w-4 h-4 text-sky-400" />
-              <span className="text-[10px] uppercase text-white/80 font-bold tracking-widest">Updated just now</span>
+            <div className="bg-white/5 border border-white/10 px-4 py-2 rounded-xl flex flex-col items-center">
+              <span className="text-[10px] uppercase text-white/40 font-bold tracking-widest">Total Balance</span>
+              <span className="text-xl font-black text-white">Rs {formatCurrency(totalBalance)}</span>
             </div>
           </div>
         </div>
 
-        {/* BENTO GRID */}
-        <div className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-4 lg:gap-6 auto-rows-max">
-          
-          {/* STAT 1: Balance */}
-          <Card className="col-span-1 md:col-span-3 lg:col-span-3 border-white/10 bg-[#09090b]/80 backdrop-blur-xl shadow-2xl overflow-hidden relative group rounded-3xl">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/15 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-sky-500/30 transition-all"></div>
-            <CardHeader className="pb-3 pt-5 border-b border-white/5 bg-white/[0.01]">
-              <div className="flex justify-between items-center">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500/20 to-transparent flex items-center justify-center border border-sky-500/30 shadow-[0_0_15px_rgba(14,165,233,0.15)]">
-                  <Wallet className="w-5 h-5 text-sky-400" />
-                </div>
-                <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Total Balance</span>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-5">
-              <p className="text-3xl font-black tracking-tighter text-white mb-2">{formatCurrency(totalBalance)}</p>
-              <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 bg-emerald-500/10 w-fit px-2 py-1 rounded-md">
-                <ArrowUpRight className="w-3.5 h-3.5" /> +8.2% <span className="text-white/30 ml-1 font-light">vs last month</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* STAT 2: Income */}
-          <Card className="col-span-1 md:col-span-3 lg:col-span-3 border-white/10 bg-[#09090b]/80 backdrop-blur-xl shadow-2xl overflow-hidden relative group rounded-3xl">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/15 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-emerald-500/30 transition-all"></div>
-            <CardHeader className="pb-3 pt-5 border-b border-white/5 bg-white/[0.01]">
-              <div className="flex justify-between items-center">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-transparent flex items-center justify-center border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]">
-                  <TrendingUp className="w-5 h-5 text-emerald-400" />
-                </div>
-                <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Income</span>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-5">
-              <p className="text-3xl font-black tracking-tighter text-white mb-2">{formatCurrency(totalIncome)}</p>
-              <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 bg-emerald-500/10 w-fit px-2 py-1 rounded-md">
-                <ArrowUpRight className="w-3.5 h-3.5" /> +12.4% <span className="text-white/30 ml-1 font-light">vs last month</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* STAT 3: Expenses */}
-          <Card className="col-span-1 md:col-span-3 lg:col-span-3 border-white/10 bg-[#09090b]/80 backdrop-blur-xl shadow-2xl overflow-hidden relative group rounded-3xl">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/15 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-rose-500/30 transition-all"></div>
-            <CardHeader className="pb-3 pt-5 border-b border-white/5 bg-white/[0.01]">
-              <div className="flex justify-between items-center">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500/20 to-transparent flex items-center justify-center border border-rose-500/30 shadow-[0_0_15px_rgba(244,63,94,0.15)]">
-                  <TrendingDown className="w-5 h-5 text-rose-400" />
-                </div>
-                <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Expenses</span>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-5">
-              <p className="text-3xl font-black tracking-tighter text-white mb-2">{formatCurrency(totalExpenses)}</p>
-              <div className="flex items-center gap-1.5 text-xs font-bold text-rose-400 bg-rose-500/10 w-fit px-2 py-1 rounded-md">
-                <ArrowDownRight className="w-3.5 h-3.5" /> -3.1% <span className="text-white/30 ml-1 font-light">vs last month</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* STAT 4: Approvals */}
-          <Card className="col-span-1 md:col-span-3 lg:col-span-3 border-white/10 bg-[#09090b]/80 backdrop-blur-xl shadow-2xl overflow-hidden relative group rounded-3xl">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/15 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-amber-500/30 transition-all"></div>
-            <CardHeader className="pb-3 pt-5 border-b border-white/5 bg-white/[0.01]">
-              <div className="flex justify-between items-center">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-transparent flex items-center justify-center border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.15)]">
-                  <Clock className="w-5 h-5 text-amber-400" />
-                </div>
-                <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Pending</span>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-5">
-              <p className="text-3xl font-black tracking-tighter text-white mb-2">{pendingCount}</p>
-              <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400 bg-amber-500/10 w-fit px-2 py-1 rounded-md">
-                <Activity className="w-3.5 h-3.5" /> Awaiting <span className="text-white/30 ml-1 font-light">clearance</span>
-              </div>
-            </CardContent>
-          </Card>
+        {/* 2 COLUMN GRID */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
           {/* MAIN CHART - INCOME VS EXPENSES */}
-          <Card className="col-span-1 md:col-span-6 lg:col-span-8 border-white/10 bg-[#09090b]/80 backdrop-blur-xl shadow-2xl rounded-3xl flex flex-col min-h-[400px]">
-            <CardHeader className="pb-4 border-b border-white/5 bg-white/[0.01]">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-sm font-black flex items-center gap-2 text-white mb-1">
-                    <BarChart3 className="w-4 h-4 text-blue-400" />
-                    Cash Flow Analytics
-                  </CardTitle>
-                  <p className="text-xs text-white/40 font-light">Income vs Expenses over the year</p>
+          <Card className="border-white/10 bg-[#09090b]/50 backdrop-blur-md flex flex-col min-h-[400px]">
+            <CardHeader className="pb-2 border-b border-white/5">
+              <CardTitle className="text-sm font-black flex items-center justify-between text-white">
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-blue-400" />
+                  Cash Flow Analytics
                 </div>
                 <div className="flex gap-4">
                   <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-blue-500"></div><span className="text-[10px] text-white/60 font-medium uppercase tracking-widest">Income</span></div>
                   <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-orange-500"></div><span className="text-[10px] text-white/60 font-medium uppercase tracking-widest">Expenses</span></div>
                 </div>
-              </div>
+              </CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 w-full relative pt-8 pb-4">
+            <CardContent className="flex-1 w-full relative pt-6">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={monthlyData} barGap={8} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" horizontal={true} vertical={false} />
@@ -226,22 +131,19 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* RIGHT COLUMN - BANKS */}
-          <Card className="col-span-1 md:col-span-6 lg:col-span-4 border-white/10 bg-[#09090b]/80 backdrop-blur-xl shadow-2xl rounded-3xl flex flex-col min-h-[400px]">
-            <CardHeader className="pb-4 border-b border-white/5 bg-white/[0.01]">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-sm font-black flex items-center gap-2 text-white mb-1">
-                    <Landmark className="w-4 h-4 text-emerald-400" />
-                    Accounts
-                  </CardTitle>
-                  <p className="text-xs text-white/40 font-light">Active bank balances</p>
+          {/* ACCOUNTS (RIGHT COLUMN) */}
+          <Card className="border-white/10 bg-[#09090b]/50 backdrop-blur-md flex flex-col min-h-[400px]">
+            <CardHeader className="pb-2 border-b border-white/5">
+              <CardTitle className="text-sm font-black flex items-center justify-between text-white">
+                <div className="flex items-center gap-2">
+                  <Landmark className="w-4 h-4 text-emerald-400" />
+                  Active Bank Balances
                 </div>
-              </div>
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 flex-1 overflow-y-auto custom-scrollbar pr-2 pt-6">
               {bankAccounts.map((bank) => (
-                <div key={bank.id} className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.05] hover:border-white/[0.1] transition-all cursor-default group">
+                <div key={bank.id} className="flex items-center justify-between p-4 rounded-xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.05] hover:border-white/[0.1] transition-all cursor-default group">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-full flex items-center justify-center bg-white/5 border border-white/10 overflow-hidden relative">
                       <div className="absolute inset-0 opacity-20" style={{ backgroundColor: bank.color }}></div>
@@ -260,18 +162,49 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* TRANSACTIONS TABLE */}
-          <Card className="col-span-1 md:col-span-6 lg:col-span-8 border-white/10 bg-[#09090b]/80 backdrop-blur-xl shadow-2xl rounded-3xl flex flex-col">
-            <CardHeader className="pb-4 border-b border-white/5 bg-white/[0.01]">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-sm font-black flex items-center gap-2 text-white mb-1">
-                    <List className="w-4 h-4 text-rose-400" />
-                    Recent Activity
-                  </CardTitle>
-                  <p className="text-xs text-white/40 font-light">Latest financial transactions</p>
+          {/* NET FLOW (FULL WIDTH) */}
+          <Card className="col-span-1 lg:col-span-2 border-white/10 bg-[#09090b]/50 backdrop-blur-md flex flex-col">
+            <CardHeader className="pb-2 border-b border-white/5">
+              <CardTitle className="text-sm font-black flex items-center justify-between text-white">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-sky-400" />
+                  Monthly Net Flow
                 </div>
-              </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex-1 w-full min-h-[300px] pt-6">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={monthlyData.map(m => ({ ...m, net: m.income - m.expenses }))} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorNetBento" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#38bdf8" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+                  <XAxis dataKey="month" stroke="#ffffff40" fontSize={10} tickLine={false} axisLine={false} dy={10} />
+                  <YAxis stroke="#ffffff40" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000000).toFixed(1)}M`} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: 'rgba(9, 9, 11, 0.9)', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }} 
+                    itemStyle={{ fontSize: '11px', color: '#38bdf8', fontWeight: 'bold' }}
+                    labelStyle={{ fontSize: '9px', color: 'rgba(255,255,255,0.5)', marginBottom: '2px' }}
+                    formatter={(v: number) => [`Rs. ${formatCurrency(v)}`, 'Net']} 
+                  />
+                  <Area type="monotone" dataKey="net" stroke="#38bdf8" strokeWidth={3} fillOpacity={1} fill="url(#colorNetBento)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* TRANSACTIONS TABLE (FULL WIDTH) */}
+          <Card className="col-span-1 lg:col-span-2 border-white/10 bg-[#09090b]/50 backdrop-blur-md flex flex-col">
+            <CardHeader className="pb-2 border-b border-white/5">
+              <CardTitle className="text-sm font-black flex items-center justify-between text-white">
+                <div className="flex items-center gap-2">
+                  <List className="w-4 h-4 text-rose-400" />
+                  Recent Activity
+                </div>
+              </CardTitle>
             </CardHeader>
             <CardContent className="overflow-x-auto pt-4">
               <table className="w-full text-sm">
@@ -316,42 +249,6 @@ export default function Dashboard() {
                   ))}
                 </tbody>
               </table>
-            </CardContent>
-          </Card>
-
-          {/* NET CASH FLOW AREA CHART */}
-          <Card className="col-span-1 md:col-span-6 lg:col-span-4 border-white/10 bg-[#09090b]/80 backdrop-blur-xl shadow-2xl rounded-3xl flex flex-col">
-            <CardHeader className="pb-4 border-b border-white/5 bg-white/[0.01]">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-sm font-black flex items-center gap-2 text-white mb-1">
-                    <TrendingUp className="w-4 h-4 text-sky-400" />
-                    Net Flow
-                  </CardTitle>
-                  <p className="text-xs text-white/40 font-light">Monthly net position</p>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="flex-1 w-full min-h-[200px] pt-6">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={monthlyData.map(m => ({ ...m, net: m.income - m.expenses }))} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorNetBento" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#38bdf8" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="month" stroke="#ffffff30" fontSize={9} tickLine={false} axisLine={false} dy={5} />
-                  <YAxis stroke="#ffffff30" fontSize={9} tickLine={false} axisLine={false} tickFormatter={(v) => `${(v / 1000000).toFixed(1)}M`} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: 'rgba(9, 9, 11, 0.8)', backdropFilter: 'blur(10px)', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }} 
-                    itemStyle={{ fontSize: '11px', fontWeight: 'bold' }}
-                    labelStyle={{ fontSize: '9px', color: 'rgba(255,255,255,0.5)', marginBottom: '2px' }}
-                    formatter={(v: number) => [`Rs. ${formatCurrency(v)}`, 'Net']} 
-                  />
-                  <Area type="monotone" dataKey="net" stroke="#38bdf8" strokeWidth={2} fillOpacity={1} fill="url(#colorNetBento)" />
-                </AreaChart>
-              </ResponsiveContainer>
             </CardContent>
           </Card>
 
