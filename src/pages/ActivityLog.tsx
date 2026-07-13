@@ -46,6 +46,57 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
+const DiffViewer = ({ before, after }: { before: any, after: any }) => {
+  if (!before || !after) return null;
+
+  const changes: { key: string; oldVal: string; newVal: string }[] = [];
+  const allKeys = Array.from(new Set([...Object.keys(before), ...Object.keys(after)]));
+
+  allKeys.forEach(key => {
+    // Skip noisy fields or internal states
+    if (['history', 'file_image', 'is_dirty', 'updated_at', 'created_at'].includes(key)) return;
+
+    const oldV = before[key];
+    const newV = after[key];
+
+    const oldStr = typeof oldV === 'object' ? JSON.stringify(oldV) : String(oldV ?? '');
+    const newStr = typeof newV === 'object' ? JSON.stringify(newV) : String(newV ?? '');
+
+    if (oldStr !== newStr) {
+      changes.push({
+        key: key.replace(/_/g, ' ').toUpperCase(),
+        oldVal: oldStr === '' ? '(Empty)' : oldStr,
+        newVal: newStr === '' ? '(Empty)' : newStr
+      });
+    }
+  });
+
+  if (changes.length === 0) {
+    return <div className="text-white/50 text-xs italic bg-white/5 p-4 rounded-lg text-center border border-white/10">No visible changes recorded in tracked fields.</div>;
+  }
+
+  return (
+    <ScrollArea className="h-64 bg-black/60 rounded-xl border border-white/10 p-4">
+      <div className="space-y-3">
+        {changes.map((c, i) => (
+          <div key={i} className="flex flex-col bg-white/[0.03] p-3 rounded-lg border border-white/[0.05]">
+            <span className="text-[10px] text-white/50 font-bold mb-2 tracking-wider">{c.key}</span>
+            <div className="flex items-center gap-3 text-xs font-mono">
+              <span className="text-rose-400 bg-rose-500/10 px-2 py-1 rounded max-w-[45%] truncate border border-rose-500/20" title={c.oldVal}>
+                {c.oldVal}
+              </span>
+              <span className="text-white/30 text-[10px]">➔</span>
+              <span className="text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded max-w-[45%] truncate border border-emerald-500/20" title={c.newVal}>
+                {c.newVal}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </ScrollArea>
+  );
+};
+
 export default function ActivityLog() {
   const { userRole, isAdmin } = useAuth();
   const isAdminUser = userRole === 'admin' || isAdmin;
@@ -622,29 +673,8 @@ export default function ActivityLog() {
               <Label className="text-[10px] text-white/40 uppercase tracking-widest block mb-2">Payload Data (JSON)</Label>
               
               {selectedLog?.details && (selectedLog.details.before !== undefined || selectedLog.details.after !== undefined) ? (
-                // Split Diff View
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-bold uppercase px-3 py-1.5 rounded-t-lg">
-                      Before Change (Old Value)
-                    </div>
-                    <ScrollArea className="h-64 bg-black/60 rounded-b-lg border border-white/5 border-t-0 p-4">
-                      <pre className="text-[11px] font-mono text-white/70 whitespace-pre-wrap">
-                        {JSON.stringify(selectedLog.details.before || {}, null, 2)}
-                      </pre>
-                    </ScrollArea>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase px-3 py-1.5 rounded-t-lg">
-                      After Change (New Value)
-                    </div>
-                    <ScrollArea className="h-64 bg-black/60 rounded-b-lg border border-white/5 border-t-0 p-4">
-                      <pre className="text-[11px] font-mono text-white/70 whitespace-pre-wrap">
-                        {JSON.stringify(selectedLog.details.after || selectedLog.details, null, 2)}
-                      </pre>
-                    </ScrollArea>
-                  </div>
-                </div>
+                // Human Readable Diff View
+                <DiffViewer before={selectedLog.details.before} after={selectedLog.details.after || selectedLog.details} />
               ) : (
                 // Standard Raw JSON View
                 <ScrollArea className="h-64 bg-black/60 rounded-xl border border-white/10 p-4">
