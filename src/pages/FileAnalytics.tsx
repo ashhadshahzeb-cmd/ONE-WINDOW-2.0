@@ -7,6 +7,7 @@ import {
   PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, AreaChart, Area, Legend
 } from 'recharts';
+import { db } from "@/lib/db";
 
 const COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#f43f5e', '#8b5cf6', '#14b8a6', '#f97316'];
 
@@ -26,13 +27,26 @@ export default function FileAnalytics() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
+      // Fetch from local IndexedDB first for instant results
+      let localData = await db.records.toArray();
+      localData = localData.filter(r => !r.deleted_locally && r.status !== 'trashed');
+      
+      if (localData.length > 0) {
+        setRecords(localData);
+      }
+
+      // Then fetch from Supabase to ensure it's up to date
       const { data, error } = await supabase
         .from('file_tracking_records' as any)
         .select('*')
+        .neq('status', 'trashed')
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setRecords(data || []);
+      
+      if (data && data.length > 0) {
+         setRecords(data);
+      }
     } catch (err) {
       console.error(err);
     } finally {
