@@ -349,7 +349,7 @@ export default function FileTracking() {
         const updatePayload: any = {};
         if (bulkEditDateForm.created_date) {
           updatePayload.created_at = new Date(bulkEditDateForm.created_date + 'T00:00:00').toISOString();
-          updatePayload.inward_date = new Date(bulkEditDateForm.created_date).toLocaleDateString('en-GB'); 
+          updatePayload.inward_date = safeFormatDate(bulkEditDateForm.created_date); 
         }
         if (bulkEditDateForm.print_date) {
           updatePayload.print_date = bulkEditDateForm.print_date;
@@ -683,7 +683,7 @@ export default function FileTracking() {
       idx + 1,
       r.cfo_diary_number || "",
       r.receiving_number || "",
-      r.inward_date ? new Date(r.inward_date).toLocaleDateString() : "",
+      r.inward_date ? safeFormatDate(r.inward_date) : "",
       (r.subject || "").replace(/,/g, " "),
       r.amount || 0,
       mainCatReadable(r.mainCategory || r.main_category).toUpperCase(),
@@ -693,8 +693,8 @@ export default function FileTracking() {
       r.vehicle_no || "",
       (r.received_from || "").replace(/,/g, " "),
       r.mark_to || "",
-      r.outward_date ? new Date(r.outward_date).toLocaleDateString() : "",
-      r.created_at ? new Date(r.created_at).toLocaleDateString() : "",
+      r.outward_date ? safeFormatDate(r.outward_date) : "",
+      r.created_at ? safeFormatDate(r.created_at) : "",
       (r.remarks || "").replace(/,/g, " ")
     ]);
 
@@ -736,8 +736,8 @@ export default function FileTracking() {
     } else if (reportDateFilter === 'yearly') {
       dateRangeLabel = "Last 1 Year";
     } else if (reportDateFilter === 'custom') {
-      const fromStr = customFilterStartDate ? new Date(customFilterStartDate).toLocaleDateString() : "Beginning";
-      const toStr = customFilterEndDate ? new Date(customFilterEndDate).toLocaleDateString() : "Present";
+      const fromStr = customFilterStartDate ? safeFormatDate(customFilterStartDate) : "Beginning";
+      const toStr = customFilterEndDate ? safeFormatDate(customFilterEndDate) : "Present";
       dateRangeLabel = `${fromStr} to ${toStr}`;
     }
 
@@ -750,7 +750,7 @@ export default function FileTracking() {
       <tr>
         <td>${i + 1}</td>
         <td><strong>${r.cfo_diary_number || '---'}</strong><br/><span style="font-size:9px;color:#666">${r.receiving_number || ''}</span></td>
-        <td>${r.inward_date ? new Date(r.inward_date).toLocaleDateString() : '---'}</td>
+        <td>${r.inward_date ? safeFormatDate(r.inward_date) : '---'}</td>
         <td style="max-width:160px">${r.subject || '---'}</td>
         <td style="text-align:right;white-space:nowrap">${formatCurrency(r.amount || 0)}</td>
         <td>
@@ -765,7 +765,7 @@ export default function FileTracking() {
           ${(!r.employee_number && !r.voucher_code && !r.vehicle_no) ? '---' : ''}
         </td>
         <td>${sections.find(s => s.id === r.mark_to)?.name || r.mark_to || '---'}</td>
-        <td style="white-space:nowrap">${r.outward_date ? new Date(r.outward_date).toLocaleDateString() : '---'}</td>
+        <td style="white-space:nowrap">${r.outward_date ? safeFormatDate(r.outward_date) : '---'}</td>
         <td style="max-width:120px;font-size:9px;color:#555">${r.remarks || '---'}</td>
       </tr>
     `).join("");
@@ -1335,7 +1335,7 @@ export default function FileTracking() {
         const updatePayload: any = {};
         if (qrFullScreen.created_date) {
           updatePayload.created_at = new Date(qrFullScreen.created_date + 'T00:00:00').toISOString();
-          updatePayload.inward_date = new Date(qrFullScreen.created_date).toLocaleDateString('en-GB'); 
+          updatePayload.inward_date = safeFormatDate(qrFullScreen.created_date); 
         }
         if (qrFullScreen.print_date) {
           updatePayload.print_date = qrFullScreen.print_date;
@@ -1871,8 +1871,8 @@ export default function FileTracking() {
         } else if (reportDateFilter === 'yearly') {
           dateRangeLabel = "Last 1 Year";
         } else if (reportDateFilter === 'custom') {
-          const fromStr = customFilterStartDate ? new Date(customFilterStartDate).toLocaleDateString() : "Beginning";
-          const toStr = customFilterEndDate ? new Date(customFilterEndDate).toLocaleDateString() : "Present";
+          const fromStr = customFilterStartDate ? safeFormatDate(customFilterStartDate) : "Beginning";
+          const toStr = customFilterEndDate ? safeFormatDate(customFilterEndDate) : "Present";
           dateRangeLabel = `${fromStr} to ${toStr}`;
         }
 
@@ -2824,7 +2824,7 @@ export default function FileTracking() {
                             </TableCell>
                             <TableCell className="font-bold text-xs text-primary">{formatCurrency(file.amount || 0)}</TableCell>
                             <TableCell className="text-xs">{file.received_from}</TableCell>
-                            <TableCell className="text-xs">{new Date(file.created_at).toLocaleDateString()}</TableCell>
+                            <TableCell className="text-xs">{safeFormatDate(file.created_at)}</TableCell>
                             <TableCell className="text-center">
                               <div className="flex items-center justify-center gap-1">
                                 <Button
@@ -3048,7 +3048,7 @@ export default function FileTracking() {
                                 {step.action || "FORWARDED"}
                               </span>
                               <span className="text-[9px] text-muted-foreground font-mono">
-                                {step.date ? new Date(step.date).toLocaleDateString() : ""}
+                                {step.date ? safeFormatDate(step.date) : ""}
                               </span>
                             </div>
                             <p className="text-[11px] font-bold text-white mt-1">
@@ -3214,7 +3214,7 @@ export default function FileTracking() {
                           </div>
                         </TableCell>
                         <TableCell className="text-[10px] font-mono text-muted-foreground">
-                          {new Date(file.created_at).toLocaleDateString()}
+                          {safeFormatDate(file.created_at)}
                         </TableCell>
                         <TableCell className="font-bold text-[10px] text-primary">
                           {formatCurrency(file.amount || 0)}
@@ -3533,7 +3533,7 @@ export default function FileTracking() {
                           </div>
                           <div className="bg-muted/10 p-3 rounded-lg border border-border/50">
                             <p className="text-[10px] text-muted-foreground font-bold uppercase">Outward Date</p>
-                            <p className="text-sm font-semibold text-emerald-500">{file.outward_date ? new Date(file.outward_date).toLocaleDateString() : 'N/A'}</p>
+                            <p className="text-sm font-semibold text-emerald-500">{file.outward_date ? safeFormatDate(file.outward_date) : 'N/A'}</p>
                           </div>
                           <div className="bg-muted/10 p-3 rounded-lg border border-border/50">
                             <p className="text-[10px] text-muted-foreground font-bold uppercase">Net Amount</p>
@@ -4387,7 +4387,7 @@ export default function FileTracking() {
                     <div className="border-2 border-emerald-500/30 rounded-lg p-2 bg-emerald-500/5 flex flex-col items-center overflow-hidden">
                       <img src={formData.signature_data} alt="ESign" className="max-h-16 mix-blend-multiply" />
                       <div className="mt-2 text-[8px] font-mono text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                        VERIFIED: {new Date(formData.date_of_sign).toLocaleDateString()}
+                        VERIFIED: {safeFormatDate(formData.date_of_sign)}
                       </div>
                     </div>
                     <Button
@@ -4775,7 +4775,7 @@ export default function FileTracking() {
                               </div>
                             </TableCell>
                             <TableCell className="text-[10px] font-mono text-muted-foreground">
-                              {new Date(file.created_at).toLocaleDateString()}
+                              {safeFormatDate(file.created_at)}
                             </TableCell>
                             <TableCell className="font-bold text-[10px] text-primary">
                               {formatCurrency(file.amount || 0)}
