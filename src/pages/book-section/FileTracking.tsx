@@ -107,6 +107,21 @@ const safeFormatDate = (dateStr: any) => {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
+
+const safeFormatDateTime = (dateStr: any) => {
+  if (!dateStr) return new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  let d;
+  if (dateStr instanceof Date) {
+    d = dateStr;
+  } else if (typeof dateStr === 'string') {
+    d = new Date(dateStr.includes('T') ? dateStr : dateStr + 'T00:00:00');
+  } else {
+    d = new Date(dateStr);
+  }
+  if (isNaN(d.getTime())) return new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+};
+
 // Helper to extract the local YYYY-MM-DD, avoiding UTC timezone shifts
 const getLocalDateString = (dateStr?: string | Date | null): string => {
   const d = dateStr ? new Date(typeof dateStr === 'string' && !dateStr.includes('T') ? dateStr + 'T00:00:00' : dateStr) : new Date();
@@ -3472,7 +3487,7 @@ export default function FileTracking() {
                                   <div className="flex flex-wrap items-center justify-between gap-4 text-sm font-bold mb-1">
                                     <span className="text-primary flex items-center gap-1"><User className="w-3 h-3" /> {step.processed_by || 'Unknown Section'}</span>
                                     <span className="text-[10px] font-mono text-muted-foreground bg-muted/30 px-2 py-0.5 rounded">
-                                      {new Date(step.date).toLocaleString()}
+                                      {safeFormatDateTime(step.date)}
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-2 mt-2">
@@ -3903,7 +3918,7 @@ export default function FileTracking() {
                             <div className="w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border border-primary/10 bg-primary/5 shadow-sm group-hover:bg-primary/10 transition-colors duration-200">
                               <div className="flex items-center justify-between space-x-2 mb-1">
                                 <div className="font-bold text-sm text-primary">{step.step}</div>
-                                <time className="font-mono text-[10px] text-muted-foreground">{new Date(step.date).toLocaleString()}</time>
+                                <time className="font-mono text-[10px] text-muted-foreground">{safeFormatDateTime(step.date)}</time>
                               </div>
                               <div className="text-xs font-semibold flex items-center gap-1 mb-2">
                                 <Building2 className="w-3 h-3 text-muted-foreground" />
@@ -4660,7 +4675,7 @@ export default function FileTracking() {
                             <DialogContent className="max-w-2xl">
                               <DialogHeader>
                                 <DialogTitle>Log Snapshot: {step.processed_by}</DialogTitle>
-                                <DialogDescription>Full data captured at {new Date(step.date).toLocaleString()}</DialogDescription>
+                                <DialogDescription>Full data captured at {safeFormatDateTime(step.date)}</DialogDescription>
                               </DialogHeader>
                               <div className="grid grid-cols-2 gap-4 mt-4 p-4 bg-muted/20 rounded-xl border border-border">
                                 <div>
@@ -5198,7 +5213,7 @@ export default function FileTracking() {
                     <tr key={i} className="h-16">
                       <td className="border border-black p-2 text-center font-bold">{i}</td>
                       <td className="border border-black p-2 text-sm font-semibold">{step?.location || ""}</td>
-                      <td className="border border-black p-2 font-mono text-[10px]">{step ? new Date(step.date).toLocaleString() : ""}</td>
+                      <td className="border border-black p-2 font-mono text-[10px]">{step ? safeFormatDateTime(step.date) : ""}</td>
                       <td className="border border-black p-2 text-gray-600">{step?.remarks || ""}</td>
                       <td className="border border-black p-2"></td>
                     </tr>
