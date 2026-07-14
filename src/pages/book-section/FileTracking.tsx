@@ -122,6 +122,21 @@ const safeFormatDateTime = (dateStr: any) => {
   return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
+
+const safeISOString = (dateStr?: any) => {
+  if (!dateStr) return new Date().toISOString();
+  let d;
+  if (dateStr instanceof Date) {
+    d = dateStr;
+  } else if (typeof dateStr === 'string') {
+    d = new Date(dateStr.includes('T') ? dateStr : dateStr + 'T00:00:00');
+  } else {
+    d = new Date(dateStr);
+  }
+  if (isNaN(d.getTime())) return new Date().toISOString();
+  return d.toISOString();
+};
+
 // Helper to extract the local YYYY-MM-DD, avoiding UTC timezone shifts
 const getLocalDateString = (dateStr?: string | Date | null): string => {
   const d = dateStr ? new Date(typeof dateStr === 'string' && !dateStr.includes('T') ? dateStr + 'T00:00:00' : dateStr) : new Date();
@@ -363,7 +378,7 @@ export default function FileTracking() {
 
         const updatePayload: any = {};
         if (bulkEditDateForm.created_date) {
-          updatePayload.created_at = new Date(bulkEditDateForm.created_date + 'T00:00:00').toISOString();
+          updatePayload.created_at = safeISOString(bulkEditDateForm.created_date + 'T00:00:00');
           updatePayload.inward_date = safeFormatDate(bulkEditDateForm.created_date); 
         }
         if (bulkEditDateForm.print_date) {
@@ -1124,7 +1139,7 @@ export default function FileTracking() {
           file_purpose: formData.file_purpose,
           print_date: formData.print_date || getLocalDateString(),
           created_at: formData.registration_date
-            ? new Date(formData.registration_date + 'T00:00:00').toISOString()
+            ? safeISOString(formData.registration_date + 'T00:00:00')
             : undefined,
         };
 
@@ -1290,7 +1305,7 @@ export default function FileTracking() {
           print_date: formData.print_date || getLocalDateString(),
           history: [snapshot],
           created_at: formData.registration_date
-            ? new Date(formData.registration_date + 'T00:00:00').toISOString()
+            ? safeISOString(formData.registration_date + 'T00:00:00')
             : new Date().toISOString()
         };
 
@@ -1349,7 +1364,7 @@ export default function FileTracking() {
       if (ticket) {
         const updatePayload: any = {};
         if (qrFullScreen.created_date) {
-          updatePayload.created_at = new Date(qrFullScreen.created_date + 'T00:00:00').toISOString();
+          updatePayload.created_at = safeISOString(qrFullScreen.created_date + 'T00:00:00');
           updatePayload.inward_date = safeFormatDate(qrFullScreen.created_date); 
         }
         if (qrFullScreen.print_date) {
@@ -1653,10 +1668,10 @@ export default function FileTracking() {
         }
 
         if (startDate) {
-          query = query.gte('created_at', startDate.toISOString());
+          query = query.gte('created_at', safeISOString(startDate));
         }
         if (endDate) {
-          query = query.lte('created_at', endDate.toISOString());
+          query = query.lte('created_at', safeISOString(endDate));
         }
       }
 
@@ -1853,10 +1868,10 @@ export default function FileTracking() {
         }
 
         if (startDate) {
-          query = query.gte('created_at', startDate.toISOString());
+          query = query.gte('created_at', safeISOString(startDate));
         }
         if (endDate) {
-          query = query.lte('created_at', endDate.toISOString());
+          query = query.lte('created_at', safeISOString(endDate));
         }
       }
 
