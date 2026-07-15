@@ -13,8 +13,8 @@ import { Capacitor } from '@capacitor/core';
 
 import { useAuth } from '@/contexts/AuthContext';
 
-const OFFICE_LAT = 24.897097188291585;
-const OFFICE_LNG = 67.07461409831133;
+const OFFICE_LAT = 24.898287250826936;
+const OFFICE_LNG = 67.07303610170393;
 const ALLOWED_RADIUS_METERS = 150;
 
 function getDistanceFromLatLonInM(lat1: number, lon1: number, lat2: number, lon2: number) {
