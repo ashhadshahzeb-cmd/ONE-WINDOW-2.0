@@ -15,7 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const OFFICE_LAT = 24.898287250826936;
 const OFFICE_LNG = 67.07303610170393;
-const ALLOWED_RADIUS_METERS = 150;
+const ALLOWED_RADIUS_METERS = 500;
 
 function getDistanceFromLatLonInM(lat1: number, lon1: number, lat2: number, lon2: number) {
   var R = 6371; // Radius of the earth in km
