@@ -7,7 +7,7 @@ import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
-import { Bell, Megaphone, Plus } from 'lucide-react';
+import { Bell, Megaphone, Plus, Trash2 } from 'lucide-react';
 
 export default function HRMSDashboard() {
   const { userRole } = useAuth();
@@ -67,6 +67,17 @@ export default function HRMSDashboard() {
       setNewNoticeTitle('');
       setNewNoticeContent('');
       setShowNewNoticeForm(false);
+      fetchAnnouncements();
+    } else {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const handleDeleteNotice = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this announcement?")) return;
+    const { error } = await supabase.from('hrms_announcements').delete().eq('id', id);
+    if (!error) {
+      toast({ title: 'Deleted', description: 'Announcement deleted successfully.' });
       fetchAnnouncements();
     } else {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -272,9 +283,21 @@ export default function HRMSDashboard() {
                 <div key={notice.id} className="bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 rounded-2xl p-5 transition-all duration-300 group">
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-3">
                     <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors">{notice.title}</h3>
-                    <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest bg-black/40 px-3 py-1.5 rounded-full border border-white/5 whitespace-nowrap self-start">
-                      {format(new Date(notice.created_at), 'MMM d, yyyy')}
-                    </span>
+                    <div className="flex items-center gap-2 self-start">
+                      <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest bg-black/40 px-3 py-1.5 rounded-full border border-white/5 whitespace-nowrap">
+                        {format(new Date(notice.created_at), 'MMM d, yyyy')}
+                      </span>
+                      {!isHRMSEmployee && (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-7 w-7 text-white/40 hover:text-red-400 hover:bg-red-400/10" 
+                          onClick={() => handleDeleteNotice(notice.id)}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                   <p className="text-white/60 text-sm leading-relaxed whitespace-pre-wrap font-medium">{notice.message}</p>
                 </div>
