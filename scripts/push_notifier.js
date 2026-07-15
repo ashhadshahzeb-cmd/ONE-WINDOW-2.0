@@ -100,6 +100,13 @@ setInterval(async () => {
            if (emps && emps.length > 0) {
               const tokens = emps.map(e => e.fcm_token).filter(t => t && t.trim() !== '');
               
+              // Add Admin tokens as well
+              const { data: admins } = await supabase.from('department_users_settings').select('fcm_token').not('fcm_token', 'is', null);
+              if (admins && admins.length > 0) {
+                 const adminTokens = admins.map(a => a.fcm_token).filter(t => t && t.trim() !== '');
+                 tokens.push(...adminTokens);
+              }
+
               if (tokens.length > 0) {
                  const message = {
                     notification: {
