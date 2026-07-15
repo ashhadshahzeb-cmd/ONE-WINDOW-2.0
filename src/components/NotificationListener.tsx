@@ -66,6 +66,9 @@ export default function NotificationListener() {
             else if (eventType === 'INSERT') {
               showNotification(newRecord, 'registered');
             }
+          } else if (newRecord && eventType === 'INSERT' && isAdmin) {
+            // For admins, notify of ANY new file entered by any user
+            showNotification(newRecord, 'admin_new_entry');
           }
         }
       )
@@ -196,7 +199,7 @@ export default function NotificationListener() {
     setIncomingCall(null);
   };
 
-  const showNotification = (record: any, action: 'registered' | 'forwarded') => {
+  const showNotification = (record: any, action: 'registered' | 'forwarded' | 'admin_new_entry') => {
     toast.custom((t) => (
       <div className="bg-[#0f1115]/95 border border-sky-500/30 p-4 rounded-2xl shadow-2xl backdrop-blur-xl flex items-start gap-4 animate-in slide-in-from-right w-[350px]">
         <div className="w-10 h-10 rounded-xl bg-sky-500/20 border border-sky-500/30 flex items-center justify-center shrink-0">
@@ -204,7 +207,7 @@ export default function NotificationListener() {
         </div>
         <div className="flex-1 space-y-1">
           <p className="text-sm font-black text-white tracking-wide">
-            New File {action === 'forwarded' ? 'Forwarded' : 'Received'}!
+            {action === 'admin_new_entry' ? 'New File Entered by User!' : `New File ${action === 'forwarded' ? 'Forwarded' : 'Received'}!`}
           </p>
           <div className="flex items-center gap-2 text-xs text-white/70">
             <FileText className="w-3.5 h-3.5 text-emerald-400" />
@@ -227,7 +230,7 @@ export default function NotificationListener() {
 
     // Also trigger browser push notification if permitted
     if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification(`New File ${action === 'forwarded' ? 'Forwarded' : 'Received'}!`, {
+      new Notification(action === 'admin_new_entry' ? 'New File Entered!' : `New File ${action === 'forwarded' ? 'Forwarded' : 'Received'}!`, {
         body: `${record.receiving_number || 'N/A'}\n${record.subject || 'No subject'}`,
         icon: '/favicon.ico',
       });

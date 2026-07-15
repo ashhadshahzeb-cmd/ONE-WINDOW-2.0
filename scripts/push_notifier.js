@@ -48,8 +48,15 @@ setInterval(async () => {
       .gt('created_at', lastCheckedTime)
       .order('created_at', { ascending: true });
 
-    if (inError || outError || loginError) {
-      console.error('Error polling database:', inError?.message || outError?.message || loginError?.message);
+    // Poll for New Files
+    const { data: fileRecords, error: fileError } = await supabase
+      .from('file_tracking_records')
+      .select('*')
+      .gt('created_at', lastCheckedTime)
+      .order('created_at', { ascending: true });
+
+    if (inError || outError || loginError || fileError) {
+      console.error('Error polling database:', inError?.message || outError?.message || loginError?.message || fileError?.message);
       return;
     }
 
@@ -63,6 +70,9 @@ setInterval(async () => {
     if (loginRecords) {
        loginRecords.forEach(r => allEvents.push({ ...r, eventType: 'LOGIN', time: r.created_at, employee_name: r.user_name }));
     }
+    if (fileRecords) {
+       fileRecords.forEach(r => allEvents.push({ ...r, eventType: 'NEW_FILE', time: r.created_at }));
+    }
 
     // Sort all events chronologically
     allEvents.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
@@ -71,6 +81,56 @@ setInterval(async () => {
       for (const record of allEvents) {
         lastCheckedTime = record.time; // update cursor
         console.log(`New ${record.eventType} record detected:`, record);
+
+        if (record.eventType === 'NEW_FILE') {
+          // Send push to System Admin
+          const { data: adminData } = await supabase
+            .from('department_users_settings')
+            .select('fcm_token')
+            .eq('email', 'admin@kwsb.gov.pk')
+            .single();
+
+          if (adminData && adminData.fcm_token) {
+            const message = {
+              notification: {
+                title: `New File Entry 📄`,
+                body: `File ${record.receiving_number || 'N/A'} was entered by ${record.received_from || 'User'}`,
+              },
+              token: adminData.fcm_token,
+            };
+            try {
+              const response = await getMessaging().send(message);
+              console.log(`✅ Successfully sent NEW_FILE push notification to Admin:`, response);
+            } catch (e) {
+              console.error('Failed to send notification to Admin:', e);
+            }
+          }
+          
+          // Send push to CFO as well
+          const { data: cfoData } = await supabase
+            .from('department_users_settings')
+            .select('fcm_token')
+            .eq('email', 'cfo@kwsb.gov.pk')
+            .single();
+
+          if (cfoData && cfoData.fcm_token) {
+            const message = {
+              notification: {
+                title: `New File Entry 📄`,
+                body: `File ${record.receiving_number || 'N/A'} was entered by ${record.received_from || 'User'}`,
+              },
+              token: cfoData.fcm_token,
+            };
+            try {
+              const response = await getMessaging().send(message);
+              console.log(`✅ Successfully sent NEW_FILE push notification to CFO:`, response);
+            } catch (e) {
+              console.error('Failed to send notification to CFO:', e);
+            }
+          }
+
+          continue; // Skip the rest for HRMS events
+        }
 
         // 1. Get the employee's name & token
         let empName = record.employee_name;
