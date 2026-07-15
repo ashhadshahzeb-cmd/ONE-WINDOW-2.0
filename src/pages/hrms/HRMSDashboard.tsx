@@ -39,6 +39,15 @@ export default function HRMSDashboard() {
       fetchAdminStats();
     }
     fetchAnnouncements();
+
+    const channel = supabase
+      .channel('hrms-announcements-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'hrms_announcements' }, () => {
+        fetchAnnouncements();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [isHRMSEmployee]);
 
   const fetchAnnouncements = async () => {

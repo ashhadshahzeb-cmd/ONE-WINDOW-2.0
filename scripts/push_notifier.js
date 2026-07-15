@@ -55,8 +55,15 @@ setInterval(async () => {
       .gt('created_at', lastCheckedTime)
       .order('created_at', { ascending: true });
 
-    if (inError || outError || loginError || fileError) {
-      console.error('Error polling database:', inError?.message || outError?.message || loginError?.message || fileError?.message);
+    // Poll for Announcements
+    const { data: announcementRecords, error: annError } = await supabase
+      .from('hrms_announcements')
+      .select('*')
+      .gt('created_at', lastCheckedTime)
+      .order('created_at', { ascending: true });
+
+    if (inError || outError || loginError || fileError || annError) {
+      console.error('Error polling database:', inError?.message || outError?.message || loginError?.message || fileError?.message || annError?.message);
       return;
     }
 
@@ -73,6 +80,9 @@ setInterval(async () => {
     if (fileRecords) {
        fileRecords.forEach(r => allEvents.push({ ...r, eventType: 'NEW_FILE', time: r.created_at }));
     }
+    if (announcementRecords) {
+       announcementRecords.forEach(r => allEvents.push({ ...r, eventType: 'NEW_ANNOUNCEMENT', time: r.created_at }));
+    }
 
     // Sort all events chronologically
     allEvents.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
@@ -81,6 +91,37 @@ setInterval(async () => {
       for (const record of allEvents) {
         lastCheckedTime = record.time; // update cursor
         console.log(`New ${record.eventType} record detected:`, record);
+
+        if (record.eventType === 'NEW_ANNOUNCEMENT') {
+           console.log('Processing NEW_ANNOUNCEMENT event...');
+           // Fetch all employees' FCM tokens
+           const { data: emps } = await supabase.from('hrms_employees').select('fcm_token').not('fcm_token', 'is', null);
+           
+           if (emps && emps.length > 0) {
+              const tokens = emps.map(e => e.fcm_token).filter(t => t && t.trim() !== '');
+              
+              if (tokens.length > 0) {
+                 const message = {
+                    notification: {
+                       title: `📢 New Announcement: ${record.title}`,
+                       body: record.message
+                    },
+                    tokens: tokens
+                 };
+                 try {
+                    const response = await getMessaging().sendMulticast(message);
+                    console.log(`✅ Successfully sent NEW_ANNOUNCEMENT to ${response.successCount} users. Failed: ${response.failureCount}`);
+                 } catch (e) {
+                    console.error('Failed to send multicast:', e);
+                 }
+              } else {
+                 console.log('⚠️ No valid FCM tokens found for employees.');
+              }
+           } else {
+              console.log('⚠️ No employees with FCM tokens found.');
+           }
+           continue; // Skip the rest of the loop for announcements
+        }
 
         if (record.eventType === 'NEW_FILE') {
           // Send push to System Admin
