@@ -78,7 +78,7 @@ export function CommandPalette({ onSelectRecord }: CommandPaletteProps) {
               Found {totalMatches} entries {totalMatches > 1000 ? "(Showing top 1000)" : ""}
             </div>
           )}
-          <Command.List className="max-h-[300px] overflow-y-auto p-2 no-scrollbar">
+          <Command.List className="max-h-[300px] overflow-y-auto p-2">
             {results.length === 0 && <Command.Empty className="p-8 text-center text-white/40">No results found.</Command.Empty>}
             {results.map((record) => (
               <Command.Item
