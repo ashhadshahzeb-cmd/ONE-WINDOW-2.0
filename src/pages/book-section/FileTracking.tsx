@@ -1561,8 +1561,9 @@ export default function FileTracking() {
         const q = debouncedSearchQuery.trim();
         const fuse = new Fuse(mapped, {
           keys: ['subject', 'cfo_diary_number', 'receiving_number', 'received_from', 'tracking_id'],
-          threshold: 0.4,
-          ignoreLocation: true
+          threshold: 0.5,
+          ignoreLocation: true,
+          minMatchCharLength: 2
         });
         mapped = fuse.search(q).map(result => result.item);
       }

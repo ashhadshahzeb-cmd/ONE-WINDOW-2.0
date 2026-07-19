@@ -41,7 +41,9 @@ export function CommandPalette({ onSelectRecord }: CommandPaletteProps) {
     }
     const fuse = new Fuse(records, {
       keys: ['subject', 'cfo_diary_number', 'receiving_number', 'received_from'],
-      threshold: 0.4
+      threshold: 0.5,
+      ignoreLocation: true,
+      minMatchCharLength: 2
     });
     setResults(fuse.search(search).map(r => r.item).slice(0, 10));
   }, [search, records]);
@@ -51,7 +53,7 @@ export function CommandPalette({ onSelectRecord }: CommandPaletteProps) {
   return (
     <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh] bg-black/60 backdrop-blur-sm animate-in fade-in">
       <div className="w-full max-w-2xl bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-        <Command label="Command Menu" className="w-full h-full flex flex-col">
+        <Command shouldFilter={false} label="Command Menu" className="w-full h-full flex flex-col">
           <div className="flex items-center px-4 border-b border-white/10 h-14">
             <Search className="w-5 h-5 text-emerald-400 shrink-0 mr-3" />
             <Command.Input
