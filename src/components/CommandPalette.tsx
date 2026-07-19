@@ -33,10 +33,13 @@ export function CommandPalette({ onSelectRecord }: CommandPaletteProps) {
     }
   }, [open]);
 
+  const [totalMatches, setTotalMatches] = useState(0);
+
   // Fuzzy search
   useEffect(() => {
     if (!search) {
-      setResults(records.slice(0, 50));
+      setResults(records.slice(0, 1000));
+      setTotalMatches(records.length);
       return;
     }
     const fuse = new Fuse(records, {
@@ -45,7 +48,9 @@ export function CommandPalette({ onSelectRecord }: CommandPaletteProps) {
       ignoreLocation: true,
       minMatchCharLength: 2
     });
-    setResults(fuse.search(search).map(r => r.item).slice(0, 50));
+    const matches = fuse.search(search);
+    setTotalMatches(matches.length);
+    setResults(matches.map(r => r.item).slice(0, 1000));
   }, [search, records]);
 
   if (!open) return null;
@@ -68,6 +73,11 @@ export function CommandPalette({ onSelectRecord }: CommandPaletteProps) {
             />
             <div className="text-[10px] font-bold text-white/30 bg-white/5 px-2 py-1 rounded">ESC</div>
           </div>
+          {search && (
+            <div className="px-4 py-2 bg-slate-900/50 border-b border-white/5 text-xs font-bold text-emerald-400/80">
+              Found {totalMatches} entries {totalMatches > 1000 ? "(Showing top 1000)" : ""}
+            </div>
+          )}
           <Command.List className="max-h-[300px] overflow-y-auto p-2 no-scrollbar">
             {results.length === 0 && <Command.Empty className="p-8 text-center text-white/40">No results found.</Command.Empty>}
             {results.map((record) => (

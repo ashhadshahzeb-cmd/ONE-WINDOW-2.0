@@ -282,7 +282,6 @@ export default function FileTracking() {
   };
   const [allBulkModifiedRecords, setAllBulkModifiedRecords] = useState<any[]>([]);
   const [isBulkModifiedLoading, setIsBulkModifiedLoading] = useState(false);
-  const [commandPaletteSelectedRecord, setCommandPaletteSelectedRecord] = useState<any>(null);
   const [empSuggestions, setEmpSuggestions] = useState<any[]>([]);
   const [showEmpSuggestions, setShowEmpSuggestions] = useState(false);
   const [selectedEmpProfile, setSelectedEmpProfile] = useState<any>(null);
@@ -2289,12 +2288,12 @@ export default function FileTracking() {
 
   return (
     <div className="space-y-6 animate-fade-in pb-10">
-      <CommandPalette onSelectRecord={setCommandPaletteSelectedRecord} />
-      <JourneyMapModal 
-        isOpen={!!commandPaletteSelectedRecord} 
-        onClose={() => setCommandPaletteSelectedRecord(null)} 
-        record={commandPaletteSelectedRecord} 
-      />
+      <CommandPalette onSelectRecord={(record) => {
+        setActiveTab("track");
+        setSelectedBill(record);
+        setSearchQuery(record.cfo_diary_number || record.receiving_number || record.tracking_id || "");
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }} />
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-[#0f1115]/80 p-6 rounded-[32px] border border-white/5 backdrop-blur-xl shadow-2xl">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
