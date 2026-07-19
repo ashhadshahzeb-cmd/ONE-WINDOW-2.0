@@ -233,8 +233,12 @@ setInterval(async () => {
             token: adminData.fcm_token,
           };
 
-          const response = await getMessaging().send(message);
-          console.log(`✅ Successfully sent ${record.eventType} push notification to Admin:`, response);
+          try {
+            const response = await getMessaging().send(message);
+            console.log(`✅ Successfully sent ${record.eventType} push notification to Admin:`, response);
+          } catch (e) {
+            console.error('Failed to send notification to Admin:', e);
+          }
         } else {
           console.log('⚠️ No FCM Token found for HR Admin. Cannot send notification.');
         }

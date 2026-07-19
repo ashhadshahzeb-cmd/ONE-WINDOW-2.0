@@ -1262,12 +1262,12 @@ export default function FileTracking() {
           return;
         }
 
-        const receivingExists = await db.records.where('receiving_number').equals(formData.receiving_number).count();
-        if (receivingExists > 0) {
-          toast.error("This Receiving Number already exists locally!");
-          setIsSavingForm(false);
-          return;
-        }
+        // const receivingExists = await db.records.where('receiving_number').equals(formData.receiving_number).count();
+        // if (receivingExists > 0) {
+        //   toast.error("This Receiving Number already exists locally!");
+        //   setIsSavingForm(false);
+        //   return;
+        // }
 
         const trackingId = `FT-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
         let tempId = '';
@@ -1998,9 +1998,9 @@ export default function FileTracking() {
     try {
       // 1. Check current records first
       const localMatch = records.find(r =>
-        r.tracking_id?.toLowerCase() === searchQuery.toLowerCase() ||
-        r.cfo_diary_number?.toLowerCase() === searchQuery.toLowerCase() ||
-        r.receiving_number?.toLowerCase() === searchQuery.toLowerCase() ||
+        r.tracking_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.cfo_diary_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.receiving_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         r.subject?.toLowerCase().includes(searchQuery.toLowerCase())
       );
 
@@ -2022,7 +2022,8 @@ export default function FileTracking() {
       const { data, error } = await supabase
         .from('file_tracking_records' as any)
         .select('*')
-        .or(`cfo_diary_number.eq.${searchQuery},receiving_number.eq.${searchQuery},tracking_id.eq.${searchQuery},subject.ilike.%${searchQuery}%`)
+        .or(`cfo_diary_number.ilike.%${searchQuery}%,receiving_number.ilike.%${searchQuery}%,tracking_id.ilike.%${searchQuery}%,subject.ilike.%${searchQuery}%`)
+        .limit(1)
         .maybeSingle();
 
       if (!error && data) {
@@ -2411,8 +2412,9 @@ export default function FileTracking() {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <div className="flex flex-col xl:flex-row justify-between xl:items-center gap-4 mb-6 border-b border-border/50 pb-4">
-          <TabsList className="flex h-auto bg-[#0f1115] p-1.5 rounded-2xl border border-white/5 shrink-0 gap-1 overflow-x-auto overflow-y-hidden no-scrollbar max-w-full shadow-2xl">
+        <div className="flex flex-col gap-4 mb-6 border-b border-border/50 pb-4">
+          <div className="w-full overflow-x-auto pb-2 no-scrollbar">
+            <TabsList className="flex w-max h-auto bg-[#0f1115] p-1.5 rounded-2xl border border-white/5 gap-1 shadow-2xl">
             {isFileViewer ? (
               <TabsTrigger
                 value="view_only"
@@ -2494,6 +2496,7 @@ export default function FileTracking() {
                   </TabsTrigger>
                 )}
           </TabsList>
+          </div>
 
           {/* PRE-ENTRY MODAL */}
           <Dialog open={isPreEntryModalOpen} onOpenChange={setIsPreEntryModalOpen}>
@@ -3634,8 +3637,11 @@ export default function FileTracking() {
                       value={searchQuery}
                       onChange={e => {
                         setSearchQuery(e.target.value);
-                        // Trigger search automatically as user types
-                        setTimeout(() => handleSearch(), 0);
+                      }}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          handleSearch();
+                        }
                       }}
                       className="bg-muted/20 border-primary/20 h-12 font-mono text-base pr-10 focus-visible:ring-primary shadow-inner"
                     />
