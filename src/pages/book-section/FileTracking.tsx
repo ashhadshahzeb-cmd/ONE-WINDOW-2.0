@@ -72,6 +72,9 @@ import { addToOfflineQueue, syncOrphanedDirtyRecords } from "@/lib/offlineSync";
 import JourneyMapModal from "@/components/JourneyMapModal";
 import { db } from "@/lib/db";
 import { useSyncManager } from "@/hooks/useSyncManager";
+import Fuse from "fuse.js";
+import { Highlight } from "@/components/ui/Highlight";
+import { CommandPalette } from "@/components/CommandPalette";
 
 const getSubCatLabel = (val: string | null) => {
   if (!val) return "---";
@@ -279,6 +282,7 @@ export default function FileTracking() {
   };
   const [allBulkModifiedRecords, setAllBulkModifiedRecords] = useState<any[]>([]);
   const [isBulkModifiedLoading, setIsBulkModifiedLoading] = useState(false);
+  const [commandPaletteSelectedRecord, setCommandPaletteSelectedRecord] = useState<any>(null);
   const [empSuggestions, setEmpSuggestions] = useState<any[]>([]);
   const [showEmpSuggestions, setShowEmpSuggestions] = useState(false);
   const [selectedEmpProfile, setSelectedEmpProfile] = useState<any>(null);
@@ -1552,16 +1556,15 @@ export default function FileTracking() {
       if (filterSubCategory !== 'all') mapped = mapped.filter(r => r.subCategory === filterSubCategory);
       if (filterSection !== 'all') mapped = mapped.filter(r => r.mark_to === filterSection);
 
-      // 3. Search Filter
+      // 3. Search Filter (Fuzzy Search with Fuse.js)
       if (debouncedSearchQuery) {
-        const q = debouncedSearchQuery.toLowerCase();
-        mapped = mapped.filter(r => 
-          (r.cfo_diary_number && r.cfo_diary_number.toLowerCase().includes(q)) ||
-          (r.receiving_number && r.receiving_number.toLowerCase().includes(q)) ||
-          (r.subject && r.subject.toLowerCase().includes(q)) ||
-          (r.received_from && r.received_from.toLowerCase().includes(q)) ||
-          (r.tracking_id && r.tracking_id.toLowerCase().includes(q))
-        );
+        const q = debouncedSearchQuery.trim();
+        const fuse = new Fuse(mapped, {
+          keys: ['subject', 'cfo_diary_number', 'receiving_number', 'received_from', 'tracking_id'],
+          threshold: 0.4,
+          ignoreLocation: true
+        });
+        mapped = fuse.search(q).map(result => result.item);
       }
 
       return mapped;
@@ -2285,6 +2288,12 @@ export default function FileTracking() {
 
   return (
     <div className="space-y-6 animate-fade-in pb-10">
+      <CommandPalette onSelectRecord={setCommandPaletteSelectedRecord} />
+      <JourneyMapModal 
+        isOpen={!!commandPaletteSelectedRecord} 
+        onClose={() => setCommandPaletteSelectedRecord(null)} 
+        record={commandPaletteSelectedRecord} 
+      />
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-[#0f1115]/80 p-6 rounded-[32px] border border-white/5 backdrop-blur-xl shadow-2xl">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
@@ -3760,25 +3769,31 @@ export default function FileTracking() {
                               </TableRow>
                             ) : (
                               records.map((file, i) => (
-                                <TableRow key={i} className="hover:bg-primary/5 transition-colors group">
-                                  <TableCell className="font-mono text-xs font-bold text-primary">{file.cfo_diary_number}</TableCell>
-                                  <TableCell className="text-center">
-                                    <div
-                                      className="cursor-zoom-in transition-transform hover:scale-110"
-                                      onClick={() => handleQRClick(file.cfo_diary_number, file.receiving_number)}
-                                    >
-                                      <img
-                                        src={`https://api.qrserver.com/v1/create-qr-code/?size=35x35&data=${encodeURIComponent(`${window.location.origin}/public-track/${file.cfo_diary_number}/${file.receiving_number}`)}&color=0ea5e9`}
-                                        alt="QR"
-                                        className="w-8 h-8 mx-auto rounded border border-border bg-white"
-                                      />
-                                    </div>
-                                  </TableCell>
-                                  <TableCell>
-                                    <div className="font-semibold text-sm">{file.subject}</div>
-                                    <div className="text-[10px] text-muted-foreground">{file.receiving_number}</div>
-                                  </TableCell>
-                                  <TableCell>
+                                  <TableRow key={i} className="hover:bg-primary/5 transition-colors group">
+                                    <TableCell className="font-mono text-xs font-bold text-primary">
+                                      <Highlight text={file.cfo_diary_number} query={debouncedSearchQuery} />
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      <div
+                                        className="cursor-zoom-in transition-transform hover:scale-110"
+                                        onClick={() => handleQRClick(file.cfo_diary_number, file.receiving_number)}
+                                      >
+                                        <img
+                                          src={`https://api.qrserver.com/v1/create-qr-code/?size=35x35&data=${encodeURIComponent(`${window.location.origin}/public-track/${file.cfo_diary_number}/${file.receiving_number}`)}&color=0ea5e9`}
+                                          alt="QR"
+                                          className="w-8 h-8 mx-auto rounded border border-border bg-white"
+                                        />
+                                      </div>
+                                    </TableCell>
+                                    <TableCell>
+                                      <div className="font-semibold text-sm">
+                                        <Highlight text={file.subject} query={debouncedSearchQuery} />
+                                      </div>
+                                      <div className="text-[10px] text-muted-foreground">
+                                        <Highlight text={file.receiving_number} query={debouncedSearchQuery} />
+                                      </div>
+                                    </TableCell>
+                                    <TableCell>
                                     <div className="flex flex-col gap-1">
                                       <Badge variant="outline" className="text-[9px] uppercase">{mainCatReadable(file.mainCategory)}</Badge>
                                       {file.subCategory && (
