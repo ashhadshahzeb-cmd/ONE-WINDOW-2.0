@@ -83,6 +83,7 @@ export function CommandPalette({ onSelectRecord }: CommandPaletteProps) {
             {results.map((record) => (
               <Command.Item
                 key={record.id}
+                value={record.id}
                 onSelect={() => {
                   setOpen(false);
                   onSelectRecord(record);
