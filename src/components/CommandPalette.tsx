@@ -36,7 +36,7 @@ export function CommandPalette({ onSelectRecord }: CommandPaletteProps) {
   // Fuzzy search
   useEffect(() => {
     if (!search) {
-      setResults(records.slice(0, 10));
+      setResults(records.slice(0, 50));
       return;
     }
     const fuse = new Fuse(records, {
@@ -45,7 +45,7 @@ export function CommandPalette({ onSelectRecord }: CommandPaletteProps) {
       ignoreLocation: true,
       minMatchCharLength: 2
     });
-    setResults(fuse.search(search).map(r => r.item).slice(0, 10));
+    setResults(fuse.search(search).map(r => r.item).slice(0, 50));
   }, [search, records]);
 
   if (!open) return null;
