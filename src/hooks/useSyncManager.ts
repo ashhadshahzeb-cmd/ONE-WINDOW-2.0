@@ -68,10 +68,21 @@ export function useSyncManager() {
       }
       return true;
     } catch (err: any) {
+      const errorMessage = err?.message || 'Unknown sync error';
+      const isDuplicate = errorMessage.includes('duplicate key') || errorMessage.includes('violates unique constraint');
+      
+      if (isDuplicate || (task.retry_count || 0) >= 49) {
+        // If it's a duplicate, it's already in the DB, so we can safely discard it.
+        // If it failed 50 times, we discard it so it doesn't block the UI with "Pending Sync" forever.
+        await db.syncQueue.delete(task.id!);
+        console.warn(`[SyncManager] Discarded task ${task.id} due to ${isDuplicate ? 'duplicate key' : 'max retries'}.`);
+        return false;
+      }
+
       // Mark as failed with error message, increment retry count
       await db.syncQueue.update(task.id!, {
         status: 'failed',
-        error_message: err?.message || 'Unknown sync error',
+        error_message: errorMessage,
         retry_count: (task.retry_count || 0) + 1,
       });
       return false;
@@ -86,7 +97,6 @@ export function useSyncManager() {
     const tasks = await db.syncQueue
       .where('status')
       .anyOf(['pending', 'failed'])
-      .and(t => (t.retry_count || 0) < 50) // Increased to 50 to process previously stuck items
       .sortBy('id');
 
     if (tasks.length === 0) {
