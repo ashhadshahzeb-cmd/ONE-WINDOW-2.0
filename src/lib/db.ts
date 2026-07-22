@@ -42,6 +42,19 @@ export interface FileRecord {
   deleted_locally?: boolean; // Flag indicating it was deleted offline
 }
 
+export interface PendingFileRecord {
+  id?: string; // Supabase UUID
+  tracking_code: string;
+  category: string;
+  subject?: string;
+  file_image?: string;
+  status: string; // 'pending' | 'completed'
+  created_at?: string;
+  completed_at?: string;
+  // Local only fields for syncing
+  is_dirty?: boolean;
+}
+
 export interface SyncTask {
   id?: number;
   action: 'insert' | 'update' | 'delete';
@@ -57,6 +70,7 @@ export interface SyncTask {
 export class KWSCAppDatabase extends Dexie {
   configs!: Table<AppConfigItem>;
   records!: Table<FileRecord>;
+  pendingFiles!: Table<PendingFileRecord>;
   syncQueue!: Table<SyncTask>;
 
   constructor() {
@@ -75,6 +89,13 @@ export class KWSCAppDatabase extends Dexie {
     this.version(2).stores({
       configs: 'id, config_type, config_key, parent_key',
       records: 'id, cfo_diary_number, receiving_number, mark_to, status, inward_date, main_category',
+      syncQueue: '++id, action, status, created_at, table, record_id'
+    });
+    // Version 3: Added pendingFiles table
+    this.version(3).stores({
+      configs: 'id, config_type, config_key, parent_key',
+      records: 'id, cfo_diary_number, receiving_number, mark_to, status, inward_date, main_category',
+      pendingFiles: 'id, tracking_code, status',
       syncQueue: '++id, action, status, created_at, table, record_id'
     });
   }

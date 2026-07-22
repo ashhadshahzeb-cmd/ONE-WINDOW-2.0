@@ -21,6 +21,13 @@ const RestrictedDashboard = () => {
   useEffect(() => {
     const style = document.createElement('style');
     style.innerHTML = `
+      .kwsc-table { width: 100%; border-collapse: collapse; border: 2px solid black; font-family: Arial, sans-serif; background: white; color: black; }
+      .kwsc-table th, .kwsc-table td { border: 1px solid black; padding: 6px 4px; font-size: 10px; color: black; text-align: right; vertical-align: middle; }
+      .kwsc-table th { background: white; font-weight: bold; text-align: center; }
+      .kwsc-table thead tr:first-child th { font-size: 11px; }
+      .kwsc-table .col-numbers th { font-size: 9px; background: #eaeaea; padding: 3px; text-align: center; }
+      .crosshatch { background: url('data:image/svg+xml;utf8,<svg width="10" height="10" xmlns="http://www.w3.org/2000/svg"><path d="M0,0 L10,10 M10,0 L0,10" stroke="black" stroke-width="0.5"/></svg>'); border-left: 2px solid black; border-right: 2px solid black; width: 12px; padding: 0; }
+      
       @media print {
         @page { size: landscape; margin: 10mm; }
         body * { visibility: hidden !important; background: white !important; color: black !important; }
@@ -31,16 +38,12 @@ const RestrictedDashboard = () => {
           background: white !important; color: black !important;
           padding: 5mm !important;
         }
-        .kwsc-print-table { width: 100% !important; border-collapse: collapse !important; border: 2px solid black !important; font-family: Arial, sans-serif !important; margin-bottom: 20px !important; }
-        .kwsc-print-table th, .kwsc-print-table td { border: 1px solid black !important; padding: 3px 4px !important; font-size: 7.5pt !important; color: black !important; text-align: right !important; vertical-align: middle !important; }
-        .kwsc-print-table th { background: white !important; font-weight: bold !important; text-align: center !important; }
-        .kwsc-print-table thead tr:first-child th { font-size: 9pt !important; }
-        .kwsc-print-table .col-numbers th { font-size: 7pt !important; background: #eaeaea !important; padding: 2px !important; }
-        .crosshatch { background: url('data:image/svg+xml;utf8,<svg width="10" height="10" xmlns="http://www.w3.org/2000/svg"><path d="M0,0 L10,10 M10,0 L0,10" stroke="black" stroke-width="0.5"/></svg>') !important; border-left: 2px solid black !important; border-right: 2px solid black !important; width: 12px !important; padding: 0 !important; }
-        .print-footer { margin-top: 30px !important; display: flex !important; justify-content: space-between !important; }
-        .sig-box { width: 200px !important; border-top: 1px solid black !important; text-align: center !important; padding-top: 5px !important; font-size: 9pt !important; }
+        .kwsc-table th, .kwsc-table td { font-size: 7.5pt !important; padding: 3px !important; }
+        .kwsc-table thead tr:first-child th { font-size: 9pt !important; }
+        .kwsc-table .col-numbers th { font-size: 7pt !important; }
+        .hide-on-print { display: none !important; }
       }
-      #printable-section { display: none; }
+
     `;
     document.head.appendChild(style);
     return () => { document.head.removeChild(style); };
@@ -207,275 +210,174 @@ const RestrictedDashboard = () => {
         </Card>
       </div>
 
-      {/* MAIN CONTENT AREA */}
-      <Tabs defaultValue="daily" className="w-full">
-        <div className="flex items-center justify-between mb-6 px-2">
-          <TabsList className="bg-[#09090b] border border-white/10 p-1 h-12 shadow-2xl">
-            <TabsTrigger value="daily" className="data-[state=active]:bg-sky-500 data-[state=active]:text-white px-8 font-black text-xs uppercase tracking-widest transition-all">Daily Records</TabsTrigger>
-            <TabsTrigger value="monthly" className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white px-8 font-black text-xs uppercase tracking-widest transition-all">Monthly Summary</TabsTrigger>
-          </TabsList>
+      {/* MAIN CONTENT AREA - SECOND IMAGE DESIGN */}
+      <div id="printable-section" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="text-center hide-on-print">
+           <h2 className="text-sky-500 text-sm font-black tracking-[0.2em] uppercase mb-2">Recorded Collection Statement</h2>
         </div>
 
-        <TabsContent value="daily" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <Card className="border-white/10 bg-[#09090b]/40 backdrop-blur-xl overflow-hidden shadow-2xl">
-            <div className="bg-white/[0.03] border-b border-white/5 p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <List className="w-4 h-4 text-sky-500" />
-                <h2 className="text-[10px] font-black tracking-[0.3em] uppercase text-sky-500">Daily Recorded Statement</h2>
-              </div>
-            </div>
-            <CardContent className="p-0 overflow-x-auto">
-              <CollectionTable records={records} formatCurrency={formatCurrency} totals={totals} showDate={true} theme="sky" />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="monthly" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <Card className="border-white/10 bg-[#09090b]/40 backdrop-blur-xl overflow-hidden shadow-2xl">
-            <div className="bg-white/[0.03] border-b border-white/5 p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <BarChart3 className="w-4 h-4 text-emerald-500" />
-                <h2 className="text-[10px] font-black tracking-[0.3em] uppercase text-emerald-500">Monthly Aggregated Summary</h2>
-              </div>
-            </div>
-            <CardContent className="p-0 overflow-x-auto">
-              <CollectionTable records={getMonthlyData()} formatCurrency={formatCurrency} totals={totals} showDate={false} theme="emerald" />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      {/* PRINT SECTION (HIDDEN ON SCREEN) */}
-      <div id="printable-section">
-        <div style={{textAlign: 'center', textDecoration: 'underline', marginBottom: '10px', fontSize: '11pt', fontWeight: 'bold'}}>
-          DAILY COLLECTION STATEMENT W.E.F. {records.length > 0 ? records[records.length-1].entry_date : ''} TO {records.length > 0 ? records[0].entry_date : ''}
-        </div>
-        
-        <table className="kwsc-print-table">
-          <thead>
-            <tr>
-              <th rowSpan={2} style={{width: '6%'}}>MONTH &<br/>YEAR</th>
-              <th colSpan={4}>COLLECTION UNDER RRG</th>
-              <th rowSpan={3} className="crosshatch"></th>
-              <th colSpan={6}>KW&SC OTHER COLLECTIONS</th>
-              <th rowSpan={2} style={{width: '8%'}}>Total KW&SC<br/>Collection<br/>( 05+11 )</th>
-            </tr>
-            <tr>
-              <th>WATER &<br/>SEWERAGE<br/>COLLECTION</th>
-              <th style={{fontSize: '6pt'}}>WATER &<br/>SEWERAGE<br/>CONNECTION<br/>CHARGES<br/><span style={{fontSize: '4pt'}}>(ABL CIVIC CENTRE BR.)</span></th>
-              <th>INDUSTRIES<br/>ARREAR<br/>COLLECTION<br/>CHARGES</th>
-              <th>TOTAL<br/>( 02+04 )</th>
-              <th style={{fontSize: '6pt'}}>WATER TANKER<br/>RECEIPTS</th>
-              <th style={{fontSize: '6pt'}}>INFRA STRUCTURE<br/>BETTERMENT<br/>CHARGES ( SINDH<br/>BANK )</th>
-              <th style={{fontSize: '6pt'}}>COLLECTION OF<br/>COMMERCIALIZATIO<br/>N CHARGES<br/><span style={{fontSize: '4pt'}}>(ABL CIVIC CENTRE BR.)</span></th>
-              <th style={{fontSize: '6pt'}}>AUCTION OF SCRAP<br/>UNSERVICEABLE<br/>GOODS <span style={{fontSize: '4pt'}}>(NBP<br/>GULSHAN-E-IQBAL BR.)</span></th>
-              <th>COLLECTION<br/>OF SUB SOIL<br/>WATER</th>
-              <th>TOTAL OTHERS<br/>( 06 TO 10 )</th>
-            </tr>
-            <tr className="col-numbers">
-              <th>01</th>
-              <th>02</th>
-              <th>03</th>
-              <th>04</th>
-              <th>05</th>
-              <th>06</th>
-              <th>07</th>
-              <th>08</th>
-              <th>09</th>
-              <th>10</th>
-              <th>11</th>
-              <th>12</th>
-            </tr>
-          </thead>
-          <tbody>
-            {getMonthlyData().map((row: any, i: number) => (
-              <tr key={i}>
-                <td style={{textAlign: 'left', fontWeight: 'bold'}}>{row.month.toUpperCase()}</td>
-                <td>{formatCurrency(row.wsc)}</td>
-                <td>{formatCurrency(row.wscc)}</td>
-                <td>{formatCurrency(row.iacc)}</td>
-                <td style={{fontWeight: 'bold'}}>{formatCurrency((row.wsc||0)+(row.wscc||0)+(row.iacc||0))}</td>
-                <td>{formatCurrency(row.wtr)}</td>
-                <td>{formatCurrency(row.isbc)}</td>
-                <td>{formatCurrency(row.ccc)}</td>
-                <td>{formatCurrency(row.asug)}</td>
-                <td>{formatCurrency(row.cssw)}</td>
-                <td style={{fontWeight: 'bold'}}>{formatCurrency((row.wtr||0)+(row.isbc||0)+(row.ccc||0)+(row.asug||0)+(row.cssw||0))}</td>
-                <td style={{fontWeight: 'bold'}}>{formatCurrency((row.wsc||0)+(row.wscc||0)+(row.iacc||0)+(row.wtr||0)+(row.isbc||0)+(row.ccc||0)+(row.asug||0)+(row.cssw||0))}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr style={{fontWeight: 'bold'}}>
-              <td style={{textAlign: 'center'}}>TOTAL</td>
-              <td>{formatCurrency(totals.wsc)}</td>
-              <td>{formatCurrency(totals.wscc)}</td>
-              <td>{formatCurrency(totals.iacc)}</td>
-              <td>{formatCurrency(totals.total_rrg + totals.wscc)}</td>
-              <td>{formatCurrency(totals.wtr)}</td>
-              <td>{formatCurrency(totals.isbc)}</td>
-              <td>{formatCurrency(totals.ccc)}</td>
-              <td>{formatCurrency(totals.asug)}</td>
-              <td>{formatCurrency(totals.cssw)}</td>
-              <td>{formatCurrency(totals.total_others)}</td>
-              <td>{formatCurrency(totals.grand_total)}</td>
-            </tr>
-          </tfoot>
-        </table>
-
-        <div style={{textAlign: 'left', textDecoration: 'underline', marginTop: '20px', marginBottom: '10px', fontSize: '11pt', fontWeight: 'bold', paddingLeft: '40px'}}>
-          COLLECTION AS ON &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {records.length > 0 ? records[0].entry_date : ''}
-        </div>
-        
-        <table className="kwsc-print-table">
-          <thead>
-            <tr>
-              <th rowSpan={2} style={{width: '6%'}}>DATE</th>
-              <th colSpan={4}>COLLECTION UNDER RRG</th>
-              <th rowSpan={3} className="crosshatch"></th>
-              <th colSpan={6}>KW&SC OTHER COLLECTIONS</th>
-              <th rowSpan={2} style={{width: '8%'}}>Total KW&SC<br/>Collection<br/>( 05+11 )</th>
-            </tr>
-            <tr>
-              <th>WATER &<br/>SEWERAGE<br/>COLLECTION</th>
-              <th style={{fontSize: '6pt'}}>WATER &<br/>SEWERAGE<br/>CONNECTION<br/>CHARGES<br/><span style={{fontSize: '4pt'}}>(ABL CIVIC CENTRE BR.)</span></th>
-              <th>INDUSTRIES<br/>ARREAR<br/>COLLECTION<br/>CHARGES</th>
-              <th>TOTAL<br/>( 02+04 )</th>
-              <th style={{fontSize: '6pt'}}>WATER TANKER<br/>RECEIPTS</th>
-              <th style={{fontSize: '6pt'}}>INFRA STRUCTURE<br/>BETTERMENT<br/>CHARGES ( SINDH<br/>BANK )</th>
-              <th style={{fontSize: '6pt'}}>COLLECTION OF<br/>COMMERCIALIZATIO<br/>N CHARGES<br/><span style={{fontSize: '4pt'}}>(ABL CIVIC CENTRE BR.)</span></th>
-              <th style={{fontSize: '6pt'}}>AUCTION OF SCRAP<br/>UNSERVICEABLE<br/>GOODS <span style={{fontSize: '4pt'}}>(NBP<br/>GULSHAN-E-IQBAL BR.)</span></th>
-              <th>COLLECTION<br/>OF SUB SOIL<br/>WATER</th>
-              <th>TOTAL OTHERS<br/>( 06 TO 10 )</th>
-            </tr>
-            <tr className="col-numbers">
-              <th>01</th>
-              <th>02</th>
-              <th>03</th>
-              <th>04</th>
-              <th>05</th>
-              <th>06</th>
-              <th>07</th>
-              <th>08</th>
-              <th>09</th>
-              <th>10</th>
-              <th>11</th>
-              <th>12</th>
-            </tr>
-          </thead>
-          <tbody>
-            {records.length > 0 && (
+        {/* MONTHLY SUMMARY CARD */}
+        <div className="bg-white rounded-xl overflow-hidden shadow-2xl p-4 sm:p-6 overflow-x-auto">
+          <div style={{textAlign: 'center', textDecoration: 'underline', marginBottom: '15px', fontSize: '13pt', fontWeight: 'bold', color: 'black'}}>
+            DAILY COLLECTION STATEMENT W.E.F. {records.length > 0 ? records[records.length-1].entry_date : ''} TO {records.length > 0 ? records[0].entry_date : ''}
+          </div>
+          
+          <table className="kwsc-table min-w-[1000px]">
+            <thead>
               <tr>
-                <td style={{textAlign: 'center', fontWeight: 'bold'}}>{records[0].entry_date}</td>
-                <td>{formatCurrency(records[0].wsc)}</td>
-                <td>{formatCurrency(records[0].wscc)}</td>
-                <td>{formatCurrency(records[0].iacc)}</td>
-                <td style={{fontWeight: 'bold'}}>{formatCurrency((records[0].wsc||0)+(records[0].wscc||0)+(records[0].iacc||0))}</td>
-                <td>{formatCurrency(records[0].wtr)}</td>
-                <td>{formatCurrency(records[0].isbc)}</td>
-                <td>{formatCurrency(records[0].ccc)}</td>
-                <td>{formatCurrency(records[0].asug)}</td>
-                <td>{formatCurrency(records[0].cssw)}</td>
-                <td style={{fontWeight: 'bold'}}>{formatCurrency((records[0].wtr||0)+(records[0].isbc||0)+(records[0].ccc||0)+(records[0].asug||0)+(records[0].cssw||0))}</td>
-                <td style={{fontWeight: 'bold'}}>{formatCurrency((records[0].wsc||0)+(records[0].wscc||0)+(records[0].iacc||0)+(records[0].wtr||0)+(records[0].isbc||0)+(records[0].ccc||0)+(records[0].asug||0)+(records[0].cssw||0))}</td>
+                <th rowSpan={2} style={{width: '6%'}}>MONTH &<br/>YEAR</th>
+                <th colSpan={4}>COLLECTION UNDER RRG</th>
+                <th rowSpan={3} className="crosshatch"></th>
+                <th colSpan={6}>KW&SC OTHER COLLECTIONS</th>
+                <th rowSpan={2} style={{width: '8%'}}>Total KW&SC<br/>Collection<br/>( 05+11 )</th>
               </tr>
-            )}
-          </tbody>
-          <tfoot>
-            {records.length > 0 && (
+              <tr>
+                <th>WATER &<br/>SEWERAGE<br/>COLLECTION</th>
+                <th style={{fontSize: '8px'}}>WATER &<br/>SEWERAGE<br/>CONNECTION<br/>CHARGES<br/><span style={{fontSize: '7px'}}>(ABL CIVIC CENTRE BR.)</span></th>
+                <th>INDUSTRIES<br/>ARREAR<br/>COLLECTION<br/>CHARGES</th>
+                <th>TOTAL<br/>( 02+04 )</th>
+                <th style={{fontSize: '8px'}}>WATER TANKER<br/>RECEIPTS</th>
+                <th style={{fontSize: '8px'}}>INFRA STRUCTURE<br/>BETTERMENT<br/>CHARGES ( SINDH<br/>BANK )</th>
+                <th style={{fontSize: '8px'}}>COLLECTION OF<br/>COMMERCIALIZATIO<br/>N CHARGES<br/><span style={{fontSize: '7px'}}>(ABL CIVIC CENTRE BR.)</span></th>
+                <th style={{fontSize: '8px'}}>AUCTION OF SCRAP<br/>UNSERVICEABLE<br/>GOODS <span style={{fontSize: '7px'}}>(NBP<br/>GULSHAN-E-IQBAL BR.)</span></th>
+                <th>COLLECTION<br/>OF SUB SOIL<br/>WATER</th>
+                <th>TOTAL OTHERS<br/>( 06 TO 10 )</th>
+              </tr>
+              <tr className="col-numbers">
+                <th>01</th>
+                <th>02</th>
+                <th>03</th>
+                <th>04</th>
+                <th>05</th>
+                <th>06</th>
+                <th>07</th>
+                <th>08</th>
+                <th>09</th>
+                <th>10</th>
+                <th>11</th>
+                <th>12</th>
+              </tr>
+            </thead>
+            <tbody>
+              {getMonthlyData().map((row: any, i: number) => (
+                <tr key={i}>
+                  <td style={{textAlign: 'center', fontWeight: 'bold'}}>{row.month.toUpperCase()}</td>
+                  <td>{formatCurrency(row.wsc)}</td>
+                  <td>{formatCurrency(row.wscc)}</td>
+                  <td>{formatCurrency(row.iacc)}</td>
+                  <td style={{fontWeight: 'bold'}}>{formatCurrency((row.wsc||0)+(row.wscc||0)+(row.iacc||0))}</td>
+                  <td>{formatCurrency(row.wtr)}</td>
+                  <td>{formatCurrency(row.isbc)}</td>
+                  <td>{formatCurrency(row.ccc)}</td>
+                  <td>{formatCurrency(row.asug)}</td>
+                  <td>{formatCurrency(row.cssw)}</td>
+                  <td style={{fontWeight: 'bold'}}>{formatCurrency((row.wtr||0)+(row.isbc||0)+(row.ccc||0)+(row.asug||0)+(row.cssw||0))}</td>
+                  <td style={{fontWeight: 'bold'}}>{formatCurrency((row.wsc||0)+(row.wscc||0)+(row.iacc||0)+(row.wtr||0)+(row.isbc||0)+(row.ccc||0)+(row.asug||0)+(row.cssw||0))}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
               <tr style={{fontWeight: 'bold'}}>
                 <td style={{textAlign: 'center'}}>TOTAL</td>
-                <td>{formatCurrency(records[0].wsc)}</td>
-                <td>{formatCurrency(records[0].wscc)}</td>
-                <td>{formatCurrency(records[0].iacc)}</td>
-                <td>{formatCurrency((records[0].wsc||0)+(records[0].wscc||0)+(records[0].iacc||0))}</td>
-                <td>{formatCurrency(records[0].wtr)}</td>
-                <td>{formatCurrency(records[0].isbc)}</td>
-                <td>{formatCurrency(records[0].ccc)}</td>
-                <td>{formatCurrency(records[0].asug)}</td>
-                <td>{formatCurrency(records[0].cssw)}</td>
-                <td>{formatCurrency((records[0].wtr||0)+(records[0].isbc||0)+(records[0].ccc||0)+(records[0].asug||0)+(records[0].cssw||0))}</td>
-                <td>{formatCurrency((records[0].wsc||0)+(records[0].wscc||0)+(records[0].iacc||0)+(records[0].wtr||0)+(records[0].isbc||0)+(records[0].ccc||0)+(records[0].asug||0)+(records[0].cssw||0))}</td>
+                <td>{formatCurrency(totals.wsc)}</td>
+                <td>{formatCurrency(totals.wscc)}</td>
+                <td>{formatCurrency(totals.iacc)}</td>
+                <td>{formatCurrency(totals.total_rrg + totals.wscc)}</td>
+                <td>{formatCurrency(totals.wtr)}</td>
+                <td>{formatCurrency(totals.isbc)}</td>
+                <td>{formatCurrency(totals.ccc)}</td>
+                <td>{formatCurrency(totals.asug)}</td>
+                <td>{formatCurrency(totals.cssw)}</td>
+                <td>{formatCurrency(totals.total_others)}</td>
+                <td>{formatCurrency(totals.grand_total)}</td>
               </tr>
-            )}
-          </tfoot>
-        </table>
-        
-        <div style={{fontSize: '9pt', marginTop: '5px', fontWeight: 'bold', display: 'flex', alignItems: 'center'}}>
-          <span style={{fontSize: '12pt', marginRight: '5px'}}>☆</span> <span><span style={{textDecoration: 'underline'}}>Note:</span> Report prepared on the basis of Telephonic Bank balances.</span>
+            </tfoot>
+          </table>
+        </div>
+
+        {/* DAILY SUMMARY CARD */}
+        <div className="bg-white rounded-xl overflow-hidden shadow-2xl p-4 sm:p-6 overflow-x-auto">
+          <div style={{textAlign: 'center', textDecoration: 'underline', marginBottom: '15px', fontSize: '13pt', fontWeight: 'bold', color: 'black'}}>
+            COLLECTION AS ON &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {records.length > 0 ? records[0].entry_date : ''}
+          </div>
+          
+          <table className="kwsc-table min-w-[1000px]">
+            <thead>
+              <tr>
+                <th rowSpan={2} style={{width: '6%'}}>DATE</th>
+                <th colSpan={4}>COLLECTION UNDER RRG</th>
+                <th rowSpan={3} className="crosshatch"></th>
+                <th colSpan={6}>KW&SC OTHER COLLECTIONS</th>
+                <th rowSpan={2} style={{width: '8%'}}>Total KW&SC<br/>Collection<br/>( 05+11 )</th>
+              </tr>
+              <tr>
+                <th>WATER &<br/>SEWERAGE<br/>COLLECTION</th>
+                <th style={{fontSize: '8px'}}>WATER &<br/>SEWERAGE<br/>CONNECTION<br/>CHARGES<br/><span style={{fontSize: '7px'}}>(ABL CIVIC CENTRE BR.)</span></th>
+                <th>INDUSTRIES<br/>ARREAR<br/>COLLECTION<br/>CHARGES</th>
+                <th>TOTAL<br/>( 02+04 )</th>
+                <th style={{fontSize: '8px'}}>WATER TANKER<br/>RECEIPTS</th>
+                <th style={{fontSize: '8px'}}>INFRA STRUCTURE<br/>BETTERMENT<br/>CHARGES ( SINDH<br/>BANK )</th>
+                <th style={{fontSize: '8px'}}>COLLECTION OF<br/>COMMERCIALIZATIO<br/>N CHARGES<br/><span style={{fontSize: '7px'}}>(ABL CIVIC CENTRE BR.)</span></th>
+                <th style={{fontSize: '8px'}}>AUCTION OF SCRAP<br/>UNSERVICEABLE<br/>GOODS <span style={{fontSize: '7px'}}>(NBP<br/>GULSHAN-E-IQBAL BR.)</span></th>
+                <th>COLLECTION<br/>OF SUB SOIL<br/>WATER</th>
+                <th>TOTAL OTHERS<br/>( 06 TO 10 )</th>
+              </tr>
+              <tr className="col-numbers">
+                <th>01</th>
+                <th>02</th>
+                <th>03</th>
+                <th>04</th>
+                <th>05</th>
+                <th>06</th>
+                <th>07</th>
+                <th>08</th>
+                <th>09</th>
+                <th>10</th>
+                <th>11</th>
+                <th>12</th>
+              </tr>
+            </thead>
+            <tbody>
+              {records.map((rec: any, idx: number) => (
+                <tr key={idx}>
+                  <td style={{textAlign: 'center', fontWeight: 'bold'}}>{rec.entry_date}</td>
+                  <td>{formatCurrency(rec.wsc)}</td>
+                  <td>{formatCurrency(rec.wscc)}</td>
+                  <td>{formatCurrency(rec.iacc)}</td>
+                  <td style={{fontWeight: 'bold'}}>{formatCurrency((rec.wsc||0)+(rec.wscc||0)+(rec.iacc||0))}</td>
+                  <td>{formatCurrency(rec.wtr)}</td>
+                  <td>{formatCurrency(rec.isbc)}</td>
+                  <td>{formatCurrency(rec.ccc)}</td>
+                  <td>{formatCurrency(rec.asug)}</td>
+                  <td>{formatCurrency(rec.cssw)}</td>
+                  <td style={{fontWeight: 'bold'}}>{formatCurrency((rec.wtr||0)+(rec.isbc||0)+(rec.ccc||0)+(rec.asug||0)+(rec.cssw||0))}</td>
+                  <td style={{fontWeight: 'bold'}}>{formatCurrency((rec.wsc||0)+(rec.wscc||0)+(rec.iacc||0)+(rec.wtr||0)+(rec.isbc||0)+(rec.ccc||0)+(rec.asug||0)+(rec.cssw||0))}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr style={{fontWeight: 'bold'}}>
+                <td style={{textAlign: 'center'}}>TOTAL</td>
+                <td>{formatCurrency(totals.wsc)}</td>
+                <td>{formatCurrency(totals.wscc)}</td>
+                <td>{formatCurrency(totals.iacc)}</td>
+                <td>{formatCurrency(totals.total_rrg + totals.wscc)}</td>
+                <td>{formatCurrency(totals.wtr)}</td>
+                <td>{formatCurrency(totals.isbc)}</td>
+                <td>{formatCurrency(totals.ccc)}</td>
+                <td>{formatCurrency(totals.asug)}</td>
+                <td>{formatCurrency(totals.cssw)}</td>
+                <td>{formatCurrency(totals.total_others)}</td>
+                <td>{formatCurrency(totals.grand_total)}</td>
+              </tr>
+            </tfoot>
+          </table>
+          <div style={{fontSize: '9pt', marginTop: '10px', fontWeight: 'bold', display: 'flex', alignItems: 'center', color: 'black'}}>
+            <span style={{fontSize: '12pt', marginRight: '5px'}}>☆</span> <span><span style={{textDecoration: 'underline'}}>Note:</span> Report prepared on the basis of Telephonic Bank balances.</span>
+          </div>
         </div>
       </div>
     </div>
-  );
-};
-
-const CollectionTable = ({ records, formatCurrency, totals, showDate, theme }: any) => {
-  const accentColor = theme === 'sky' ? 'text-sky-500' : 'text-emerald-500';
-  const accentBg = theme === 'sky' ? 'bg-sky-500/5' : 'bg-emerald-500/5';
-  const headerBg = theme === 'sky' ? 'bg-sky-500/10' : 'bg-emerald-500/10';
-
-  return (
-    <table className="w-full border-collapse text-[10px]">
-      <thead>
-        <tr className="border-b border-white/10 bg-white/[0.02]">
-          {showDate && <th className="p-4 font-black uppercase text-center border-r border-white/5 text-muted-foreground">Date</th>}
-          <th className="p-4 font-black uppercase text-center border-r border-white/5 text-muted-foreground">Month</th>
-          <th colSpan={4} className={`p-2 border-r border-white/5 font-black uppercase text-center ${headerBg} ${accentColor} border-b border-white/10`}>RRG Collection</th>
-          <th colSpan={6} className="p-2 border-r border-white/5 font-black uppercase text-center bg-white/5 text-white border-b border-white/10">KW&SC Other Receipts</th>
-          <th className="p-4 font-black uppercase text-center bg-white/10 text-white border-b border-white/10">Grand Total</th>
-        </tr>
-        <tr className="border-b border-white/5 bg-black/20 text-[8px] text-muted-foreground font-bold">
-          {showDate && <th className="border-r border-white/5" />}
-          <th className="border-r border-white/5" />
-          <th className="p-2 border-r border-white/5 uppercase">W&S</th>
-          <th className="p-2 border-r border-white/5 uppercase">Conn</th>
-          <th className="p-2 border-r border-white/5 uppercase">Arrear</th>
-          <th className={`p-2 border-r border-white/5 uppercase ${accentBg} ${accentColor}`}>Sub Total</th>
-          <th className="p-2 border-r border-white/5 uppercase">Tanker</th>
-          <th className="p-2 border-r border-white/5 uppercase">Infra</th>
-          <th className="p-2 border-r border-white/5 uppercase">Comm</th>
-          <th className="p-2 border-r border-white/5 uppercase">Scrap</th>
-          <th className="p-2 border-r border-white/5 uppercase">Soil</th>
-          <th className="p-2 border-r border-white/5 uppercase bg-white/5">Sub Total</th>
-          <th className="p-2 bg-white/10" />
-        </tr>
-      </thead>
-      <tbody className="text-white/80">
-        {records.map((row: any, idx: number) => (
-          <tr key={idx} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors font-mono">
-            {showDate && <td className="p-3 text-center border-r border-white/5 text-muted-foreground">{row.entry_date}</td>}
-            <td className="p-3 text-center border-r border-white/5 font-black text-white">{row.month}</td>
-            <td className="p-3 text-right border-r border-white/5">{formatCurrency(row.wsc)}</td>
-            <td className="p-3 text-right border-r border-white/5">{formatCurrency(row.wscc)}</td>
-            <td className="p-3 text-right border-r border-white/5">{formatCurrency(row.iacc)}</td>
-            <td className={`p-3 text-right border-r border-white/5 font-black ${accentBg} ${accentColor}`}>{formatCurrency((row.wsc || 0) + (row.iacc || 0))}</td>
-            <td className="p-3 text-right border-r border-white/5">{formatCurrency(row.wtr)}</td>
-            <td className="p-3 text-right border-r border-white/5">{formatCurrency(row.isbc)}</td>
-            <td className="p-3 text-right border-r border-white/5">{formatCurrency(row.ccc)}</td>
-            <td className="p-3 text-right border-r border-white/5">{formatCurrency(row.asug)}</td>
-            <td className="p-3 text-right border-r border-white/5">{formatCurrency(row.cssw)}</td>
-            <td className="p-3 text-right border-r border-white/5 font-black bg-white/5 text-white">{formatCurrency((row.wtr || 0) + (row.isbc || 0) + (row.ccc || 0) + (row.asug || 0) + (row.cssw || 0))}</td>
-            <td className="p-3 text-right font-black bg-white/10 text-white">{formatCurrency((row.wsc || 0) + (row.iacc || 0) + (row.wtr || 0) + (row.isbc || 0) + (row.ccc || 0) + (row.asug || 0) + (row.cssw || 0) + (row.wscc || 0))}</td>
-          </tr>
-        ))}
-      </tbody>
-      <tfoot>
-        <tr className="bg-black/40 font-black border-t-2 border-white/10">
-          <td colSpan={showDate ? 2 : 1} className="p-4 text-center text-xs uppercase tracking-widest text-muted-foreground border-r border-white/5">Totals</td>
-          <td className="p-3 text-right border-r border-white/5">{formatCurrency(totals.wsc)}</td>
-          <td className="p-3 text-right border-r border-white/5">{formatCurrency(totals.wscc)}</td>
-          <td className="p-3 text-right border-r border-white/5">{formatCurrency(totals.iacc)}</td>
-          <td className={`p-3 text-right border-r border-white/5 ${accentBg} ${accentColor}`}>{formatCurrency(totals.total_rrg)}</td>
-          <td className="p-3 text-right border-r border-white/5">{formatCurrency(totals.wtr)}</td>
-          <td className="p-3 text-right border-r border-white/5">{formatCurrency(totals.isbc)}</td>
-          <td className="p-3 text-right border-r border-white/5">{formatCurrency(totals.ccc)}</td>
-          <td className="p-3 text-right border-r border-white/5">{formatCurrency(totals.asug)}</td>
-          <td className="p-3 text-right border-r border-white/5">{formatCurrency(totals.cssw)}</td>
-          <td className="p-3 text-right border-r border-white/5 bg-white/5 text-white">{formatCurrency(totals.total_others)}</td>
-          <td className="p-4 text-right bg-sky-500 text-white text-xs">{formatCurrency(totals.grand_total)}</td>
-        </tr>
-      </tfoot>
-    </table>
   );
 };
 

@@ -70,6 +70,7 @@ import { useAppConfig, getSubCategoriesFor, sectionsToLegacy } from "@/hooks/use
 import { logActivity } from "@/hooks/useActivityLog";
 import { addToOfflineQueue, syncOrphanedDirtyRecords } from "@/lib/offlineSync";
 import JourneyMapModal from "@/components/JourneyMapModal";
+import FileReception from "@/components/FileReception";
 import { db } from "@/lib/db";
 import { useSyncManager } from "@/hooks/useSyncManager";
 import Fuse from "fuse.js";
@@ -186,7 +187,7 @@ export default function FileTracking() {
   
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery);
+      setDebouncedSearchQuery(searchQuery.replace(/CF0-/gi, 'CFO-'));
     }, 400);
     return () => clearTimeout(timer);
   }, [searchQuery]);
@@ -224,6 +225,8 @@ export default function FileTracking() {
   const [preEntryForm, setPreEntryForm] = useState({ handover_person_name: "", file_purpose: "" });
   const [isSavingForm, setIsSavingForm] = useState(false);
   const [fileImage, setFileImage] = useState<string>("");
+  const [pendingTrackingCode, setPendingTrackingCode] = useState("");
+  const [linkedPendingId, setLinkedPendingId] = useState<string | null>(null);
   const [mobileUploadSessionId, setMobileUploadSessionId] = useState<string>("");
   const [showMobileUploadQR, setShowMobileUploadQR] = useState(false);
   const [isMobileListening, setIsMobileListening] = useState(false);
@@ -233,7 +236,7 @@ export default function FileTracking() {
     registration_date: getLocalDateString(),
     print_date: getLocalDateString(),
     received_from: "",
-    receiving_number: `RC-${Math.floor(1000 + Math.random() * 9000)}`,
+    receiving_number: `RC-${Math.floor(100000 + Math.random() * 900000)}`,
     mainCategory: "",
     subCategory: "",
     subject: "",
@@ -542,7 +545,7 @@ export default function FileTracking() {
   const handleCfoDiarySearch = async () => {
     if (!cfoDiarySearchQuery.trim()) return;
     setIsCfoDiarySearching(true);
-    const q = cfoDiarySearchQuery.trim().toLowerCase();
+    const q = cfoDiarySearchQuery.trim().toLowerCase().replace(/cf0-/i, 'cfo-');
     try {
       // 1️⃣ Search local Dexie first (works offline & for unsynced records)
       const allLocal = await db.records.filter(r =>
@@ -1030,7 +1033,7 @@ export default function FileTracking() {
       registration_date: getLocalDateString(),
       print_date: getLocalDateString(),
       received_from: "",
-      receiving_number: `RC-${Math.floor(1000 + Math.random() * 9000)}`,
+      receiving_number: `RC-${Math.floor(100000 + Math.random() * 900000)}`,
       mainCategory: "",
       subCategory: "",
       subject: "",
@@ -1080,6 +1083,46 @@ export default function FileTracking() {
       console.error("Employee autocomplete search failed:", err);
     } finally {
       setIsSearchingEmp(false);
+    }
+  };
+
+  const handleLoadPendingRecord = async () => {
+    if (!pendingTrackingCode.trim()) {
+      toast.error("Please enter a tracking code");
+      return;
+    }
+    try {
+      const allLocal = await db.pendingFiles.toArray();
+      let record = allLocal.find(r => r.tracking_code === pendingTrackingCode.trim());
+
+      if (!record && isOnline) {
+        const { data, error } = await supabase
+          .from('file_tracking_pending')
+          .select('*')
+          .eq('tracking_code', pendingTrackingCode.trim())
+          .maybeSingle();
+        if (data) record = data;
+      }
+
+      if (record) {
+        if (record.status !== 'pending') {
+          toast.error("This tracking code has already been processed.");
+          return;
+        }
+        setLinkedPendingId(record.id);
+        if (record.file_image) setFileImage(record.file_image);
+        setFormData(prev => ({ 
+          ...prev, 
+          mainCategory: record.category || "",
+          subject: record.subject || prev.subject
+        }));
+        toast.success(`Loaded pending record: ${record.tracking_code}`);
+      } else {
+        toast.error("No pending record found with this tracking code.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Error loading pending record");
     }
   };
 
@@ -1343,6 +1386,19 @@ export default function FileTracking() {
           details: { mark_to: formData.mark_to, amount: formData.amount }
         });
 
+        if (linkedPendingId) {
+          const completedAt = new Date().toISOString();
+          await db.pendingFiles.where('id').equals(linkedPendingId).modify({ status: 'completed', completed_at: completedAt, is_dirty: true });
+          await enqueue({
+            action: 'update',
+            table: 'file_tracking_pending',
+            payload: { id: linkedPendingId, status: 'completed', completed_at: completedAt },
+            record_id: pendingTrackingCode,
+          });
+          setLinkedPendingId(null);
+          setPendingTrackingCode("");
+        }
+
         toast.success(isOnline ? `File registered successfully` : "Registered offline. Will sync when online.");
         setQrFullScreen({ diary: formData.cfo_diary_number, receiving: formData.receiving_number, print_date: formData.print_date, subject: formData.subject, mark_to: formData.mark_to, additional_mark_to: formData.additional_mark_to });
         handleFormReset();
@@ -1520,7 +1576,9 @@ export default function FileTracking() {
         
         if (activeTab === 'tray' || activeTab === 'timeline' || activeTab === 'returned_files') {
           const effectiveRole = effectiveViewingRole;
-          if (!(currentRole === 'cfo' || isAdmin)) {
+          const isCfoOrAdmin = currentRole === 'cfo' || currentRole?.startsWith('sub_cfo') || isAdmin;
+          
+          if (!isCfoOrAdmin) {
             if (activeTab === 'tray') {
               mapped = mapped.filter(r => r.mark_to === effectiveRole);
             } else if (activeTab === 'returned_files') {
@@ -1528,7 +1586,7 @@ export default function FileTracking() {
             } else {
               mapped = mapped.filter(r => r.mark_to === effectiveRole || (r.history && r.history.some((h: any) => h.processed_by === sections.find(s => s.id === effectiveRole)?.name)));
             }
-          } else if (currentRole === 'cfo' || isAdmin) {
+          } else {
             if (activeTab === 'tray') {
               mapped = mapped.filter(r => r.mark_to === effectiveRole);
             } else if (activeTab === 'returned_files') {
@@ -1998,13 +2056,14 @@ export default function FileTracking() {
     }
 
     setIsLoading(true);
+    const safeQuery = searchQuery.replace(/CF0-/i, 'CFO-').trim();
     try {
       // 1. Check current records first
       const localMatch = records.find(r =>
-        r.tracking_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.cfo_diary_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.receiving_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.subject?.toLowerCase().includes(searchQuery.toLowerCase())
+        r.tracking_id?.toLowerCase().includes(safeQuery.toLowerCase()) ||
+        r.cfo_diary_number?.toLowerCase().includes(safeQuery.toLowerCase()) ||
+        r.receiving_number?.toLowerCase().includes(safeQuery.toLowerCase()) ||
+        r.subject?.toLowerCase().includes(safeQuery.toLowerCase())
       );
 
       if (localMatch) {
@@ -2433,6 +2492,13 @@ export default function FileTracking() {
               </TabsTrigger>
             ) : (
               <>
+                <TabsTrigger
+                  value="reception"
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl data-[state=active]:bg-[#14b8a6] data-[state=active]:text-[#0f1115] text-white/50 hover:text-white transition-all font-black text-sm"
+                >
+                  <Inbox className="w-4 h-4" /> File Reception
+                </TabsTrigger>
+
                 <TabsTrigger
                   value="register"
                   className="flex items-center gap-2 px-6 py-2.5 rounded-xl data-[state=active]:bg-[#14b8a6] data-[state=active]:text-[#0f1115] text-white/50 hover:text-white transition-all font-black text-sm"
@@ -3976,6 +4042,10 @@ export default function FileTracking() {
           </div>
         </TabsContent>
 
+        <TabsContent value="reception" className="animate-fade-in mt-0 border-none outline-none">
+          <FileReception />
+        </TabsContent>
+
         <TabsContent value="register" className="animate-fade-in">
           <Card className="glass-card border-none shadow-xl">
             <CardHeader className="flex flex-col gap-4">
@@ -4019,11 +4089,38 @@ export default function FileTracking() {
                 </Button>
               </div>
             </CardHeader>
-            <CardContent id="registration-form-container" onKeyDown={handleKeyDown} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-6 border-t border-border/50">
-              <div className="space-y-2 relative">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs uppercase font-bold text-muted-foreground">CFO Office Diary No <span className="text-emerald-500 text-[9px]">(Auto-Generated)</span></Label>
-                  <Button
+            <CardContent id="registration-form-container" onKeyDown={handleKeyDown} className="flex flex-col gap-6 pt-6 border-t border-border/50">
+              
+              {!isEditingMode && !isForwardingMode && (
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-4 rounded-xl bg-[#14b8a6]/10 border-2 border-[#14b8a6]/30 shadow-lg shadow-[#14b8a6]/5 w-full">
+                  <div className="flex items-center gap-2">
+                    <Inbox className="w-5 h-5 text-[#14b8a6] shrink-0" />
+                    <span className="text-xs font-black uppercase tracking-widest text-[#14b8a6] shrink-0">Load Pending File (Reception):</span>
+                  </div>
+                  <div className="flex w-full sm:flex-1 gap-2">
+                    <Input
+                      placeholder="Enter Tracking Code (e.g. TRK-123456)"
+                      value={pendingTrackingCode}
+                      onChange={e => setPendingTrackingCode(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleLoadPendingRecord(); }}
+                      className="flex-1 h-11 text-sm bg-[#0a0a0b] border-[#14b8a6]/30 rounded-lg focus-visible:ring-[#14b8a6]/50 font-mono"
+                    />
+                    <Button
+                      onClick={handleLoadPendingRecord}
+                      disabled={!pendingTrackingCode.trim()}
+                      className="h-11 px-6 bg-[#14b8a6] text-[#0f1115] hover:bg-[#14b8a6]/90 font-black text-sm gap-2 shrink-0 shadow-md"
+                    >
+                      Load File
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="space-y-2 relative">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs uppercase font-bold text-muted-foreground">CFO Office Diary No <span className="text-emerald-500 text-[9px]">(Auto-Generated)</span></Label>
+                    <Button
                     variant="ghost"
                     size="sm"
                     onClick={(e) => {
@@ -4677,6 +4774,7 @@ export default function FileTracking() {
                   </div>
                 )}
               </div>
+            </div>
             </CardContent>
 
             {/* Journey History at the Bottom */}

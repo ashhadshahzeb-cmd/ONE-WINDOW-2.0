@@ -73,11 +73,11 @@ const DetailRow = ({
       {icon}
     </div>
     <div className="flex-1 min-w-0">
-      <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-0.5">
+      <p className="text-[10px] font-black uppercase tracking-widest text-white/30 mb-0.5 print:text-gray-500">
         {label}
       </p>
-      <div className="text-sm font-semibold text-white/90 break-words">
-        {value || <span className="text-white/20 italic text-xs">Not provided</span>}
+      <div className="text-sm font-semibold text-white/90 break-words print:text-black">
+        {value || <span className="text-white/20 italic text-xs print:text-gray-400">Not provided</span>}
       </div>
     </div>
   </div>
@@ -156,7 +156,7 @@ export default function FileRecordDetail() {
   const history: any[] = record.history || [];
 
   return (
-    <div className="space-y-6 animate-fade-in pb-16 print:pb-0">
+    <div className="space-y-6 animate-fade-in pb-16 print:pb-0 print-only print:bg-white print:text-black">
       {/* ── Back Bar ── */}
       <div className="flex items-center justify-between no-print">
         <Button
@@ -180,25 +180,25 @@ export default function FileRecordDetail() {
       </div>
 
       {/* ── Page Header ── */}
-      <div className="bg-[#0f1115]/80 p-6 rounded-[28px] border border-white/5 backdrop-blur-xl shadow-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-[#0f1115]/80 p-6 rounded-[28px] border border-white/5 backdrop-blur-xl shadow-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 print:bg-transparent print:border-black/20 print:shadow-none print:text-black">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-[#14b8a6]/10 border border-[#14b8a6]/20 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-2xl bg-[#14b8a6]/10 border border-[#14b8a6]/20 flex items-center justify-center print:border-black/20">
             <FileSearch className="w-6 h-6 text-[#14b8a6]" />
           </div>
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-1">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30 mb-1 print:text-gray-500">
               File Record Detail
             </p>
-            <h1 className="text-xl font-black text-white tracking-tight leading-tight">
+            <h1 className="text-xl font-black text-white tracking-tight leading-tight print:text-black">
               {record.subject || "—"}
             </h1>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <Badge className="bg-[#14b8a6]/15 text-[#14b8a6] border border-[#14b8a6]/20 font-mono text-xs px-3 py-1.5 rounded-xl">
+          <Badge className="bg-[#14b8a6]/15 text-[#14b8a6] border border-[#14b8a6]/20 font-mono text-xs px-3 py-1.5 rounded-xl print:border-black/20 print:text-black">
             {record.cfo_diary_number || "—"}
           </Badge>
-          <Badge className="bg-white/5 text-white/50 border border-white/10 font-mono text-xs px-3 py-1.5 rounded-xl">
+          <Badge className="bg-white/5 text-white/50 border border-white/10 font-mono text-xs px-3 py-1.5 rounded-xl print:border-black/20 print:text-black">
             {record.receiving_number || "—"}
           </Badge>
           <Badge
@@ -218,16 +218,16 @@ export default function FileRecordDetail() {
         {/* Left: Details */}
         <div className="lg:col-span-2 space-y-6">
           {/* Core Info Card */}
-          <div className="bg-[#0f1115]/80 rounded-[24px] border border-white/5 shadow-xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-white/5 flex items-center gap-3">
+          <div className="bg-[#0f1115]/80 rounded-[24px] border border-white/5 shadow-xl overflow-hidden print:bg-transparent print:border-black/20 print:shadow-none">
+            <div className="px-6 py-4 border-b border-white/5 flex items-center gap-3 print:border-black/20">
               <div className="w-7 h-7 rounded-lg bg-[#14b8a6]/10 flex items-center justify-center">
                 <FileText className="w-4 h-4 text-[#14b8a6]" />
               </div>
-              <h2 className="text-sm font-black uppercase tracking-widest text-white/60">
+              <h2 className="text-sm font-black uppercase tracking-widest text-white/60 print:text-black">
                 File Information
               </h2>
             </div>
-            <div className="px-6 divide-y divide-white/5">
+            <div className="px-6 divide-y divide-white/5 print:divide-black/10">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
                 <DetailRow
                   icon={<Hash className="w-4 h-4" />}
@@ -302,16 +302,16 @@ export default function FileRecordDetail() {
           </div>
 
           {/* Party & Category Card */}
-          <div className="bg-[#0f1115]/80 rounded-[24px] border border-white/5 shadow-xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-white/5 flex items-center gap-3">
-              <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center">
+          <div className="bg-[#0f1115]/80 rounded-[24px] border border-white/5 shadow-xl overflow-hidden print:bg-transparent print:border-black/20 print:shadow-none">
+            <div className="px-6 py-4 border-b border-white/5 flex items-center gap-3 print:border-black/20">
+              <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center print:border-black/20">
                 <User className="w-4 h-4 text-blue-400" />
               </div>
-              <h2 className="text-sm font-black uppercase tracking-widest text-white/60">
+              <h2 className="text-sm font-black uppercase tracking-widest text-white/60 print:text-black">
                 Party & Category
               </h2>
             </div>
-            <div className="px-6 divide-y divide-white/5">
+            <div className="px-6 divide-y divide-white/5 print:divide-black/10">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
                 <DetailRow
                   icon={<User className="w-4 h-4" />}
@@ -361,16 +361,16 @@ export default function FileRecordDetail() {
 
           {/* Extra Fields Card */}
           {(record.employee_number || record.voucher_code || record.vehicle_no || record.remarks) && (
-            <div className="bg-[#0f1115]/80 rounded-[24px] border border-white/5 shadow-xl overflow-hidden">
-              <div className="px-6 py-4 border-b border-white/5 flex items-center gap-3">
+            <div className="bg-[#0f1115]/80 rounded-[24px] border border-white/5 shadow-xl overflow-hidden print:bg-transparent print:border-black/20 print:shadow-none">
+              <div className="px-6 py-4 border-b border-white/5 flex items-center gap-3 print:border-black/20">
                 <div className="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center">
                   <Receipt className="w-4 h-4 text-amber-400" />
                 </div>
-                <h2 className="text-sm font-black uppercase tracking-widest text-white/60">
+                <h2 className="text-sm font-black uppercase tracking-widest text-white/60 print:text-black">
                   Additional Details
                 </h2>
               </div>
-              <div className="px-6 divide-y divide-white/5">
+              <div className="px-6 divide-y divide-white/5 print:divide-black/10">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
                   {record.employee_number && (
                     <DetailRow
@@ -425,8 +425,8 @@ export default function FileRecordDetail() {
         {/* Right: Timeline + QR */}
         <div className="space-y-6">
           {/* QR Code */}
-          <div className="bg-[#0f1115]/80 rounded-[24px] border border-white/5 shadow-xl p-6 flex flex-col items-center gap-4">
-            <p className="text-[10px] font-black uppercase tracking-widest text-white/30">
+          <div className="bg-[#0f1115]/80 rounded-[24px] border border-white/5 shadow-xl p-6 flex flex-col items-center gap-4 print:bg-transparent print:border-black/20 print:shadow-none">
+            <p className="text-[10px] font-black uppercase tracking-widest text-white/30 print:text-black">
               Scan to Track
             </p>
             <div className="bg-white p-3 rounded-2xl shadow-lg shadow-[#14b8a6]/10">
@@ -439,23 +439,23 @@ export default function FileRecordDetail() {
               />
             </div>
             <div className="text-center">
-              <p className="text-xs font-black text-white/60">
+              <p className="text-xs font-black text-white/60 print:text-black">
                 {record.cfo_diary_number}
               </p>
-              <p className="text-[10px] text-white/30">{record.receiving_number}</p>
+              <p className="text-[10px] text-white/30 print:text-black">{record.receiving_number}</p>
             </div>
           </div>
 
           {/* Timeline */}
-          <div className="bg-[#0f1115]/80 rounded-[24px] border border-white/5 shadow-xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-white/5 flex items-center gap-3">
+          <div className="bg-[#0f1115]/80 rounded-[24px] border border-white/5 shadow-xl overflow-hidden print:bg-transparent print:border-black/20 print:shadow-none">
+            <div className="px-6 py-4 border-b border-white/5 flex items-center gap-3 print:border-black/20">
               <div className="w-7 h-7 rounded-lg bg-[#14b8a6]/10 flex items-center justify-center">
                 <History className="w-4 h-4 text-[#14b8a6]" />
               </div>
-              <h2 className="text-sm font-black uppercase tracking-widest text-white/60">
+              <h2 className="text-sm font-black uppercase tracking-widest text-white/60 print:text-black">
                 Movement History
               </h2>
-              <Badge className="ml-auto bg-[#14b8a6]/10 text-[#14b8a6] border border-[#14b8a6]/20 text-[10px] font-black px-2 py-0.5">
+              <Badge className="ml-auto bg-[#14b8a6]/10 text-[#14b8a6] border border-[#14b8a6]/20 text-[10px] font-black px-2 py-0.5 print:border-black/20 print:text-black">
                 {history.length} steps
               </Badge>
             </div>
@@ -496,13 +496,13 @@ export default function FileRecordDetail() {
                             isLast
                               ? "bg-[#14b8a6]/10 border-[#14b8a6]/20"
                               : "bg-white/3 border-white/5"
-                          }`}
+                          } print:bg-transparent print:border-black/20`}
                         >
                           <div className="flex items-start justify-between gap-2 mb-1">
                             <p
                               className={`text-xs font-black uppercase tracking-tight ${
                                 isLast ? "text-[#14b8a6]" : "text-white/70"
-                              }`}
+                              } print:text-black`}
                             >
                               {step.processed_by || step.action || `Step ${index + 1}`}
                             </p>
@@ -514,19 +514,19 @@ export default function FileRecordDetail() {
                           </div>
 
                           {step.mark_to && (
-                            <p className="text-[10px] text-white/40 font-bold uppercase mb-1">
+                            <p className="text-[10px] text-white/40 font-bold uppercase mb-1 print:text-gray-600">
                               → {sections[step.mark_to] || step.mark_to}
                             </p>
                           )}
 
                           {step.action && (
-                            <Badge className="mb-1.5 bg-white/5 text-white/40 border-white/10 text-[9px] font-black px-1.5 py-0.5 rounded-md">
+                            <Badge className="mb-1.5 bg-white/5 text-white/40 border-white/10 text-[9px] font-black px-1.5 py-0.5 rounded-md print:border-black/20 print:text-black">
                               {step.action}
                             </Badge>
                           )}
 
                           {step.remarks && (
-                            <p className="text-[10px] text-white/40 italic leading-relaxed mt-1 bg-white/3 px-2 py-1.5 rounded-lg border border-white/5">
+                            <p className="text-[10px] text-white/40 italic leading-relaxed mt-1 bg-white/3 px-2 py-1.5 rounded-lg border border-white/5 print:bg-transparent print:border-black/10 print:text-gray-800">
                               "{step.remarks}"
                             </p>
                           )}
