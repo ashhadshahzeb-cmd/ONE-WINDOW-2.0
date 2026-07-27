@@ -246,8 +246,12 @@ export default function Attendance() {
         check_in_photo_url: photoUrl
       }]);
       
-      if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
-      else toast({ title: 'Success', description: 'Checked In Successfully!' });
+      if (error) {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      } else {
+        toast({ title: 'Success', description: 'Checked In Successfully!' });
+        sendAttendanceNotification(empName, 'in', format(new Date(now), 'hh:mm a'));
+      }
     } else {
       const empName = employees.find(e => e.id === selectedEmpId)?.name || '';
       const shift = getEmployeeShift(empName);
@@ -261,8 +265,12 @@ export default function Attendance() {
         check_out_photo_url: photoUrl
       }).eq('id', todayRecord.id);
 
-      if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
-      else toast({ title: 'Success', description: 'Checked Out Successfully!' });
+      if (error) {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      } else {
+        toast({ title: 'Success', description: 'Checked Out Successfully!' });
+        sendAttendanceNotification(empName, 'out', format(new Date(now), 'hh:mm a'));
+      }
     }
 
     setIsProcessing(false);
@@ -285,6 +293,27 @@ export default function Attendance() {
     }
   };
 
+  const sendAttendanceNotification = async (empName: string, type: 'in' | 'out', time: string) => {
+    try {
+      await supabase.from('notifications').insert([
+        {
+          title: `Attendance Marked`,
+          message: `${empName} has checked ${type} at ${time}.`,
+          user_role: 'admin',
+          link: '/hrms/attendance'
+        },
+        {
+          title: `Attendance Marked`,
+          message: `You have successfully checked ${type} at ${time}.`,
+          user_role: 'hrms_employee',
+          link: '/hrms/attendance'
+        }
+      ]);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const processAttendanceDirectly = async (type: 'in' | 'out') => {
     setIsProcessing(true);
     const now = new Date().toISOString();
@@ -299,8 +328,12 @@ export default function Attendance() {
         check_in: now, 
         status: status
       }]);
-      if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
-      else toast({ title: 'Success', description: 'Checked In Successfully!' });
+      if (error) {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      } else {
+        toast({ title: 'Success', description: 'Checked In Successfully!' });
+        sendAttendanceNotification(empName, 'in', format(new Date(now), 'hh:mm a'));
+      }
     } else {
       const empName = employees.find(e => e.id === selectedEmpId)?.name || '';
       const shift = getEmployeeShift(empName);
@@ -313,8 +346,12 @@ export default function Attendance() {
         status: outStatus
       }).eq('id', todayRecord.id);
 
-      if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
-      else toast({ title: 'Success', description: 'Checked Out Successfully!' });
+      if (error) {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      } else {
+        toast({ title: 'Success', description: 'Checked Out Successfully!' });
+        sendAttendanceNotification(empName, 'out', format(new Date(now), 'hh:mm a'));
+      }
     }
     setIsProcessing(false);
     fetchAttendanceData(selectedEmpId);

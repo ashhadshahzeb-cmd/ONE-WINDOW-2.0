@@ -256,6 +256,7 @@ export default function FileTracking() {
     additional_mark_to: "",
     handover_person_name: "",
     file_purpose: "",
+    budget_code: "",
   });
 
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -1048,6 +1049,7 @@ export default function FileTracking() {
       vehicle_no: "",
       handover_person_name: "",
       file_purpose: "",
+      budget_code: "",
     });
     setSelectedEmpProfile(null);
     setEmpSuggestions([]);
@@ -1183,6 +1185,7 @@ export default function FileTracking() {
           additional_mark_to: formData.additional_mark_to,
           handover_person_name: formData.handover_person_name,
           file_purpose: formData.file_purpose,
+          budget_code: formData.budget_code,
           print_date: formData.print_date || getLocalDateString(),
           created_at: formData.registration_date
             ? safeISOString(formData.registration_date + 'T00:00:00')
@@ -1348,6 +1351,7 @@ export default function FileTracking() {
           additional_mark_to: formData.additional_mark_to,
           handover_person_name: formData.handover_person_name,
           file_purpose: formData.file_purpose,
+          budget_code: formData.budget_code,
           print_date: formData.print_date || getLocalDateString(),
           history: [snapshot],
           created_at: formData.registration_date
@@ -4168,6 +4172,21 @@ export default function FileTracking() {
                   onChange={e => setFormData({ ...formData, file_purpose: e.target.value })}
                   className="bg-muted/20 border-border/50 border-[#14b8a6]/30 text-[#14b8a6]"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs uppercase font-bold text-muted-foreground">Budget Code <span className="text-muted-foreground/50 text-[10px]">(Optional)</span></Label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FileText className="h-4 w-4 text-amber-400" />
+                  </div>
+                  <Input
+                    placeholder="e.g. BC-2024-001"
+                    className="pl-10 bg-background/50 border-white/10 text-white font-mono h-11 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-all rounded-xl"
+                    value={formData.budget_code || ""}
+                    onChange={e => setFormData({ ...formData, budget_code: e.target.value })}
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">

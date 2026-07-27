@@ -36,9 +36,11 @@ import NotificationListener from "@/components/NotificationListener";
 import OfflineIndicator from "@/components/OfflineIndicator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import gsap from "gsap";
-import { useGSAP } from "@gsap/react";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAutoLogout } from "@/hooks/useAutoLogout";
+
+import { NotificationDropdown } from "@/components/NotificationDropdown";
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
   useAutoLogout();
@@ -147,58 +149,60 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     { id: 'establishment', name: 'Establishment' },
   ];
 
-  useGSAP(() => {
-    if (mainRef.current) {
-      gsap.fromTo(
-        mainRef.current,
-        { opacity: 0, y: 20 },
-        { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }
-      );
-    }
-  }, [location.pathname]);
-
   return (
-    <div className="flex h-screen w-full bg-background overflow-hidden relative font-sans antialiased">
+    <div className="flex h-screen w-full bg-[#050505] text-white overflow-hidden relative font-sans antialiased">
       {/* Desktop Sidebar */}
-      <aside className={cn(
-        "hidden md:flex flex-col border-r border-border bg-card transition-all duration-300 relative z-30",
-        collapsed ? "w-20" : "w-72"
-      )}>
-        <div className="p-6 flex items-center justify-between border-b border-border/50">
+      <motion.aside 
+        initial={false}
+        animate={{ width: collapsed ? 80 : 280 }}
+        className="hidden md:flex flex-col bg-black/90 backdrop-blur-3xl border-r border-white/10 relative z-30 transition-all duration-300"
+      >
+        <div className="p-6 flex items-center justify-between border-b border-white/10">
           {!collapsed && (
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/40 flex items-center justify-center shrink-0 shadow-[0_0_12px_hsl(var(--primary)/0.3)]">
-                <span className="text-[10px] font-black text-primary tracking-widest leading-none">KW<br/>SC</span>
-              </div>
-              <span className="font-bold text-lg tracking-tight">KW&SC FINANCE</span>
+              <img src="/kwsc-logo.png" alt="KWSC" className="w-10 h-10 object-contain drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]" />
+              <span className="font-bold text-lg tracking-tight text-white">KW&SC FINANCE</span>
             </div>
           )}
-          <button onClick={() => setCollapsed(!collapsed)} className="p-2 rounded-lg hover:bg-secondary text-muted-foreground transition-colors">
-            {collapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
-          </button>
+          {collapsed && (
+            <img src="/kwsc-logo.png" alt="KWSC" className="w-8 h-8 object-contain mx-auto" />
+          )}
+          {!collapsed && (
+            <button onClick={() => setCollapsed(!collapsed)} className="p-2 rounded-lg hover:bg-white/10 text-white/50 hover:text-white transition-colors">
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+          )}
         </div>
+        {collapsed && (
+          <button onClick={() => setCollapsed(!collapsed)} className="mt-4 mx-auto p-2 rounded-lg hover:bg-white/10 text-white/50 hover:text-white transition-colors">
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        )}
 
-        <ScrollArea className="flex-1 px-4 py-6">
+        <ScrollArea className="flex-1 px-4 py-6 custom-scrollbar">
           <div className="space-y-6">
 
             <div className="space-y-1">
               {topNavItems.map((item) => (
                 <Link key={item.to} to={item.to} className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group relative",
-                  location.pathname === item.to ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                  "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group relative overflow-hidden",
+                  location.pathname === item.to ? "bg-white/10 text-white shadow-inner" : "text-white/50 hover:text-white hover:bg-white/5"
                 )}>
-                  <item.icon className="w-5 h-5 shrink-0" />
-                  {!collapsed && <span className="font-medium">{item.label}</span>}
+                  {location.pathname === item.to && (
+                    <motion.div layoutId="main-sidebar-active" className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-r-full" />
+                  )}
+                  <item.icon className={cn("w-5 h-5 shrink-0 transition-colors", location.pathname === item.to ? "text-blue-400" : "group-hover:text-white")} />
+                  {!collapsed && <span className="font-medium text-sm">{item.label}</span>}
                 </Link>
               ))}
             </div>
 
             {categories.map((category) => (
-              <div key={category.id} className="pt-4 border-t border-border/50">
+              <div key={category.id} className="pt-4 border-t border-white/10">
                 {!collapsed && (
                   <button 
                     onClick={() => setOpenCategory(openCategory === category.id ? null : category.id)}
-                    className="w-full flex items-center justify-between px-3 mb-2 text-xs font-semibold text-primary uppercase tracking-wider hover:text-primary/80 transition-colors"
+                    className="w-full flex items-center justify-between px-3 mb-2 text-xs font-bold text-blue-400 uppercase tracking-wider hover:text-blue-300 transition-colors"
                   >
                     {category.label}
                     <ChevronRight className={cn("w-3 h-3 transition-transform duration-200", openCategory === category.id && "rotate-90")} />
@@ -210,10 +214,13 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                 )}>
                   {category.items.map((item) => (
                     <Link key={item.to} to={item.to} className={cn(
-                      "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group relative",
-                      location.pathname === item.to ? "bg-primary/10 text-primary border border-primary/20" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                      "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group relative overflow-hidden",
+                      location.pathname === item.to ? "bg-white/10 text-white border border-white/5" : "text-white/50 hover:text-white hover:bg-white/5"
                     )}>
-                      <item.icon className="w-5 h-5 shrink-0" />
+                      {location.pathname === item.to && (
+                        <motion.div layoutId="main-sidebar-active" className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-r-full" />
+                      )}
+                      <item.icon className={cn("w-5 h-5 shrink-0 transition-colors", location.pathname === item.to ? "text-blue-400" : "group-hover:text-white")} />
                       {!collapsed && <span className="font-medium text-sm">{item.label}</span>}
                     </Link>
                   ))}
@@ -223,120 +230,194 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           </div>
         </ScrollArea>
 
-        <div className="p-4 border-t border-border/50 space-y-2">
-          <Link to="/profile" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-all">
+        <div className="p-4 border-t border-white/10 space-y-2">
+          <Link to="/profile" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/50 hover:text-white hover:bg-white/5 transition-all">
             <Settings2 className="w-5 h-5 shrink-0" />
             {!collapsed && <span className="font-medium">Profile Settings</span>}
           </Link>
-          <button onClick={() => signOut()} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-red-400 hover:bg-red-500/10 transition-all">
+          <button onClick={() => signOut()} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-rose-400 hover:bg-rose-500/10 transition-all">
             <LogOut className="w-5 h-5 shrink-0" />
             {!collapsed && <span className="font-medium">Logout</span>}
           </button>
-          <button onClick={toggleTheme} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-all">
+          <button onClick={toggleTheme} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/50 hover:text-white hover:bg-white/5 transition-all hidden">
             {theme === 'dark' ? <Sun className="w-5 h-5 shrink-0" /> : <Moon className="w-5 h-5 shrink-0" />}
             {!collapsed && <span className="font-medium">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>}
           </button>
         </div>
-      </aside>
+      </motion.aside>
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 relative h-full">
-        <header className="hidden md:flex h-16 items-center justify-between px-8 border-b border-border/50 bg-card/30 backdrop-blur-md sticky top-0 z-20">
-          <div className="flex items-center gap-4">
-            <h2 className="text-sm font-medium text-muted-foreground">Welcome back,</h2>
-            <p className="text-lg font-black text-primary italic uppercase tracking-wider">
-              {userName || sections.find(s => s.id === userRole)?.name || userRole}
-            </p>
+        <header className="flex h-16 items-center justify-between px-4 md:px-8 border-b border-white/5 bg-black/40 backdrop-blur-md sticky top-0 z-20">
+          <div className="flex items-center gap-2 md:gap-4">
+            <div className="md:hidden">
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="text-white/70 hover:text-white hover:bg-white/10">
+                    <Menu className="w-5 h-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="p-0 w-72 flex flex-col bg-[#111] border-r border-white/10">
+                  <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+                  <div className="p-6 flex items-center gap-3 border-b border-white/10">
+                    <img src="/kwsc-logo.png" alt="KWSC" className="w-10 h-10 object-contain drop-shadow-md" />
+                    <span className="font-bold text-lg tracking-tight text-white">KW&SC FINANCE</span>
+                  </div>
+                  
+                  <ScrollArea className="flex-1 px-4 py-6">
+                    <div className="space-y-6">
+                      <div className="space-y-1">
+                        {topNavItems.map((item) => (
+                          <Link key={item.to} to={item.to} className={cn(
+                            "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group relative",
+                            location.pathname === item.to ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                          )}>
+                            <item.icon className="w-5 h-5 shrink-0" />
+                            <span className="font-medium">{item.label}</span>
+                          </Link>
+                        ))}
+                      </div>
+
+                      {categories.map((category) => (
+                        <div key={category.id} className="pt-4 border-t border-white/10">
+                          <button 
+                            onClick={() => setOpenCategory(openCategory === category.id ? null : category.id)}
+                            className="w-full flex items-center justify-between px-3 mb-2 text-xs font-semibold text-blue-400 uppercase tracking-wider hover:text-blue-300 transition-colors"
+                          >
+                            {category.label}
+                            <ChevronRight className={cn("w-3 h-3 transition-transform duration-200", openCategory === category.id && "rotate-90")} />
+                          </button>
+                          <div className={cn(
+                            "space-y-1 overflow-hidden transition-all duration-300 ease-in-out",
+                            openCategory === category.id ? "max-h-[500px] opacity-100 mt-2" : "max-h-0 opacity-0"
+                          )}>
+                            {category.items.map((item) => (
+                              <Link key={item.to} to={item.to} className={cn(
+                                "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group relative",
+                                location.pathname === item.to ? "bg-white/10 text-white border border-white/5" : "text-white/50 hover:text-white hover:bg-white/5"
+                              )}>
+                                <item.icon className="w-5 h-5 shrink-0" />
+                                <span className="font-medium text-sm">{item.label}</span>
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+
+                  <div className="p-4 border-t border-white/10 space-y-2">
+                    <Link to="/profile" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/50 hover:text-white hover:bg-white/5 transition-all">
+                      <Settings2 className="w-5 h-5 shrink-0" />
+                      <span className="font-medium">Profile Settings</span>
+                    </Link>
+                    <button onClick={() => signOut()} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-rose-400 hover:bg-rose-500/10 transition-all">
+                      <LogOut className="w-5 h-5 shrink-0" />
+                      <span className="font-medium">Logout</span>
+                    </button>
+                  </div>
+                </SheetContent>
+              </Sheet>
+            </div>
+            
+            <div className="flex flex-col">
+              <h2 className="text-xs md:text-sm font-medium text-white/50">Welcome back,</h2>
+              <p className="text-sm md:text-lg font-black text-blue-400 italic uppercase tracking-wider">
+                {userName || sections.find(s => s.id === userRole)?.name || userRole}
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-tighter">
+          <div className="flex items-center gap-2 md:gap-4">
+            <div className="px-3 md:px-4 py-1 md:py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] md:text-xs font-bold uppercase tracking-tighter">
               {userRole === 'admin' ? 'System Administrator' : 'Active Department'}
             </div>
+            <NotificationDropdown />
           </div>
         </header>
 
-        <main ref={mainRef} className="flex-1 overflow-y-auto p-4 md:p-8 pb-24 md:pb-8">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden bg-gradient-to-br from-[#050505] via-[#0a0a0a] to-[#111] relative custom-scrollbar">
           <OfflineIndicator />
           <NotificationListener />
-          {children}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.15 }}
+              className="w-full min-h-full p-4 md:p-8 pb-28 md:pb-8"
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 h-20 bg-card/80 backdrop-blur-xl border-t border-border/50 flex md:hidden items-center justify-around px-6 pb-2 z-50">
-        {!isEmpOperator ? (
-          <>
-            <Link to="/" className={cn(
-              "flex flex-col items-center gap-1 transition-all duration-300",
-              location.pathname === "/" ? "text-primary scale-110" : "text-muted-foreground"
-            )}>
-              <LayoutDashboard className="w-6 h-6" />
-              <span className="text-[10px] font-medium">Home</span>
-            </Link>
-            <Link to="/book-section/file-tracking" className={cn(
-              "flex flex-col items-center gap-1 transition-all duration-300",
-              location.pathname === "/book-section/file-tracking" ? "text-primary scale-110" : "text-muted-foreground"
-            )}>
-              <Shield className="w-6 h-6" />
-              <span className="text-[10px] font-medium">Tracking</span>
-            </Link>
-            
-            <div className="relative -top-6">
-              <div className="w-14 h-14 rounded-full bg-primary shadow-lg shadow-primary/30 flex items-center justify-center border-4 border-background">
-                 <Shield className="w-7 h-7 text-white" />
-              </div>
-            </div>
+      {/* Mobile Bottom Navigation */}
+      <div className="md:hidden fixed bottom-4 left-4 right-4 z-50 safe-area-pb">
+        <nav className="flex justify-around items-center bg-black/60 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] overflow-hidden">
+          {!isEmpOperator ? (
+            <>
+              <Link to="/" className="flex-1 relative">
+                <motion.div whileTap={{ scale: 0.9 }} className="flex flex-col items-center justify-center gap-1 py-3">
+                  {location.pathname === "/" && (
+                    <motion.div layoutId="mobile-main-active" className="absolute inset-0 bg-white/10 rounded-3xl -z-10" transition={{ type: "spring", bounce: 0, duration: 0.2 }} />
+                  )}
+                  <LayoutDashboard className={cn("w-5 h-5 transition-all duration-300", location.pathname === "/" ? "text-blue-400 scale-110 drop-shadow-[0_0_8px_rgba(96,165,250,0.5)]" : "text-white/40")} strokeWidth={location.pathname === "/" ? 2.5 : 2} />
+                  <span className={cn("text-[10px] font-bold transition-all duration-300", location.pathname === "/" ? "text-white" : "text-transparent")}>Home</span>
+                </motion.div>
+              </Link>
 
-            <Link to="/restricted" className={cn(
-              "flex flex-col items-center gap-1 transition-all duration-300",
-              location.pathname === "/restricted" ? "text-primary scale-110" : "text-muted-foreground"
-            )}>
-              <Lock className="w-6 h-6" />
-              <span className="text-[10px] font-medium">Admin</span>
-            </Link>
-          </>
-        ) : (
-          <>
-            <Link to="/book-section/emp-details" className={cn(
-              "flex flex-col items-center gap-1 transition-all duration-300",
-              location.pathname === "/book-section/emp-details" ? "text-primary scale-110" : "text-muted-foreground"
-            )}>
-              <ListTree className="w-6 h-6" />
-              <span className="text-[10px] font-medium">Details</span>
-            </Link>
-            
-            <div className="relative -top-6">
-              <div className="w-14 h-14 rounded-full bg-primary shadow-lg shadow-primary/30 flex items-center justify-center border-4 border-background">
-                 <Users className="w-7 h-7 text-white" />
-              </div>
-            </div>
+              <Link to="/book-section/file-tracking" className="flex-1 relative">
+                <motion.div whileTap={{ scale: 0.9 }} className="flex flex-col items-center justify-center gap-1 py-3">
+                  {location.pathname === "/book-section/file-tracking" && (
+                    <motion.div layoutId="mobile-main-active" className="absolute inset-0 bg-white/10 rounded-3xl -z-10" transition={{ type: "spring", bounce: 0, duration: 0.2 }} />
+                  )}
+                  <Shield className={cn("w-5 h-5 transition-all duration-300", location.pathname === "/book-section/file-tracking" ? "text-blue-400 scale-110 drop-shadow-[0_0_8px_rgba(96,165,250,0.5)]" : "text-white/40")} strokeWidth={location.pathname === "/book-section/file-tracking" ? 2.5 : 2} />
+                  <span className={cn("text-[10px] font-bold transition-all duration-300", location.pathname === "/book-section/file-tracking" ? "text-white" : "text-transparent")}>Tracking</span>
+                </motion.div>
+              </Link>
+              
+              <Link to="/restricted" className="flex-1 relative">
+                <motion.div whileTap={{ scale: 0.9 }} className="flex flex-col items-center justify-center gap-1 py-3">
+                  {location.pathname === "/restricted" && (
+                    <motion.div layoutId="mobile-main-active" className="absolute inset-0 bg-white/10 rounded-3xl -z-10" transition={{ type: "spring", bounce: 0, duration: 0.2 }} />
+                  )}
+                  <Lock className={cn("w-5 h-5 transition-all duration-300", location.pathname === "/restricted" ? "text-blue-400 scale-110 drop-shadow-[0_0_8px_rgba(96,165,250,0.5)]" : "text-white/40")} strokeWidth={location.pathname === "/restricted" ? 2.5 : 2} />
+                  <span className={cn("text-[10px] font-bold transition-all duration-300", location.pathname === "/restricted" ? "text-white" : "text-transparent")}>Admin</span>
+                </motion.div>
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link to="/book-section/emp-details" className="flex-1 relative">
+                <motion.div whileTap={{ scale: 0.9 }} className="flex flex-col items-center justify-center gap-1 py-3">
+                  {location.pathname === "/book-section/emp-details" && (
+                    <motion.div layoutId="mobile-main-active" className="absolute inset-0 bg-white/10 rounded-3xl -z-10" transition={{ type: "spring", bounce: 0, duration: 0.2 }} />
+                  )}
+                  <ListTree className={cn("w-5 h-5 transition-all duration-300", location.pathname === "/book-section/emp-details" ? "text-blue-400 scale-110 drop-shadow-[0_0_8px_rgba(96,165,250,0.5)]" : "text-white/40")} strokeWidth={location.pathname === "/book-section/emp-details" ? 2.5 : 2} />
+                  <span className={cn("text-[10px] font-bold transition-all duration-300", location.pathname === "/book-section/emp-details" ? "text-white" : "text-transparent")}>Details</span>
+                </motion.div>
+              </Link>
 
-            <Link to="/book-section/all-employees" className={cn(
-              "flex flex-col items-center gap-1 transition-all duration-300",
-              location.pathname === "/book-section/all-employees" ? "text-primary scale-110" : "text-muted-foreground"
-            )}>
-              <Search className="w-6 h-6" />
-              <span className="text-[10px] font-medium">Search</span>
-            </Link>
-          </>
-        )}
-        <button onClick={() => signOut()} className="flex flex-col items-center gap-1 text-red-400">
-          <LogOut className="w-6 h-6" />
-          <span className="text-[10px] font-medium">Exit</span>
-        </button>
-      </nav>
-
-      {/* Splash Layer */}
-      {showSplash && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background pointer-events-none animate-out fade-out duration-1000 fill-mode-forwards delay-1000">
-           <div className="relative flex flex-col items-center gap-6">
-              <div className="w-24 h-24 rounded-3xl bg-primary/20 flex items-center justify-center border border-primary/30 animate-pulse">
-                <Shield className="w-12 h-12 text-primary" />
-              </div>
-              <h1 className="text-3xl font-bold tracking-tighter">KW&SC FINANCE</h1>
-           </div>
-        </div>
-      )}
+              <Link to="/book-section/all-employees" className="flex-1 relative">
+                <motion.div whileTap={{ scale: 0.9 }} className="flex flex-col items-center justify-center gap-1 py-3">
+                  {location.pathname === "/book-section/all-employees" && (
+                    <motion.div layoutId="mobile-main-active" className="absolute inset-0 bg-white/10 rounded-3xl -z-10" transition={{ type: "spring", bounce: 0, duration: 0.2 }} />
+                  )}
+                  <Search className={cn("w-5 h-5 transition-all duration-300", location.pathname === "/book-section/all-employees" ? "text-blue-400 scale-110 drop-shadow-[0_0_8px_rgba(96,165,250,0.5)]" : "text-white/40")} strokeWidth={location.pathname === "/book-section/all-employees" ? 2.5 : 2} />
+                  <span className={cn("text-[10px] font-bold transition-all duration-300", location.pathname === "/book-section/all-employees" ? "text-white" : "text-transparent")}>Search</span>
+                </motion.div>
+              </Link>
+            </>
+          )}
+          <button onClick={() => signOut()} className="flex-1 flex flex-col items-center justify-center gap-1 text-rose-400">
+            <LogOut className="w-5 h-5" />
+            <span className="text-[10px] font-medium text-transparent">Exit</span>
+          </button>
+        </nav>
+      </div>
     </div>
   );
 };

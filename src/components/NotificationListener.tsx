@@ -7,6 +7,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import IncomingCallModal from './IncomingCallModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 interface IncomingCallData {
   roomId: string;
@@ -17,6 +18,7 @@ interface IncomingCallData {
 
 export default function NotificationListener() {
   const { userRole, userName, isAdmin } = useAuth();
+  usePushNotifications(userRole);
   const location = useLocation();
   const navigate = useNavigate();
 

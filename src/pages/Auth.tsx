@@ -105,8 +105,8 @@ export default function AuthPage() {
           
           {/* Header */}
           <div className="px-8 pt-10 pb-6 text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-500 to-teal-400 mb-6 shadow-lg shadow-blue-500/30">
-              <Droplets className="w-8 h-8 text-white" />
+            <div className="inline-flex items-center justify-center w-20 h-20 mb-6 drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
+              <img src="/kwsc-logo.png" alt="KWSC" className="w-full h-full object-contain" />
             </div>
             <h1 className="text-3xl font-bold text-white tracking-tight mb-2">
               {isLogin ? 'Welcome Back' : 'Join KWSC'}

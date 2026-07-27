@@ -66,6 +66,8 @@ import MaintenanceScreen from "./pages/MaintenanceScreen";
 import RevenueCollection from "./pages/RevenueCollection";
 import { useAppConfig } from "@/hooks/useAppConfig";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import SplashScreen from "@/components/SplashScreen";
+import { useState } from "react";
 
 const queryClient = new QueryClient();
 
@@ -111,16 +113,23 @@ const PushNotificationManager = () => {
   return null;
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <ThemeProvider>
-        <Toaster />
-        <Sonner />
-        <AuthProvider>
-          <PushNotificationManager />
-          <VoiceProvider>
-            <BrowserRouter>
+const App = () => {
+  const [showSplash, setShowSplash] = useState(true);
+
+  if (showSplash) {
+    return <SplashScreen onComplete={() => setShowSplash(false)} />;
+  }
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <ThemeProvider>
+          <Toaster />
+          <Sonner />
+          <AuthProvider>
+            <PushNotificationManager />
+            <VoiceProvider>
+              <BrowserRouter>
               <Routes>
                 <Route path="/login" element={<AuthPage />} />
                 <Route path="/track" element={<TrackingPortal />} />
@@ -214,6 +223,7 @@ const App = () => (
       </ThemeProvider>
     </TooltipProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;

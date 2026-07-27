@@ -223,9 +223,10 @@ export default function UserManagement() {
                 <TableRow className="border-border">
                   <TableHead className="font-semibold text-foreground w-[20%]">Display Name</TableHead>
                   <TableHead className="font-semibold text-foreground w-[20%]">Email Account</TableHead>
-                  <TableHead className="font-semibold text-foreground w-[20%]">Role / Permission</TableHead>
-                  <TableHead className="font-semibold text-foreground w-[15%]">Date Override</TableHead>
+                  <TableHead className="font-semibold text-foreground w-[15%]">Role</TableHead>
+                  <TableHead className="font-semibold text-foreground w-[10%]">Settings</TableHead>
                   <TableHead className="font-semibold text-foreground w-[15%]">Password</TableHead>
+                  <TableHead className="font-semibold text-foreground w-[10%] text-center">Access</TableHead>
                   <TableHead className="text-right font-semibold text-foreground w-[10%]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -298,7 +299,7 @@ export default function UserManagement() {
                           />
                         ) : (
                           <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${user.allowOverrideDates || user.roleId === 'cfo' || user.roleId === 'admin' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
-                            {user.allowOverrideDates || user.roleId === 'cfo' || user.roleId === 'admin' ? 'Allowed' : 'Not Allowed'}
+                            {user.allowOverrideDates || user.roleId === 'cfo' || user.roleId === 'admin' ? 'Date Override' : 'No Override'}
                           </span>
                         )}
                       </TableCell>
@@ -322,6 +323,40 @@ export default function UserManagement() {
                             >
                               {showPasswords[originalIndex] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                             </button>
+                          </div>
+                        )}
+                      </TableCell>
+
+                      <TableCell className="text-center">
+                        {isEditing ? (
+                          <div className="flex flex-col gap-2 items-start justify-center">
+                            <div className="flex items-center gap-2">
+                              <Checkbox 
+                                id={`block-${originalIndex}`}
+                                checked={editForm?.is_blocked || false}
+                                onCheckedChange={(checked) => setEditForm(prev => prev ? {...prev, is_blocked: !!checked} : null)}
+                              />
+                              <Label htmlFor={`block-${originalIndex}`} className="text-xs text-red-400">Blocked</Label>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Checkbox 
+                                id={`enforce-${originalIndex}`}
+                                checked={editForm?.enforce_attendance || false}
+                                onCheckedChange={(checked) => setEditForm(prev => prev ? {...prev, enforce_attendance: !!checked} : null)}
+                              />
+                              <Label htmlFor={`enforce-${originalIndex}`} className="text-xs text-orange-400">Auto-Block</Label>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center gap-1">
+                            {user.is_blocked ? (
+                               <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase bg-red-500/20 text-red-500 border border-red-500/30">BLOCKED</span>
+                            ) : (
+                               <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase bg-green-500/20 text-green-500 border border-green-500/30">ACTIVE</span>
+                            )}
+                            {user.enforce_attendance && (
+                               <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase bg-orange-500/20 text-orange-500 border border-orange-500/30">Auto-Block On</span>
+                            )}
                           </div>
                         )}
                       </TableCell>

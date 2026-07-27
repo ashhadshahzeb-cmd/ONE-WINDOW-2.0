@@ -6,12 +6,15 @@ import { logActivity } from '@/hooks/useActivityLog';
 // ========== DEPARTMENT USERS ==========
 // Predefined credentials for each KW&SB Finance section
 export interface DepartmentUser {
+  id?: string;
   email: string;
-  password: string;
+  password?: string;
   roleId: string;
   displayName: string;
-  allowOverrideDates?: boolean;
   avatarUrl?: string;
+  allowOverrideDates?: boolean;
+  is_blocked?: boolean;
+  enforce_attendance?: boolean;
 }
 
 export const DEFAULT_DEPARTMENT_USERS: DepartmentUser[] = [
@@ -136,7 +139,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 displayName: data.display_name,
                 password: data.password,
                 avatarUrl: data.avatar_url,
-                allowOverrideDates: data.allow_override_dates
+                allowOverrideDates: data.allow_override_dates,
+                is_blocked: data.is_blocked,
+                enforce_attendance: data.enforce_attendance
               };
               saveDepartmentUsers(usersList);
             }
@@ -271,7 +276,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           displayName: data.display_name,
           password: data.password,
           avatarUrl: data.avatar_url,
-          allowOverrideDates: data.allow_override_dates
+          allowOverrideDates: data.allow_override_dates,
+          is_blocked: data.is_blocked,
+          enforce_attendance: data.enforce_attendance
         };
         // Also update local list so offline login works next time
         const usersList = getDepartmentUsers();
@@ -301,6 +308,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (hrmsData && !hrmsError && hrmsData.password === trimPass) {
           // Valid HRMS employee
+          
+          // Enforce manual HRMS block (If we ever add it to hrms_employees)
+          // For now, HRMS fallback doesn't have is_blocked. 
+          
           localStorage.setItem('kwsb_hrms_emp_id', hrmsData.id);
           localStorage.setItem(LOCAL_AUTH_KEY, JSON.stringify({
             roleId: 'hrms_employee',
@@ -329,6 +340,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       return { success: false, error: 'Invalid email or password. Please check your credentials.' };
+    }
+
+    if (match.is_blocked) {
+      return { success: false, error: 'Your account has been blocked. Please contact Admin.' };
+    }
+
+    if (match.enforce_attendance) {
+      // Check if they missed previous working day attendance
+      try {
+        const { data: empData } = await supabase.from('hrms_employees').select('id').eq('email', trimEmail).maybeSingle();
+        if (empData) {
+          // Get yesterday date (simplified, ideally we exclude weekends)
+          const yesterday = new Date();
+          yesterday.setDate(yesterday.getDate() - 1);
+          const dateStr = yesterday.toISOString().split('T')[0];
+
+          // Check if they have an attendance record for yesterday
+          const { data: attData } = await supabase.from('hrms_attendance').select('status').eq('employee_id', empData.id).eq('date', dateStr).maybeSingle();
+          
+          if (!attData || attData.status === 'Absent') {
+             // Auto-block the user
+             await supabase.from('department_users_settings').update({ is_blocked: true }).eq('email', trimEmail);
+             match.is_blocked = true;
+             
+             // Update local list
+             const usersList = getDepartmentUsers();
+             const idx = usersList.findIndex(u => u.email === trimEmail);
+             if (idx !== -1) {
+               usersList[idx].is_blocked = true;
+               saveDepartmentUsers(usersList);
+             }
+
+             return { success: false, error: 'Your account has been auto-blocked due to missing attendance yesterday. Contact Admin.' };
+          }
+        }
+      } catch (e) {
+        console.error('Auto block check failed', e);
+      }
     }
 
     // Save to localStorage

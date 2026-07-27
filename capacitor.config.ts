@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.kwsb.onewindow',
-  appName: 'ONE-WINDOW',
+  appName: 'One Hrms',
   webDir: 'dist'
 };
 
