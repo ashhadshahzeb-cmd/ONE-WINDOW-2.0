@@ -259,6 +259,9 @@ export default function FileTracking() {
     budget_code: "",
   });
 
+  const [pendingFilesList, setPendingFilesList] = useState<any[]>([]);
+  const [isPendingFilesLoading, setIsPendingFilesLoading] = useState(false);
+
   const [notifications, setNotifications] = useState<any[]>([]);
   const [reportDateFilter, setReportDateFilter] = useState("all");
   const [customFilterStartDate, setCustomFilterStartDate] = useState("");
@@ -2325,12 +2328,32 @@ export default function FileTracking() {
       setSelectedRecordIds(ids);
     }
   };
+  const fetchPendingFilesList = async () => {
+    setIsPendingFilesLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('file_tracking_pending')
+        .select('*')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setPendingFilesList(data || []);
+    } catch (err: any) {
+      toast.error("Failed to load pending files: " + err.message);
+    } finally {
+      setIsPendingFilesLoading(false);
+    }
+  };
+
   const handleTabChange = (val: string) => {
     if (val === "register" && !isEditingMode && !isForwardingMode) {
       if (!formData.handover_person_name || !formData.file_purpose) {
         setIsPreEntryModalOpen(true);
         return;
       }
+    }
+    if (val === "pending_scans") {
+      fetchPendingFilesList();
     }
     setActiveTab(val);
   };
@@ -2508,6 +2531,13 @@ export default function FileTracking() {
                   className="flex items-center gap-2 px-6 py-2.5 rounded-xl data-[state=active]:bg-[#14b8a6] data-[state=active]:text-[#0f1115] text-white/50 hover:text-white transition-all font-black text-sm"
                 >
                   <Plus className="w-4 h-4" /> Registration
+                </TabsTrigger>
+
+                <TabsTrigger
+                  value="pending_scans"
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl data-[state=active]:bg-amber-400 data-[state=active]:text-[#0f1115] text-white/50 hover:text-white transition-all font-black text-sm"
+                >
+                  <Clock className="w-4 h-4" /> Pending Scans
                 </TabsTrigger>
 
                 <TabsTrigger
@@ -4886,6 +4916,76 @@ export default function FileTracking() {
                 </div>
               </div>
             )}
+          </Card>
+        </TabsContent>
+
+        {/* Pending Scans Tab */}
+        <TabsContent value="pending_scans" className="animate-fade-up">
+          <Card className="glass-card border-none shadow-xl">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <CardTitle className="text-xl font-bold flex items-center gap-2">
+                <Clock className="w-5 h-5 text-amber-400" />
+                Pending File Scans
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isPendingFilesLoading ? (
+                <div className="flex flex-col items-center justify-center h-48 space-y-4">
+                  <div className="relative">
+                    <div className="w-12 h-12 border-4 border-amber-400/20 rounded-full animate-spin"></div>
+                    <div className="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin absolute inset-0"></div>
+                  </div>
+                  <p className="text-sm font-semibold text-amber-400 animate-pulse">Loading Pending Scans...</p>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-border/50 bg-[#0f1115]/50 overflow-hidden backdrop-blur-sm">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader className="bg-muted/50">
+                        <TableRow className="border-border/30 hover:bg-transparent">
+                          <TableHead className="font-bold text-xs uppercase text-muted-foreground whitespace-nowrap">Tracking Code</TableHead>
+                          <TableHead className="font-bold text-xs uppercase text-muted-foreground">Details</TableHead>
+                          <TableHead className="font-bold text-xs uppercase text-muted-foreground">Category</TableHead>
+                          <TableHead className="font-bold text-xs uppercase text-muted-foreground whitespace-nowrap">Scan Date</TableHead>
+                          <TableHead className="font-bold text-xs uppercase text-muted-foreground text-right whitespace-nowrap">Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {pendingFilesList.length === 0 ? (
+                          <TableRow className="hover:bg-transparent border-none">
+                            <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
+                              No pending scans available.
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          pendingFilesList.map((file, i) => (
+                            <TableRow key={file.id} className="hover:bg-amber-400/5 border-border/30 transition-colors animate-row-slide-in" style={{ animationDelay: `${i * 0.05}s` }}>
+                              <TableCell className="font-mono text-[10px] font-bold text-amber-400">{file.tracking_code}</TableCell>
+                              <TableCell>
+                                <div className="font-semibold text-sm max-w-[200px] truncate">{file.subject || 'N/A'}</div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="text-[9px] uppercase border-amber-400/30 text-amber-400 bg-amber-400/5 font-bold tracking-widest whitespace-nowrap">
+                                  {file.category}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                                {safeFormatDateTime(file.created_at)}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Badge className="text-[9px] bg-amber-500/10 text-amber-500 border-amber-500/20 uppercase font-black tracking-widest">
+                                  {file.status}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+            </CardContent>
           </Card>
         </TabsContent>
 
