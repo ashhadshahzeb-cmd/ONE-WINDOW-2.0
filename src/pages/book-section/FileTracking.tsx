@@ -2350,7 +2350,7 @@ export default function FileTracking() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in pb-10">
+    <div className="space-y-6 animate-page-enter pb-10">
       <CommandPalette onSelectRecord={(record) => {
         setActiveTab("track");
         setSelectedBill(record);
@@ -2484,7 +2484,7 @@ export default function FileTracking() {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <div className="flex flex-col gap-4 mb-6 border-b border-border/50 pb-4">
+        <div className="flex flex-col gap-4 mb-6 border-b border-border/50 pb-4 animate-slide-down" style={{ animationDelay: '0.1s' }}>
           <div className="w-full overflow-x-auto pb-2 no-scrollbar">
             <TabsList className="flex w-max h-auto bg-[#0f1115] p-1.5 rounded-2xl border border-white/5 gap-1 shadow-2xl">
             {isFileViewer ? (
@@ -2796,7 +2796,7 @@ export default function FileTracking() {
           </div>
         </div>
 
-        <TabsContent value="tray" className="animate-fade-in">
+        <TabsContent value="tray" className="animate-fade-up">
           <Card className="glass-card border-none shadow-xl">
             <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
@@ -2885,7 +2885,7 @@ export default function FileTracking() {
                               (f.mainCategory || f.main_category || "").toLowerCase().includes(q)
                             );
                           }).map((file, i) => (
-                          <TableRow key={i} className="hover:bg-primary/5 transition-colors group">
+                          <TableRow key={i} className="hover:bg-primary/5 transition-colors group animate-row-slide-in" style={{ animationDelay: `${i * 0.05}s` }}>
                             <TableCell>
                               <Checkbox
                                 checked={selectedRecordIds.includes(file.id)}
@@ -3026,7 +3026,7 @@ export default function FileTracking() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="returned_files" className="animate-fade-in">
+        <TabsContent value="returned_files" className="animate-fade-up">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* List Panel */}
             <div className="lg:col-span-2">
@@ -3061,7 +3061,7 @@ export default function FileTracking() {
                             </TableRow>
                           ) : (
                             records.map((file, i) => (
-                              <TableRow key={i} className="hover:bg-primary/5 transition-colors group">
+                              <TableRow key={i} className="hover:bg-primary/5 transition-colors group animate-row-slide-in" style={{ animationDelay: `${i * 0.05}s` }}>
                                 <TableCell className="font-mono text-xs font-bold text-primary">{file.cfo_diary_number}</TableCell>
                                 <TableCell className="text-center">
                                   <div
@@ -3197,7 +3197,7 @@ export default function FileTracking() {
           </div>
         </TabsContent>
 
-        <TabsContent value="reports" className="animate-fade-in">
+        <TabsContent value="reports" className="animate-fade-up">
           <Card className="glass-card border-none shadow-xl">
             <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
@@ -3295,7 +3295,7 @@ export default function FileTracking() {
                   </TableHeader>
                   <TableBody>
                     {records.map((file, i) => (
-                      <TableRow key={i} className="hover:bg-primary/5 border-border/30 transition-colors">
+                      <TableRow key={i} className="hover:bg-primary/5 border-border/30 transition-colors animate-row-slide-in" style={{ animationDelay: `${i * 0.05}s` }}>
                         <TableCell>
                           <Checkbox
                             checked={selectedRecordIds.includes(file.id)}
@@ -3418,7 +3418,7 @@ export default function FileTracking() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="bulk_modified" className="animate-fade-in" onFocus={undefined}>
+        <TabsContent value="bulk_modified" className="animate-fade-up" onFocus={undefined}>
           <Card className="glass-card border-none shadow-xl">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
@@ -3469,7 +3469,7 @@ export default function FileTracking() {
                     </TableHeader>
                     <TableBody>
                       {allBulkModifiedRecords.map((file, i) => (
-                        <TableRow key={i} className="hover:bg-primary/5 border-border/30 transition-colors">
+                        <TableRow key={i} className="hover:bg-primary/5 border-border/30 transition-colors animate-row-slide-in" style={{ animationDelay: `${i * 0.05}s` }}>
                           <TableCell className="font-mono text-[10px] font-bold text-primary">{file.cfo_diary_number}</TableCell>
                           <TableCell>
                             <div className="flex flex-col">
@@ -3522,7 +3522,7 @@ export default function FileTracking() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="timeline" className="animate-fade-in">
+        <TabsContent value="timeline" className="animate-fade-up">
           <Card className="glass-card border-none shadow-xl">
             <CardHeader>
               <CardTitle className="text-xl font-bold flex items-center gap-2">
@@ -3700,7 +3700,7 @@ export default function FileTracking() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="track" className="animate-fade-in">
+        <TabsContent value="track" className="animate-fade-up">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Search Panel */}
             <Card className="glass-card border-none shadow-xl">
@@ -3839,7 +3839,7 @@ export default function FileTracking() {
                               </TableRow>
                             ) : (
                               records.map((file, i) => (
-                                  <TableRow key={i} className="hover:bg-primary/5 transition-colors group">
+                                  <TableRow key={i} className="hover:bg-primary/5 transition-colors group animate-row-slide-in" style={{ animationDelay: `${i * 0.05}s` }}>
                                     <TableCell className="font-mono text-xs font-bold text-primary">
                                       <Highlight text={file.cfo_diary_number} query={debouncedSearchQuery} />
                                     </TableCell>
@@ -4046,11 +4046,11 @@ export default function FileTracking() {
           </div>
         </TabsContent>
 
-        <TabsContent value="reception" className="animate-fade-in mt-0 border-none outline-none">
+        <TabsContent value="reception" className="animate-fade-up mt-0 border-none outline-none">
           <FileReception />
         </TabsContent>
 
-        <TabsContent value="register" className="animate-fade-in">
+        <TabsContent value="register" className="animate-fade-up">
           <Card className="glass-card border-none shadow-xl">
             <CardHeader className="flex flex-col gap-4">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -4890,7 +4890,7 @@ export default function FileTracking() {
         </TabsContent>
 
         {/* View Only Tab - read‑only view for file_viewer */}
-        <TabsContent value="view_only" className="animate-fade-in">
+        <TabsContent value="view_only" className="animate-fade-up">
           <Card className="glass-card border-none shadow-xl">
             <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <CardTitle className="text-xl font-bold flex items-center gap-2">
@@ -4918,7 +4918,7 @@ export default function FileTracking() {
                       </TableHeader>
                       <TableBody>
                         {records.map((file, i) => (
-                          <TableRow key={i} className="hover:bg-primary/5 border-border/30 transition-colors">
+                          <TableRow key={i} className="hover:bg-primary/5 border-border/30 transition-colors animate-row-slide-in" style={{ animationDelay: `${i * 0.05}s` }}>
                             <TableCell className="font-mono text-[10px] font-bold text-primary">{file.cfo_diary_number}</TableCell>
                             <TableCell>
                               <div className="flex flex-col">
@@ -5094,7 +5094,7 @@ export default function FileTracking() {
                       </TableRow>
                     ) : (
                       records.map((file, i) => (
-                        <TableRow key={i} className="hover:bg-white/5 border-white/5 transition-colors">
+                        <TableRow key={i} className="hover:bg-white/5 border-white/5 transition-colors animate-row-slide-in" style={{ animationDelay: `${i * 0.05}s` }}>
                           <TableCell className="font-mono text-xs font-bold text-[#14b8a6]">{file.cfo_diary_number}</TableCell>
                           <TableCell>
                             <div className="font-semibold text-sm">{file.subject}</div>
@@ -5215,7 +5215,7 @@ export default function FileTracking() {
                       </TableRow>
                     ) : (
                       records.map((file, i) => (
-                        <TableRow key={i} className="hover:bg-white/5 border-white/5 transition-colors opacity-70">
+                        <TableRow key={i} className="hover:bg-white/5 border-white/5 transition-colors opacity-70 animate-row-slide-in" style={{ animationDelay: `${i * 0.05}s` }}>
                           <TableCell className="font-mono text-xs font-bold text-red-400">{file.cfo_diary_number}</TableCell>
                           <TableCell>
                             <div className="font-semibold text-sm line-through decoration-red-500/50">{file.subject}</div>
