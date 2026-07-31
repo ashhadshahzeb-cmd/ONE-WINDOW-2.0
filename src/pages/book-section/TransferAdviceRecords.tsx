@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, FileText, Printer, Loader2, X, Trash2, Phone, Globe, Calendar } from "lucide-react";
+import { Search, FileText, Printer, Loader2, X, Trash2, Phone, Globe, Calendar, Download } from "lucide-react";
 import { supabase } from '@/integrations/supabase/client';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { numberToWords } from "@/lib/numberToWords";
@@ -22,6 +24,7 @@ export default function TransferAdviceRecords() {
   const [selectedItems, setSelectedItems] = useState<any[]>([]);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [itemsLoading, setItemsLoading] = useState(false);
+  const [filterInRespectOf, setFilterInRespectOf] = useState('All');
   
   const { userRole, userName, isAdmin, verifyPassword } = useAuth();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -33,6 +36,9 @@ export default function TransferAdviceRecords() {
   const [endDate, setEndDate] = useState('');
   const [selectedRecordIds, setSelectedRecordIds] = useState<string[]>([]);
   const [isBulkPrintConfigOpen, setIsBulkPrintConfigOpen] = useState(false);
+  const [isSummaryPrintOpen, setIsSummaryPrintOpen] = useState(false);
+  const [isPrintingSummary, setIsPrintingSummary] = useState(false);
+  const [isPrintingAdvice, setIsPrintingAdvice] = useState(false);
   const [bulkHeaderConfig, setBulkHeaderConfig] = useState({
     advice_no: '',
     date: '',
@@ -79,7 +85,7 @@ export default function TransferAdviceRecords() {
       setLoading(true);
       const { data, error } = await supabase
         .from('transfer_advices')
-        .select('*, transfer_advice_items(in_respect_of)')
+        .select('*, transfer_advice_items(in_respect_of, ac_no_debit, ac_no_credit, transfer_amount)')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -163,18 +169,41 @@ export default function TransferAdviceRecords() {
     }
   };
 
+  const extractBaseCategory = (val: string) => {
+    if (!val) return '';
+    const lower = val.toLowerCase();
+    if (lower.includes('contract')) return 'Contractor';
+    if (lower.includes('disburs')) return 'Disbursal';
+    if (lower.includes('salar')) return 'Salary';
+    if (lower.includes('pension')) return 'Pension';
+    if (lower.includes('medic')) return 'Medical';
+    if (lower.includes('fund')) return 'Fund';
+    if (lower.includes('allowance')) return 'Allowance';
+    // Clean up brackets for remaining items
+    return val.replace(/\(.*?\)/g, '').trim() || val;
+  };
+
   const filteredRecords = records.filter(r => {
     const searchLower = searchTerm.toLowerCase();
-    const inRespectOfValues = r.transfer_advice_items ? r.transfer_advice_items.map((i: any) => i.in_respect_of?.toLowerCase() || '') : [];
+    const inRespectOfValues = r.transfer_advice_items ? r.transfer_advice_items.map((i: any) => i.in_respect_of || '') : [];
     
     const matchesSearch = r.advice_no.toLowerCase().includes(searchLower) ||
                           r.bank_name.toLowerCase().includes(searchLower) ||
                           r.date.includes(searchTerm) ||
-                          inRespectOfValues.some((val: string) => val.includes(searchLower));
+                          inRespectOfValues.some((val: string) => val.toLowerCase().includes(searchLower));
     const matchesStart = startDate ? r.date >= startDate : true;
     const matchesEnd = endDate ? r.date <= endDate : true;
-    return matchesSearch && matchesStart && matchesEnd;
+    const matchesInRespectOf = filterInRespectOf === 'All' || inRespectOfValues.some((val: string) => 
+      extractBaseCategory(val).toLowerCase() === filterInRespectOf.toLowerCase()
+    );
+    return matchesSearch && matchesStart && matchesEnd && matchesInRespectOf;
   });
+
+  const uniqueInRespectOf = Array.from(new Set(
+    records.flatMap(r => 
+      (r.transfer_advice_items || []).map((i: any) => extractBaseCategory(i.in_respect_of)).filter(Boolean)
+    )
+  )).sort();
 
   const handleSelectAll = () => {
     if (selectedRecordIds.length === filteredRecords.length) {
@@ -243,21 +272,281 @@ export default function TransferAdviceRecords() {
     .filter(r => selectedRecordIds.includes(r.id))
     .reduce((sum, record) => sum + (Number(record.total_amount) || 0), 0);
 
+  const getSummaryItems = () => {
+    const items: any[] = [];
+    filteredRecords.filter(r => selectedRecordIds.includes(r.id)).forEach(record => {
+      (record.transfer_advice_items || []).forEach((item: any) => {
+        if (filterInRespectOf === 'All' || extractBaseCategory(item.in_respect_of).toLowerCase() === filterInRespectOf.toLowerCase()) {
+          items.push({
+            id: record.id + '-' + Math.random().toString(36).substr(2, 9),
+            date: record.date,
+            advice_no: record.advice_no,
+            debit: item.ac_no_debit || '-',
+            credit: item.ac_no_credit || '-',
+            amount: Number(item.transfer_amount) || 0,
+            in_respect_of: item.in_respect_of
+          });
+        }
+      });
+    });
+    return items;
+  };
+
+  const summaryItemsToPrint = getSummaryItems();
+  const summaryGrandTotal = summaryItemsToPrint.reduce((sum, item) => sum + item.amount, 0);
+
+  const executePrintSummary = () => {
+    setIsPrintingSummary(true);
+    setTimeout(() => {
+      window.print();
+      setIsPrintingSummary(false);
+    }, 200);
+  };
+
+  const exportSummaryToPDF = async () => {
+    try {
+      const response = await fetch('/kwsc-logo.png');
+      const blob = await response.blob();
+      const reader = new FileReader();
+      
+      reader.onloadend = () => {
+        const base64data = reader.result as string;
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+
+        // Add Header on first page
+        const logoSize = 24;
+        doc.addImage(base64data, 'PNG', 14, 10, logoSize, logoSize);
+        
+        doc.setFontSize(16);
+        doc.setFont("helvetica", "bold");
+        doc.text("Karachi Water & Sewerage Corporation", pageWidth / 2, 18, { align: 'center' });
+        
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "normal");
+        doc.text("One Window Facilitation", pageWidth / 2, 24, { align: 'center' });
+
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.text("Transfer Advice Summary Report", pageWidth / 2, 32, { align: 'center' });
+        
+        let startYOffset = 40;
+        if (filterInRespectOf !== 'All') {
+          doc.setFontSize(12);
+          doc.setFont("helvetica", "normal");
+          doc.text(`Category: ${filterInRespectOf}`, pageWidth / 2, 39, { align: 'center' });
+          startYOffset = 45;
+        }
+
+        const tableColumn = ["S.NO", "DATE", "A/C NO (DEBIT)", "A/C NO (CREDIT)", "AMOUNT (PKR)"];
+        const tableRows: any[] = [];
+
+        summaryItemsToPrint.forEach((item, index) => {
+          tableRows.push([
+            index + 1,
+            item.date.split('-').reverse().join('-'),
+            item.debit,
+            item.credit,
+            item.amount.toLocaleString('en-US')
+          ]);
+        });
+
+        tableRows.push([
+          { content: 'GRAND TOTAL', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } },
+          { content: summaryGrandTotal.toLocaleString('en-US'), styles: { fontStyle: 'bold', textColor: [16, 185, 129] } }
+        ]);
+
+        autoTable(doc, {
+          head: [tableColumn],
+          body: tableRows,
+          startY: startYOffset,
+          theme: 'grid',
+          headStyles: { fillColor: [243, 244, 246], textColor: 0 },
+          styles: { fontSize: 10, cellPadding: 2, halign: 'center' },
+          columnStyles: {
+            4: { halign: 'right' }
+          },
+          didDrawPage: (data) => {
+            // Draw Watermark
+            // Check if GState exists (jsPDF version compat)
+            if (doc.GState) {
+                doc.setGState(new doc.GState({opacity: 0.1}));
+            }
+            const watermarkSize = 140;
+            doc.addImage(base64data, 'PNG', (pageWidth - watermarkSize) / 2, (pageHeight - watermarkSize) / 2, watermarkSize, watermarkSize);
+            if (doc.GState) {
+                doc.setGState(new doc.GState({opacity: 1}));
+            }
+          }
+        });
+
+        doc.save("Transfer_Advice_Summary_Report.pdf");
+      };
+      
+      reader.readAsDataURL(blob);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast.error("Failed to generate PDF. Could not load logo.");
+    }
+  };
+
+  const executePrintAdvice = () => {
+    setIsPrintingAdvice(true);
+    setTimeout(() => {
+      window.print();
+      setIsPrintingAdvice(false);
+    }, 200);
+  };
+
+  if (isPrintingSummary) {
+    return (
+      <div className="print-document bg-white text-black p-4 sm:p-8 relative text-[11pt] font-sans w-full max-w-full m-0">
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-bold uppercase tracking-wide">Karachi Water & Sewerage Corporation</h1>
+          <h2 className="text-xl font-bold uppercase mt-2">Transfer Advice Summary Report</h2>
+          {filterInRespectOf !== 'All' && (
+            <h3 className="text-lg font-semibold mt-2 text-slate-700">Category: {filterInRespectOf}</h3>
+          )}
+        </div>
+        <table className="w-full border-collapse border border-black text-[10pt]">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="border border-black px-2 py-2">S.NO</th>
+              <th className="border border-black px-2 py-2">DATE</th>
+              <th className="border border-black px-2 py-2">A/C NO (DEBIT)</th>
+              <th className="border border-black px-2 py-2">A/C NO (CREDIT)</th>
+              <th className="border border-black px-2 py-2 text-right">AMOUNT (PKR)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {summaryItemsToPrint.map((item, index) => (
+              <tr key={item.id}>
+                <td className="border border-black px-2 py-1 text-center">{index + 1}</td>
+                <td className="border border-black px-2 py-1 text-center">{item.date.split('-').reverse().join('-')}</td>
+                <td className="border border-black px-2 py-1 text-center">{item.debit}</td>
+                <td className="border border-black px-2 py-1 text-center">{item.credit}</td>
+                <td className="border border-black px-2 py-1 text-right font-semibold">{item.amount.toLocaleString('en-US')}</td>
+              </tr>
+            ))}
+            <tr className="font-bold bg-gray-100 border-t-2 border-black">
+              <td colSpan={4} className="border border-black px-2 py-2 text-right">GRAND TOTAL</td>
+              <td className="border border-black px-2 py-2 text-right text-emerald-600">{summaryGrandTotal.toLocaleString('en-US')}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div className="mt-16 flex justify-end">
+          <div className="text-center">
+            <div className="border-b border-black w-48 mb-2"></div>
+            <span className="font-bold">Authorized Signature</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isPrintingAdvice && selectedAdvice) {
+    return (
+      <div className="print-document bg-white text-black p-4 sm:p-8 relative text-[11pt] font-serif w-full max-w-full m-0">
+        <div className="text-center mb-8 relative">
+          <div className="absolute left-0 top-0 w-20 h-20 border-2 border-black rounded-full flex items-center justify-center font-bold text-xs text-center p-2">
+            KW&SC<br/>LOGO
+          </div>
+          <h1 className="text-xl font-bold uppercase tracking-wide">Karachi Water & Sewerage Corporation</h1>
+          <h2 className="text-lg font-bold uppercase">Finance Department</h2>
+          <h3 className="text-md font-bold uppercase">Office of the Director Accounts</h3>
+          <p className="text-xs mt-1">1st Floor, Old KBCA Building Behind Civic Center Karachi. Phone: 021-99230320 Webs: www.kwsc.gos.pk</p>
+        </div>
+
+        <div className="flex justify-between font-bold mb-6 text-[11pt]">
+          <div>NO: {selectedAdvice.advice_no}</div>
+          <div>DT: {selectedAdvice.date.split('-').reverse().join('.')}</div>
+        </div>
+
+        <div className="mb-6 text-[11pt] whitespace-pre-wrap leading-tight">
+          To,<br/>
+          {selectedAdvice.bank_name}
+        </div>
+
+        <div className="flex gap-4 mb-6 text-[11pt]">
+          <div className="font-bold w-24">SUBJECT:</div>
+          <div className="font-bold underline uppercase">{selectedAdvice.subject}</div>
+        </div>
+
+        <div className="text-[11pt] mb-4 text-justify leading-relaxed">
+          In accordance with the directives of the competent authorities, you are requested to transfer the amount from KW&SC's account to other KW&SC accounts as per the details mentioned below.
+        </div>
+        <div className="text-[11pt] mb-6 text-justify leading-relaxed">
+          Kindly follow the instruction regarding below mentioned accounts of HBL Sindh Secretariat, Branch at present under intimation to the undersigned.
+        </div>
+
+        <table className="w-full border-collapse border border-black mt-4 text-[10pt]">
+          <thead>
+            <tr>
+              <th className="border border-black px-2 py-2 w-10">S.NO</th>
+              <th className="border border-black px-2 py-2 w-28">TRANSFER<br/>AMOUNT</th>
+              <th className="border border-black px-2 py-2">AMOUNT IN WORDS</th>
+              <th className="border border-black px-2 py-2 w-28">A/C. NO<br/>(DEBIT)</th>
+              <th className="border border-black px-2 py-2 w-28">A/C. NO<br/>(CREDIT)</th>
+              <th className="border border-black px-2 py-2 w-32">IN RESPECT OF</th>
+              <th className="border border-black px-2 py-2 w-24">PAYMENT<br/>METHOD</th>
+            </tr>
+          </thead>
+          <tbody>
+            {selectedItems.map((item, index) => (
+              <tr key={item.id}>
+                <td className="border border-black px-2 py-1 text-center">{index + 1}</td>
+                <td className="border border-black px-2 py-1 text-right">{Number(item.transfer_amount).toLocaleString('en-US')}</td>
+                <td className="border border-black px-2 py-1 text-[9pt] uppercase">{item.amount_in_words}</td>
+                <td className="border border-black px-2 py-1 text-center">{item.ac_no_debit}</td>
+                <td className="border border-black px-2 py-1 text-center">{item.ac_no_credit}</td>
+                <td className="border border-black px-2 py-1 text-[9pt] text-center">{item.in_respect_of}</td>
+                <td className="border border-black px-2 py-1 text-[9pt] text-center">
+                  {item.payment_method && item.payment_method !== "None" 
+                    ? (item.payment_method === 'Digital' ? `Transaction ID:\n${item.payment_number}` : `${item.payment_method} No:\n${item.payment_number}`) 
+                    : '-'}
+                </td>
+              </tr>
+            ))}
+            <tr className="font-bold border-t-2 border-black">
+              <td className="border border-black px-2 py-1 text-center"></td>
+              <td className="border border-black px-2 py-1 text-right">{Number(selectedAdvice.total_amount).toLocaleString('en-US')}</td>
+              <td className="border border-black px-2 py-1" colSpan={5}></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div className="mt-20 flex justify-end pr-10 text-center font-bold text-[11pt]">
+          <div>
+            DIRECTOR ACCOUNTS<br/>
+            KW&SC
+          </div>
+        </div>
+        <div className="mt-12 flex justify-center text-center font-bold text-[11pt]">
+          <div>
+            CHIEF FINANCIAL OFFICER<br/>
+            KW&SC
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] py-8 px-4 sm:px-6 lg:px-8 font-sans">
-      <div className="max-w-[1400px] mx-auto bg-white shadow-2xl rounded-3xl overflow-hidden relative border border-slate-100">
+      <div className="max-w-[1400px] mx-auto bg-white shadow-2xl rounded-3xl overflow-hidden relative border border-slate-100 no-print">
         <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-[#F3F6FF] to-transparent pointer-events-none opacity-50" />
         
         <div className="p-8 sm:p-12 relative z-10">
           
-          {/* HEADER: LOGO AND HELPLINE */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-12">
-            <div className="flex items-center space-x-4 mb-4 sm:mb-0">
-              <div className="w-16 h-16 rounded-full bg-[#273D81] flex items-center justify-center text-white border-4 border-[#EAEFFD] shadow-sm">
-                <span className="font-black text-xl">KWSC</span>
+          {/* HEADER */}
+          <div className="flex flex-col sm:flex-row justify-between items-center mb-10 pb-8 border-b-2 border-slate-100 relative no-print">
+            <div className="flex items-center space-x-6 mb-6 sm:mb-0 relative group cursor-pointer">
+              <div className="w-20 h-20 rounded-full flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform duration-300 relative bg-white">
+                <img src="/kwsc-logo.png" alt="KWSC Logo" className="w-full h-full object-contain p-1" />
               </div>
               <div className="flex flex-col">
-                <span className="text-xl font-bold text-slate-900 leading-tight">Karachi Water &</span>
+                <span className="text-2xl font-black text-[#1C3B70] tracking-tight leading-tight">Karachi Water &</span>
                 <span className="text-xl font-bold text-slate-900 leading-tight">Sewerage Corporation</span>
               </div>
             </div>
@@ -286,9 +575,15 @@ export default function TransferAdviceRecords() {
 
           {/* BULK PRINT BUTTON (IF ANY) */}
           {selectedRecordIds.length > 0 && (
-            <div className="flex justify-end mb-4 no-print">
+            <div className="flex justify-end mb-4 no-print space-x-3">
+              <Button onClick={exportSummaryToPDF} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-sm">
+                <Download className="w-4 h-4 mr-2" /> Download PDF ({selectedRecordIds.length})
+              </Button>
+              <Button onClick={() => setIsSummaryPrintOpen(true)} className="bg-primary hover:bg-primary/90 text-white font-bold shadow-sm">
+                <Printer className="w-4 h-4 mr-2" /> Print Summary ({selectedRecordIds.length})
+              </Button>
               <Button onClick={handleOpenBulkPrintConfig} className="bg-[#1C3B70] hover:bg-[#0F2243] text-white font-bold shadow-sm">
-                <Printer className="w-4 h-4 mr-2" /> Print Selected ({selectedRecordIds.length})
+                <Printer className="w-4 h-4 mr-2" /> Merge & Print Advices
               </Button>
             </div>
           )}
@@ -302,6 +597,20 @@ export default function TransferAdviceRecords() {
               <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-9 border-0 bg-transparent focus-visible:ring-0 w-[130px] text-slate-700" />
               <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">To</Label>
               <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-9 border-0 bg-transparent focus-visible:ring-0 w-[130px] text-slate-700" />
+            </div>
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg p-1 px-3 shadow-sm">
+              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Category</Label>
+              <Select value={filterInRespectOf} onValueChange={setFilterInRespectOf}>
+                <SelectTrigger className="h-9 border-0 bg-transparent focus:ring-0 w-[160px] text-slate-700 shadow-none">
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All">All Categories</SelectItem>
+                  {uniqueInRespectOf.map((cat: any) => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="relative w-72">
               <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
@@ -412,7 +721,7 @@ export default function TransferAdviceRecords() {
       </Card>
 
       {/* FOOTER */}
-      <div className="mt-12 text-center text-slate-600 text-sm sm:text-lg max-w-4xl mx-auto mb-12 font-medium leading-relaxed">
+      <div className="mt-12 text-center text-slate-600 text-sm sm:text-lg max-w-4xl mx-auto mb-12 font-medium leading-relaxed no-print">
         The table above displays the complete history of Transfer Advice entries generated by the Karachi Water & Sewerage Corporation, reflecting all financial disbursals.
       </div>
 
@@ -530,7 +839,7 @@ export default function TransferAdviceRecords() {
         <DialogContent className="max-w-4xl bg-[#0B101E] text-white border-white/10 h-[90vh] overflow-hidden flex flex-col no-print">
           <DialogHeader className="flex flex-row justify-between items-center border-b border-white/10 pb-4">
             <DialogTitle>View Transfer Advice</DialogTitle>
-            <Button onClick={() => window.print()} className="bg-primary hover:bg-primary/90 text-white font-bold">
+            <Button onClick={executePrintAdvice} className="bg-primary hover:bg-primary/90 text-white font-bold">
               <Printer className="w-4 h-4 mr-2" /> Print
             </Button>
           </DialogHeader>
@@ -627,124 +936,66 @@ export default function TransferAdviceRecords() {
         </DialogContent>
       </Dialog>
 
-      {/* --- HIDDEN PRINT SECTION --- */}
-      <style>{`
-        @media print {
-          body * { visibility: hidden; }
-          #dashboard-print-section, #dashboard-print-section * { visibility: visible; }
-          #dashboard-print-section {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            background: white !important;
-            color: black !important;
-            font-family: 'Times New Roman', Times, serif;
-            padding: 20px;
-          }
-          .no-print { display: none !important; }
-          
-          .ta-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            font-size: 11pt;
-          }
-          .ta-table th, .ta-table td {
-            border: 1px solid black;
-            padding: 8px 5px;
-            text-align: center;
-          }
-          .ta-table th { font-weight: bold; font-size: 10pt; }
-          .ta-table .amount-col { text-align: right; }
-          .ta-table .words-col { text-align: left; }
-        }
-      `}</style>
-
-      {selectedAdvice && (
-        <div id="dashboard-print-section" className="hidden print:block w-full bg-white text-black min-h-screen">
-          <div className="text-center mb-8 relative">
-            <div className="absolute left-0 top-0 w-20 h-20 border-2 border-black rounded-full flex items-center justify-center font-bold text-xs text-center p-2">
-              KW&SC<br/>LOGO
+      {/* --- SUMMARY PRINT MODAL --- */}
+      <Dialog open={isSummaryPrintOpen} onOpenChange={setIsSummaryPrintOpen}>
+        <DialogContent className="max-w-5xl bg-[#0B101E] text-white border-white/10 h-[90vh] overflow-hidden flex flex-col no-print">
+          <DialogHeader className="flex flex-row justify-between items-center border-b border-white/10 pb-4">
+            <DialogTitle>Summary Report</DialogTitle>
+            <div className="flex gap-2">
+              <Button onClick={exportSummaryToPDF} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold">
+                <Download className="w-4 h-4 mr-2" /> Download PDF
+              </Button>
+              <Button onClick={executePrintSummary} className="bg-primary hover:bg-primary/90 text-white font-bold">
+                <Printer className="w-4 h-4 mr-2" /> Print Summary
+              </Button>
             </div>
-            <h1 className="text-xl font-bold uppercase tracking-wide">Karachi Water & Sewerage Corporation</h1>
-            <h2 className="text-lg font-bold uppercase">Finance Department</h2>
-            <h3 className="text-md font-bold uppercase">Office of the Director Accounts</h3>
-            <p className="text-xs mt-1">1st Floor, Old KBCA Building Behind Civic Center Karachi. Phone: 021-99230320 Webs: www.kwsc.gos.pk</p>
-          </div>
-
-          <div className="flex justify-between font-bold mb-6 text-[11pt]">
-            <div>NO: {selectedAdvice.advice_no}</div>
-            <div>DT: {selectedAdvice.date.split('-').reverse().join('.')}</div>
-          </div>
-
-          <div className="mb-6 text-[11pt] whitespace-pre-wrap leading-tight">
-            To,<br/>
-            {selectedAdvice.bank_name}
-          </div>
-
-          <div className="flex gap-4 mb-6 text-[11pt]">
-            <div className="font-bold w-24">SUBJECT:</div>
-            <div className="font-bold underline uppercase">{selectedAdvice.subject}</div>
-          </div>
-
-          <div className="text-[11pt] mb-4 text-justify leading-relaxed">
-            In accordance with the directives of the competent authorities, you are requested to transfer the amount from KW&SC's account to other KW&SC accounts as per the details mentioned below.
-          </div>
-          <div className="text-[11pt] mb-6 text-justify leading-relaxed">
-            Kindly follow the instruction regarding below mentioned accounts of HBL Sindh Secretariat, Branch at present under intimation to the undersigned.
-          </div>
-
-          <table className="ta-table">
-            <thead>
-              <tr>
-                <th className="w-10">S.NO</th>
-                <th className="w-28">TRANSFER<br/>AMOUNT</th>
-                <th>AMOUNT IN WORDS</th>
-                <th className="w-28">A/C. NO<br/>(DEBIT)</th>
-                <th className="w-28">A/C. NO<br/>(CREDIT)</th>
-                <th className="w-32">IN RESPECT OF</th>
-                <th className="w-24">PAYMENT<br/>METHOD</th>
-              </tr>
-            </thead>
-            <tbody>
-              {selectedItems.map((item, index) => (
-                <tr key={item.id}>
-                  <td>{index + 1}</td>
-                  <td className="amount-col">{Number(item.transfer_amount).toLocaleString('en-US')}</td>
-                  <td className="words-col text-[9pt] uppercase">{item.amount_in_words}</td>
-                  <td>{item.ac_no_debit}</td>
-                  <td>{item.ac_no_credit}</td>
-                  <td className="words-col text-[9pt]">{item.in_respect_of}</td>
-                  <td className="text-[9pt]">
-                    {item.payment_method && item.payment_method !== "None" 
-                      ? (item.payment_method === 'Digital' ? `Transaction ID:\n${item.payment_number}` : `${item.payment_method} No:\n${item.payment_number}`) 
-                      : '-'}
-                  </td>
-                </tr>
-              ))}
-              <tr className="font-bold border-t-2 border-black">
-                <td></td>
-                <td className="amount-col">{Number(selectedAdvice.total_amount).toLocaleString('en-US')}</td>
-                <td colSpan={5}></td>
-              </tr>
-            </tbody>
-          </table>
-
-          <div className="mt-20 flex justify-end pr-10 text-center font-bold text-[11pt]">
-            <div>
-              DIRECTOR ACCOUNTS<br/>
-              KW&SC
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto p-4 bg-gray-900 rounded-md">
+            <div className="bg-white text-black p-8 shadow-lg max-w-[900px] mx-auto min-h-[1056px] relative text-[11pt] font-sans">
+              <div className="text-center mb-8">
+                <h1 className="text-2xl font-bold uppercase tracking-wide">Karachi Water & Sewerage Corporation</h1>
+                <h2 className="text-xl font-bold uppercase mt-2">Transfer Advice Summary Report</h2>
+                {filterInRespectOf !== 'All' && (
+                  <h3 className="text-lg font-semibold mt-2 text-slate-700">Category: {filterInRespectOf}</h3>
+                )}
+              </div>
+              <table className="w-full border-collapse border border-black text-[10pt]">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="border border-black px-2 py-2">S.NO</th>
+                    <th className="border border-black px-2 py-2">DATE</th>
+                    <th className="border border-black px-2 py-2">A/C NO (DEBIT)</th>
+                    <th className="border border-black px-2 py-2">A/C NO (CREDIT)</th>
+                    <th className="border border-black px-2 py-2 text-right">AMOUNT (PKR)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {summaryItemsToPrint.map((item, index) => (
+                    <tr key={item.id}>
+                      <td className="border border-black px-2 py-1 text-center">{index + 1}</td>
+                      <td className="border border-black px-2 py-1 text-center">{item.date.split('-').reverse().join('-')}</td>
+                      <td className="border border-black px-2 py-1 text-center">{item.debit}</td>
+                      <td className="border border-black px-2 py-1 text-center">{item.credit}</td>
+                      <td className="border border-black px-2 py-1 text-right font-semibold">{item.amount.toLocaleString('en-US')}</td>
+                    </tr>
+                  ))}
+                  <tr className="font-bold bg-gray-100 border-t-2 border-black">
+                    <td colSpan={4} className="border border-black px-2 py-2 text-right">GRAND TOTAL</td>
+                    <td className="border border-black px-2 py-2 text-right text-emerald-600">{summaryGrandTotal.toLocaleString('en-US')}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div className="mt-16 flex justify-end">
+                <div className="text-center">
+                  <div className="border-b border-black w-48 mb-2"></div>
+                  <span className="font-bold">Authorized Signature</span>
+                </div>
+              </div>
             </div>
           </div>
-          <div className="mt-12 flex justify-center text-center font-bold text-[11pt]">
-            <div>
-              CHIEF FINANCIAL OFFICER<br/>
-              KW&SC
-            </div>
-          </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }

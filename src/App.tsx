@@ -8,6 +8,7 @@ import { VoiceProvider } from "@/contexts/VoiceContext";
 import Layout from "@/components/Layout";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import Dashboard from "./pages/Dashboard";
+import LandingPage from "./pages/LandingPage";
 import ChartOfAccounts from "./pages/ChartOfAccounts";
 import GeneralLedger from "./pages/GeneralLedger";
 import BankAccounts from "./pages/BankAccounts";
@@ -114,12 +115,6 @@ const PushNotificationManager = () => {
 };
 
 const App = () => {
-  const [showSplash, setShowSplash] = useState(true);
-
-  if (showSplash) {
-    return <SplashScreen onComplete={() => setShowSplash(false)} />;
-  }
-
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -131,6 +126,7 @@ const App = () => {
             <VoiceProvider>
               <BrowserRouter>
               <Routes>
+                <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<AuthPage />} />
                 <Route path="/track" element={<TrackingPortal />} />
                 <Route path="/public-track/:diaryNo/*" element={<PublicTracking />} />
@@ -151,7 +147,7 @@ const App = () => {
                       <MaintenanceGuard>
                         <Layout>
                           <Routes>
-                          <Route path="/" element={
+                          <Route path="/dashboard" element={
                             <ProtectedRoute>
                               <DashboardRedirect />
                             </ProtectedRoute>

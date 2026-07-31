@@ -38,7 +38,7 @@ export default function AuthPage() {
         const localResult = await localSignIn(email, password);
         if (localResult.success) {
           toast.success('Welcome! Login successful.');
-          navigate('/');
+          navigate('/dashboard');
           return;
         }
 
@@ -48,7 +48,7 @@ export default function AuthPage() {
           return;
         }
         toast.success('Welcome! Login successful.');
-        navigate('/');
+        navigate('/dashboard');
       } else {
         const { data, error } = await supabase.auth.signUp({ 
           email, 

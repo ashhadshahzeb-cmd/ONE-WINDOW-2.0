@@ -1,0 +1,37 @@
+{
+  "name": "sap-file-tracking",
+  "version": "1.0.0",
+  "description": "SAP CAP Backend for File Tracking",
+  "dependencies": {
+    "@cap-js/sqlite": "^3.0.2",
+    "@sap/cds": "^10.0.4",
+    "express": "^4"
+  },
+  "devDependencies": {
+    "sqlite3": "^5.1.7"
+  },
+  "scripts": {
+    "start": "cds run"
+  },
+  "cds": {
+    "server": {
+      "port": 4004,
+      "host": "127.0.0.1"
+    },
+    "features": {
+      "queue": false,
+      "outbox": false
+    },
+    "requires": {
+      "db": {
+        "kind": "sqlite",
+        "credentials": {
+          "url": ":memory:"
+        }
+      },
+      "auth": {
+        "kind": "dummy"
+      }
+    }
+  }
+}

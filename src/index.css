@@ -376,6 +376,18 @@ input[type="date"]:hover::-webkit-calendar-picker-indicator {
     visibility: visible !important;
     display: block !important;
   }
+  .print-document, .print-document * {
+    visibility: visible !important;
+  }
+  .print-document {
+    position: static !important;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 20px;
+    display: block !important;
+  }
   .no-print {
     display: none !important;
   }

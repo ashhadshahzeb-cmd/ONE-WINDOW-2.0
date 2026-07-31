@@ -1,0 +1,4 @@
+ID;tracking_id;cfo_diary_number;receiving_number;subject;amount;budget_code;status
+1;T-1001;CFO-2023-01;REC-5001;Budget Approval for IT Equipment;150000.00;B-IT-23;Pending
+2;T-1002;CFO-2023-02;REC-5002;Office Supplies Q3;25000.50;B-OFF-23;Approved
+3;T-1003;CFO-2023-03;REC-5003;Annual Maintenance Contract;500000.00;B-MNT-23;Rejected
