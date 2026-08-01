@@ -61,6 +61,14 @@ export default function LandingPage() {
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">One-Window</span>
               </div>
             </div>
+            
+            <div className="hidden lg:flex items-center space-x-8 text-sm font-bold text-slate-300">
+              <a href="#file-tracking" onClick={(e) => { e.preventDefault(); document.getElementById('file-tracking')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:text-white transition-colors">File Tracking</a>
+              <a href="#finance" onClick={(e) => { e.preventDefault(); document.getElementById('finance')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:text-white transition-colors">Finance</a>
+              <a href="#hrms" onClick={(e) => { e.preventDefault(); document.getElementById('hrms')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:text-white transition-colors">HRMS</a>
+              <a href="#modules" onClick={(e) => { e.preventDefault(); document.getElementById('modules')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:text-white transition-colors">More Modules</a>
+            </div>
+
             <div>
               <Button onClick={() => navigate('/login')} className="bg-white hover:bg-slate-200 text-slate-900 px-4 sm:px-6 rounded-full font-bold shadow-lg transition-all duration-300 text-sm sm:text-base">
                 <span className="hidden sm:inline">Login to Portal</span>
@@ -114,7 +122,7 @@ export default function LandingPage() {
       </section>
 
       {/* SECTION 2: FILE TRACKING (WHITE THEME) */}
-      <section className="py-24 bg-white text-slate-900 relative overflow-hidden">
+      <section id="file-tracking" className="py-24 bg-white text-slate-900 relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={fadeRight} className="order-2 lg:order-1 w-full">
@@ -144,7 +152,7 @@ export default function LandingPage() {
       </section>
 
       {/* SECTION 3: FINANCIAL HUB (BLACK THEME) */}
-      <section className="py-24 bg-slate-950 text-white relative overflow-hidden">
+      <section id="finance" className="py-24 bg-slate-950 text-white relative overflow-hidden">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-indigo-900/20 rounded-full blur-[120px] pointer-events-none"></div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid lg:grid-cols-2 gap-16 items-center mb-16">
@@ -212,7 +220,7 @@ export default function LandingPage() {
       </section>
 
       {/* SECTION 5: HRMS (BLACK THEME) */}
-      <section className="py-24 bg-slate-950 text-white relative overflow-hidden">
+      <section id="hrms" className="py-24 bg-slate-950 text-white relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={fadeRight} className="order-2 lg:order-1 w-full">
@@ -289,6 +297,44 @@ export default function LandingPage() {
                 Real-time internal communication. Official circulars, urgent announcements, and policy updates are broadcasted to all staff dashboards ensuring the entire organization stays informed.
               </p>
               <Button onClick={() => navigate('/login')} className="w-full font-bold h-12 rounded-xl bg-slate-950 text-white hover:bg-slate-800">Login to View Notices</Button>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 6.5: ENTERPRISE MODULES (BLACK THEME) */}
+      <section id="modules" className="py-24 bg-slate-950 text-white relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <motion.h2 initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp} className="text-cyan-400 font-bold uppercase tracking-widest text-sm mb-3">Enterprise Core</motion.h2>
+          <motion.h3 initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight mb-6">Additional Modules</motion.h3>
+          <motion.p initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp} className="text-slate-400 text-lg max-w-3xl mx-auto mb-16">
+            The One-Window system goes beyond basic tracking. It's a complete ERP solution tailored for government utilities, covering everything from revenue collection to administrative security.
+          </motion.p>
+          
+          <div className="grid md:grid-cols-3 gap-6 text-left">
+            <motion.div whileHover={{ y: -5 }} className="bg-slate-900 border border-white/5 p-6 rounded-2xl shadow-xl shadow-black/50">
+              <Database className="w-10 h-10 text-cyan-400 mb-4" />
+              <h4 className="text-xl font-bold mb-2">Book Section & Bills</h4>
+              <p className="text-slate-400 text-sm leading-relaxed">
+                Dedicated ledgers for Contractor payments, POL bills, Medical contingencies, and inter-departmental Transfer Advices.
+              </p>
+            </motion.div>
+            
+            <motion.div whileHover={{ y: -5 }} className="bg-slate-900 border border-white/5 p-6 rounded-2xl shadow-xl shadow-black/50">
+              <Activity className="w-10 h-10 text-amber-400 mb-4" />
+              <h4 className="text-xl font-bold mb-2">Analytics & Reports</h4>
+              <p className="text-slate-400 text-sm leading-relaxed">
+                Generate real-time statistical reports on file flow, financial health, and employee productivity with one click.
+              </p>
+            </motion.div>
+            
+            <motion.div whileHover={{ y: -5 }} className="bg-slate-900 border border-white/5 p-6 rounded-2xl shadow-xl shadow-black/50">
+              <Network className="w-10 h-10 text-purple-400 mb-4" />
+              <h4 className="text-xl font-bold mb-2">Role-Based Security</h4>
+              <p className="text-slate-400 text-sm leading-relaxed">
+                Strict administrative controls, multi-level authorization workflows, and immutable activity logs for complete security.
+              </p>
             </motion.div>
           </div>
         </div>

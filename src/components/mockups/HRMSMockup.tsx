@@ -3,7 +3,7 @@ import { User, Calendar, Clock, BarChart3, Settings } from 'lucide-react';
 
 export default function HRMSMockup() {
   return (
-    <div className="w-full relative animate-float-slow" style={{ perspective: '1500px' }}>
+    <div className="w-full relative animate-float-slow [zoom:0.45] sm:[zoom:0.65] lg:[zoom:1]" style={{ perspective: '1500px' }}>
       <div 
         className="relative w-full max-w-[700px] aspect-[16/10] mx-auto"
         style={{
