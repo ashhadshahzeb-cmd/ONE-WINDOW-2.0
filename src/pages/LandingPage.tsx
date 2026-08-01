@@ -273,40 +273,57 @@ export default function LandingPage() {
 
       {/* SECTION 6: PUBLIC TRACKING (WHITE THEME) */}
       <section className="py-24 bg-white text-slate-900 relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.h2 initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp} className="text-purple-600 font-bold uppercase tracking-widest text-sm mb-3">Transparency & Communication</motion.h2>
-          <motion.h3 initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp} className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight mb-6">Bridging the Gap</motion.h3>
-          <motion.p initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeUp} className="text-slate-600 text-lg max-w-3xl mx-auto mb-16">
-            Empower both citizens and staff with modern, highly accessible tools. From tracking applications online to receiving instant official announcements, communication has never been easier.
-          </motion.p>
-          
-          <div className="grid md:grid-cols-3 gap-8 text-left">
-            <motion.div whileHover={{ y: -10 }} className="bg-slate-50 border border-slate-200 p-8 rounded-3xl shadow-xl shadow-slate-200/50 flex flex-col h-full">
-              <Globe className="w-12 h-12 text-purple-600 mb-6" />
-              <h4 className="text-2xl font-bold mb-3">Public Tracking Portal</h4>
-              <p className="text-slate-600 text-sm mb-6 flex-grow">
-                Citizens and external contractors can track their file status using their unique Diary Numbers. The public portal requires no login and provides a transparent view of exactly which department holds their application.
-              </p>
-              <Button onClick={() => navigate('/track')} className="w-full font-bold bg-purple-600 hover:bg-purple-700 text-white h-12 rounded-xl">Open Portal</Button>
-            </motion.div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
             
-            <motion.div whileHover={{ y: -10 }} className="bg-slate-50 border border-slate-200 p-8 rounded-3xl shadow-xl shadow-slate-200/50 flex flex-col h-full">
-              <Smartphone className="w-12 h-12 text-blue-600 mb-6" />
-              <h4 className="text-2xl font-bold mb-3">Mobile Document Uploads</h4>
-              <p className="text-slate-600 text-sm mb-6 flex-grow">
-                Staff managing files can instantly attach physical documents. By scanning a unique QR code on their desktop screen, they can securely take photos via their smartphone which instantly sync back to the main server.
+            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={fadeRight} className="order-1 lg:order-1">
+              <h2 className="text-purple-600 font-bold uppercase tracking-widest text-sm mb-3">Public Tracking & Mobile Sync</h2>
+              <h3 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight mb-6">Bridging the Gap</h3>
+              <p className="text-slate-600 text-lg mb-8 leading-relaxed">
+                Empower citizens and staff with modern, highly accessible tools. From tracking applications online to receiving instant official announcements, communication has never been easier.
               </p>
-              <Button disabled variant="outline" className="w-full font-bold h-12 rounded-xl border-blue-200 text-blue-700 bg-blue-50">QR Integrated Feature</Button>
+              
+              <div className="space-y-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-purple-100 flex items-center justify-center shrink-0">
+                    <Globe className="text-purple-600 w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-bold mb-1">Public Tracking Portal</h4>
+                    <p className="text-slate-600 text-sm">Citizens and contractors can track their file status using unique Diary Numbers without logging in.</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-orange-100 flex items-center justify-center shrink-0">
+                    <Smartphone className="text-orange-600 w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-bold mb-1">Mobile Document Uploads</h4>
+                    <p className="text-slate-600 text-sm">Staff can instantly scan QR codes to securely upload physical document photos via smartphone.</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-100 flex items-center justify-center shrink-0">
+                    <Bell className="text-blue-600 w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-bold mb-1">Digital Notice Board</h4>
+                    <p className="text-slate-600 text-sm">Real-time internal communication for official circulars and urgent announcements.</p>
+                  </div>
+                </div>
+              </div>
+              
+              <Button onClick={() => navigate('/track')} className="mt-10 h-14 px-8 text-lg font-bold bg-purple-600 hover:bg-purple-700 text-white rounded-xl shadow-xl shadow-purple-900/20 w-full sm:w-auto hover:scale-105 transition-transform duration-300">
+                Open Public Portal <ArrowRight className="ml-2 w-5 h-5" />
+              </Button>
             </motion.div>
-            
-            <motion.div whileHover={{ y: -10 }} className="bg-slate-50 border border-slate-200 p-8 rounded-3xl shadow-xl shadow-slate-200/50 flex flex-col h-full">
-              <Bell className="w-12 h-12 text-amber-500 mb-6" />
-              <h4 className="text-2xl font-bold mb-3">Digital Notice Board</h4>
-              <p className="text-slate-600 text-sm mb-6 flex-grow">
-                Real-time internal communication. Official circulars, urgent announcements, and policy updates are broadcasted to all staff dashboards ensuring the entire organization stays informed.
-              </p>
-              <Button onClick={() => navigate('/login')} className="w-full font-bold h-12 rounded-xl bg-slate-950 text-white hover:bg-slate-800">Login to View Notices</Button>
+
+            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={fadeLeft} className="order-2 lg:order-2 w-full">
+              <PublicTrackingMockup />
             </motion.div>
+
           </div>
         </div>
       </section>
