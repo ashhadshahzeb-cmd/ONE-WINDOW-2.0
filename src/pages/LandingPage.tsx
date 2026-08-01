@@ -107,19 +107,10 @@ export default function LandingPage() {
                 Experience the all-new unified portal for Karachi Water & Sewerage Corporation. An enterprise-grade architecture that comprehensively manages finances, human resources, and rigorous public tracking from a single, powerful, and secure interface.
               </motion.p>
               
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }} className="flex flex-col items-center gap-6 mt-4">
-                <div className="w-full max-w-xl bg-white/5 p-2 rounded-full border border-white/10 flex items-center backdrop-blur-md shadow-2xl focus-within:border-blue-500/50 focus-within:bg-white/10 transition-all">
-                  <Search className="text-slate-400 w-5 h-5 ml-4 mr-3" />
-                  <input type="text" placeholder="Enter File/Diary Number to track..." className="bg-transparent border-none outline-none text-white flex-1 py-3 px-2 placeholder-slate-400 text-base sm:text-lg" />
-                  <Button onClick={() => navigate('/track')} className="bg-blue-600 hover:bg-blue-700 text-white px-6 sm:px-8 rounded-full h-12 font-bold transition-all text-sm sm:text-base shadow-lg shadow-blue-600/30">Track File</Button>
-                </div>
-                
-                <div className="flex gap-3 text-sm text-slate-400 font-medium items-center">
-                  <span>Are you a KW&SC Employee?</span>
-                  <a href="#" onClick={(e) => { e.preventDefault(); navigate('/login'); }} className="text-blue-400 hover:text-blue-300 font-bold flex items-center transition-colors">
-                    Staff Login <ArrowRight className="w-4 h-4 ml-1" />
-                  </a>
-                </div>
+              <motion.div variants={fadeUp} className="flex flex-col sm:flex-row gap-4 pt-4">
+                <Button onClick={() => navigate('/login')} className="h-14 px-8 w-full sm:w-auto text-lg font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-xl shadow-blue-900/20 hover:scale-105 transition-transform duration-300">
+                  Access Portal <ArrowRight className="ml-2 w-5 h-5" />
+                </Button>
               </motion.div>
             </motion.div>
 
