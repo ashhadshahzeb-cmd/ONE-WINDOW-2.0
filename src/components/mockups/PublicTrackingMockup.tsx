@@ -3,7 +3,7 @@ import { Search, MapPin, CheckCircle, Clock, FileText, ArrowRight } from 'lucide
 
 export default function PublicTrackingMockup() {
   return (
-    <div className="w-full relative animate-float-slow [zoom:0.45] sm:[zoom:0.65] lg:[zoom:1]" style={{ perspective: '1500px' }}>
+    <div className="w-full relative animate-float-slow [zoom:0.45] sm:[zoom:0.65] lg:[zoom:0.8] xl:[zoom:1]" style={{ perspective: '1500px' }}>
       <div 
         className="relative w-full max-w-[700px] aspect-[16/10] mx-auto"
         style={{

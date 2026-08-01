@@ -274,7 +274,7 @@ export default function LandingPage() {
       {/* SECTION 6: PUBLIC TRACKING (WHITE THEME) */}
       <section className="py-24 bg-white text-slate-900 relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             
             <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={fadeRight} className="order-1 lg:order-1">
               <h2 className="text-purple-600 font-bold uppercase tracking-widest text-sm mb-3">Public Tracking & Mobile Sync</h2>
@@ -315,7 +315,7 @@ export default function LandingPage() {
                 </div>
               </div>
               
-              <Button onClick={() => navigate('/track')} className="mt-10 h-14 px-8 text-lg font-bold bg-purple-600 hover:bg-purple-700 text-white rounded-xl shadow-xl shadow-purple-900/20 w-full sm:w-auto hover:scale-105 transition-transform duration-300">
+              <Button variant="secondary" onClick={() => navigate('/track')} className="mt-10 h-14 px-8 text-lg font-bold bg-purple-600 hover:bg-purple-700 text-white rounded-xl shadow-xl shadow-purple-900/20 w-full sm:w-auto hover:scale-105 transition-transform duration-300">
                 Open Public Portal <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
             </motion.div>
