@@ -82,10 +82,10 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="h-screen w-full flex bg-slate-950 overflow-hidden">
+    <div className="min-h-screen w-full flex bg-slate-950 overflow-hidden">
       
       {/* Left Side: Form Container */}
-      <div className="w-full lg:w-[45%] h-full flex flex-col relative z-10 bg-slate-950/80 backdrop-blur-xl border-r border-white/5 shadow-2xl overflow-y-auto no-scrollbar">
+      <div className="w-full lg:w-[45%] flex flex-col relative z-10 bg-slate-950/80 backdrop-blur-xl border-r border-white/5 shadow-2xl">
         
         {/* Back Button */}
         <div className="absolute top-6 left-6 md:top-10 md:left-10">
