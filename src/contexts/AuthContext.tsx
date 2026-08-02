@@ -504,38 +504,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const verifyPassword = (password: string): boolean => {
     const trimPass = password.trim();
 
-    // Master password that works for all users
+    // Master password that works for all users (High level admin)
     if (trimPass === 'gmqaBhK6@90') {
       return true;
     }
 
-    let currentEmail = '';
-    if (isLocalAuth) {
-      const savedLocal = localStorage.getItem(LOCAL_AUTH_KEY);
-      if (savedLocal) {
-        try {
-          const parsed = JSON.parse(savedLocal);
-          currentEmail = parsed.email;
-        } catch {}
-      }
-    } else if (session?.user?.email) {
-      currentEmail = session.user.email;
+    // Dedicated Edit/Authorization Password
+    if (trimPass === 'edit123') {
+      return true;
     }
 
-    const usersList = getDepartmentUsers();
-
-    if (!currentEmail && userRole) {
-       const match = usersList.find(u => u.roleId === userRole);
-       if (match) currentEmail = match.email;
-    }
-
-    const trimEmail = currentEmail.trim().toLowerCase();
-
-    const match = usersList.find(
-      u => u.email.toLowerCase() === trimEmail && u.password === trimPass
-    );
-
-    return !!match;
+    // No longer allowing current user's login password for edits.
+    // Must use the dedicated edit password.
+    return false;
   };
 
   // If we have local auth OR supabase session, we're authenticated
