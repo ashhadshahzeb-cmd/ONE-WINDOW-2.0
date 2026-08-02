@@ -55,15 +55,15 @@ export default function Dashboard() {
 
   return (
     <div className="relative min-h-screen w-full pb-20">
-      <motion.div 
-        variants={container}
-        initial="hidden"
-        animate="show"
-        className="relative z-10 space-y-6"
-      >
+      <div className="relative z-10 space-y-6">
         
         {/* HEADER */}
-        <motion.div variants={item} className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 to-[#0f1115] p-8 rounded-3xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 to-[#0f1115] p-8 rounded-3xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+        >
           <div className="space-y-1">
             <h1 className="text-2xl font-black flex items-center gap-3 text-white tracking-tighter">
               <div className="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center">
@@ -84,7 +84,12 @@ export default function Dashboard() {
         </motion.div>
 
         {/* 2 COLUMN GRID */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <motion.div 
+          variants={container}
+          initial="hidden"
+          animate="show"
+          className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+        >
 
           {/* MAIN CHART - INCOME VS EXPENSES */}
           <motion.div variants={item}>
@@ -281,8 +286,8 @@ export default function Dashboard() {
           </Card>
           </motion.div>
 
-        </div>
-      </motion.div>
+        </motion.div>
+      </div>
 
       <Dialog open={!!selectedBarData} onOpenChange={() => setSelectedBarData(null)}>
         <DialogContent className="max-w-2xl bg-[#09090b] border-white/10 text-white">
