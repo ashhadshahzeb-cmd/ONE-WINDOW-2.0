@@ -184,16 +184,18 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
             <div className="space-y-1">
               {topNavItems.map((item) => (
-                <Link key={item.to} to={item.to} className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group relative overflow-hidden",
-                  location.pathname === item.to ? "bg-white/10 text-white shadow-inner" : "text-white/50 hover:text-white hover:bg-white/5"
-                )}>
-                  {location.pathname === item.to && (
-                    <motion.div layoutId="main-sidebar-active" className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-r-full" />
-                  )}
-                  <item.icon className={cn("w-5 h-5 shrink-0 transition-colors", location.pathname === item.to ? "text-blue-400" : "group-hover:text-white")} />
-                  {!collapsed && <span className="font-medium text-sm">{item.label}</span>}
-                </Link>
+                <motion.div key={item.to} whileHover={{ x: 4 }} whileTap={{ scale: 0.98 }}>
+                  <Link to={item.to} className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group relative overflow-hidden",
+                    location.pathname === item.to ? "bg-white/10 text-white shadow-md shadow-black/50" : "text-white/50 hover:text-white hover:bg-white/5"
+                  )}>
+                    {location.pathname === item.to && (
+                      <motion.div layoutId="main-sidebar-active" className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-r-full" />
+                    )}
+                    <item.icon className={cn("w-5 h-5 shrink-0 transition-colors", location.pathname === item.to ? "text-blue-400" : "group-hover:text-white")} />
+                    {!collapsed && <span className="font-medium text-sm">{item.label}</span>}
+                  </Link>
+                </motion.div>
               ))}
             </div>
 
@@ -205,40 +207,58 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                     className="w-full flex items-center justify-between px-3 mb-2 text-xs font-bold text-blue-400 uppercase tracking-wider hover:text-blue-300 transition-colors"
                   >
                     {category.label}
-                    <ChevronRight className={cn("w-3 h-3 transition-transform duration-200", openCategory === category.id && "rotate-90")} />
+                    <motion.div
+                      animate={{ rotate: openCategory === category.id ? 90 : 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <ChevronRight className="w-3 h-3" />
+                    </motion.div>
                   </button>
                 )}
-                <div className={cn(
-                  "space-y-1 overflow-hidden transition-all duration-300 ease-in-out",
-                  openCategory === category.id || collapsed ? "max-h-[500px] opacity-100 mt-2" : "max-h-0 opacity-0"
-                )}>
-                  {category.items.map((item) => (
-                    <Link key={item.to} to={item.to} className={cn(
-                      "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group relative overflow-hidden",
-                      location.pathname === item.to ? "bg-white/10 text-white border border-white/5" : "text-white/50 hover:text-white hover:bg-white/5"
-                    )}>
-                      {location.pathname === item.to && (
-                        <motion.div layoutId="main-sidebar-active" className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-r-full" />
-                      )}
-                      <item.icon className={cn("w-5 h-5 shrink-0 transition-colors", location.pathname === item.to ? "text-blue-400" : "group-hover:text-white")} />
-                      {!collapsed && <span className="font-medium text-sm">{item.label}</span>}
-                    </Link>
-                  ))}
-                </div>
+                <AnimatePresence initial={false}>
+                  {(openCategory === category.id || collapsed) && (
+                    <motion.div 
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3, ease: "easeInOut" }}
+                      className="space-y-1 overflow-hidden mt-2"
+                    >
+                      {category.items.map((item) => (
+                        <motion.div key={item.to} whileHover={{ x: 4 }} whileTap={{ scale: 0.98 }}>
+                          <Link to={item.to} className={cn(
+                            "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group relative overflow-hidden",
+                            location.pathname === item.to ? "bg-white/10 text-white border border-white/5 shadow-md shadow-black/50" : "text-white/50 hover:text-white hover:bg-white/5"
+                          )}>
+                            {location.pathname === item.to && (
+                              <motion.div layoutId="main-sidebar-active" className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-r-full" />
+                            )}
+                            <item.icon className={cn("w-5 h-5 shrink-0 transition-colors", location.pathname === item.to ? "text-blue-400" : "group-hover:text-white")} />
+                            {!collapsed && <span className="font-medium text-sm">{item.label}</span>}
+                          </Link>
+                        </motion.div>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             ))}
           </div>
         </ScrollArea>
 
         <div className="p-4 border-t border-white/10 space-y-2">
-          <Link to="/profile" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/50 hover:text-white hover:bg-white/5 transition-all">
-            <Settings2 className="w-5 h-5 shrink-0" />
-            {!collapsed && <span className="font-medium">Profile Settings</span>}
-          </Link>
-          <button onClick={() => signOut()} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-rose-400 hover:bg-rose-500/10 transition-all">
-            <LogOut className="w-5 h-5 shrink-0" />
-            {!collapsed && <span className="font-medium">Logout</span>}
-          </button>
+          <motion.div whileHover={{ x: 4 }} whileTap={{ scale: 0.98 }}>
+            <Link to="/profile" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/50 hover:text-white hover:bg-white/5 transition-all">
+              <Settings2 className="w-5 h-5 shrink-0" />
+              {!collapsed && <span className="font-medium">Profile Settings</span>}
+            </Link>
+          </motion.div>
+          <motion.div whileHover={{ x: 4 }} whileTap={{ scale: 0.98 }}>
+            <button onClick={() => signOut()} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 transition-all">
+              <LogOut className="w-5 h-5 shrink-0" />
+              {!collapsed && <span className="font-medium">Logout</span>}
+            </button>
+          </motion.div>
           <button onClick={toggleTheme} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/50 hover:text-white hover:bg-white/5 transition-all hidden">
             {theme === 'dark' ? <Sun className="w-5 h-5 shrink-0" /> : <Moon className="w-5 h-5 shrink-0" />}
             {!collapsed && <span className="font-medium">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>}
