@@ -258,6 +258,18 @@ export default function ActivityLog() {
     }
   };
 
+  const handleForceLogout = (targetName: string) => {
+    if (!isAdminUser) return;
+    
+    supabase.channel('public:admin_commands').send({
+      type: 'broadcast',
+      event: 'force_logout',
+      payload: { targetName }
+    });
+    
+    toast.success(`Force logout command sent to ${targetName}`);
+  };
+
   const getActionIcon = (action: string) => {
     switch (action) {
       case 'REGISTER': return <FilePlus className="w-4 h-4" />;
@@ -399,9 +411,20 @@ export default function ActivityLog() {
                         <User className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                         <span className="text-white/80 font-medium truncate text-xs" title={ou.user_name}>{ou.user_name}</span>
                       </div>
-                      <span className="text-[9px] text-white/40 whitespace-nowrap font-mono bg-black/40 px-1.5 py-0.5 rounded">
-                        {new Date(ou.last_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] text-white/40 whitespace-nowrap font-mono bg-black/40 px-1.5 py-0.5 rounded">
+                          {new Date(ou.last_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-5 w-5 p-0 text-rose-400/70 hover:bg-rose-500/20 hover:text-rose-300 transition-colors"
+                          onClick={() => handleForceLogout(ou.user_name)}
+                          title="Force Logout User"
+                        >
+                          <LogOut className="w-3 h-3" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>

@@ -239,6 +239,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
+  // Listen for admin force logout events
+  useEffect(() => {
+    if (!userName) return;
+    
+    const channel = supabase.channel('public:admin_commands')
+      .on('broadcast', { event: 'force_logout' }, (payload) => {
+        if (payload.payload?.targetName === userName) {
+           signOut();
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userName]);
+
   const checkAdminRole = async (userId: string) => {
     try {
       const { data, error } = await supabase
