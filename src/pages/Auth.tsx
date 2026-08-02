@@ -4,8 +4,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { LogIn, UserPlus, Mail, Lock, User as UserIcon, Loader2, Droplets } from 'lucide-react';
+import { LogIn, UserPlus, Mail, Lock, User as UserIcon, Loader2, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { motion, AnimatePresence } from 'framer-motion';
+import ThreeDLoginBackground from '@/components/auth/ThreeDLoginBackground';
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -15,19 +17,6 @@ export default function AuthPage() {
   const [fullName, setFullName] = useState('');
   const navigate = useNavigate();
   const { localSignIn } = useAuth();
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-
-  // Add subtle parallax effect on mouse move
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      setMousePosition({
-        x: (e.clientX / window.innerWidth) * 20 - 10,
-        y: (e.clientY / window.innerHeight) * 20 - 10,
-      });
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,119 +68,146 @@ export default function AuthPage() {
     }
   };
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { 
+      opacity: 1,
+      transition: { staggerChildren: 0.1, delayChildren: 0.2 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  };
+
   return (
-    <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden bg-slate-950">
-      {/* Animated Mesh Gradient Background */}
-      <div className="absolute inset-0 z-0 opacity-70 mix-blend-screen">
-        <div 
-          className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-blue-600/40 blur-[100px] animate-pulse" 
-          style={{ transform: `translate(${mousePosition.x}px, ${mousePosition.y}px)`, transition: 'transform 0.2s ease-out' }}
-        />
-        <div 
-          className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] rounded-full bg-indigo-600/30 blur-[120px] animate-pulse delay-700" 
-          style={{ transform: `translate(${-mousePosition.x}px, ${-mousePosition.y}px)`, transition: 'transform 0.2s ease-out' }}
-        />
-        <div 
-          className="absolute top-[20%] right-[20%] w-[40vw] h-[40vw] rounded-full bg-teal-500/20 blur-[90px] animate-pulse delay-1000" 
-        />
-      </div>
-
-      {/* Grid Pattern Overlay */}
-      <div className="absolute inset-0 z-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay"></div>
+    <div className="min-h-screen w-full flex bg-slate-950 overflow-hidden">
       
-      {/* Glassmorphic Card */}
-      <div className="relative z-10 w-full max-w-md px-6 animate-in zoom-in-95 fade-in duration-1000 ease-out">
-        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl shadow-2xl overflow-hidden">
-          
-          {/* Header */}
-          <div className="px-8 pt-10 pb-6 text-center">
-            <div className="inline-flex items-center justify-center w-20 h-20 mb-6 drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]">
-              <img src="/kwsc-logo.png" alt="KWSC" className="w-full h-full object-contain" />
-            </div>
-            <h1 className="text-3xl font-bold text-white tracking-tight mb-2">
-              {isLogin ? 'Welcome Back' : 'Join KWSC'}
-            </h1>
-            <p className="text-slate-300 text-sm font-medium">
-              {isLogin 
-                ? 'Sign in to access your financial dashboard' 
-                : 'Create an administrator account to get started'}
-            </p>
-          </div>
+      {/* Left Side: Form Container */}
+      <div className="w-full lg:w-[45%] flex flex-col relative z-10 bg-slate-950/80 backdrop-blur-xl border-r border-white/5 shadow-2xl">
+        
+        {/* Back Button */}
+        <div className="absolute top-6 left-6 md:top-10 md:left-10">
+          <Button 
+            variant="ghost" 
+            className="text-slate-400 hover:text-white hover:bg-white/5"
+            onClick={() => navigate('/')}
+          >
+            <ArrowLeft className="w-5 h-5 mr-2" />
+            Back to Home
+          </Button>
+        </div>
 
-          {/* Form */}
-          <div className="px-8 pb-10">
-            <form onSubmit={handleAuth} className="space-y-5">
-              
-              {!isLogin && (
-                <div className="space-y-1.5 animate-in slide-in-from-bottom-4 duration-500">
-                  <div className="relative group">
-                    <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-teal-400 transition-colors" />
-                    <Input 
-                      id="name" 
-                      placeholder="Full Name" 
-                      className="pl-12 h-14 bg-white/5 border-white/10 text-white placeholder:text-slate-400 focus-visible:ring-teal-400/50 focus-visible:border-teal-400/50 rounded-xl transition-all" 
-                      required={!isLogin}
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                    />
-                  </div>
+        <div className="flex-1 flex flex-col justify-center px-8 sm:px-16 lg:px-20 max-w-2xl mx-auto w-full pt-20">
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={containerVariants}
+            className="w-full"
+          >
+            {/* Header */}
+            <motion.div variants={itemVariants} className="mb-10">
+              <div className="flex items-center gap-3 mb-6">
+                <img src="/kwsc-logo.png" alt="KWSC" className="w-12 h-12 object-contain" />
+                <div className="flex flex-col">
+                  <span className="text-2xl font-black text-white leading-tight tracking-tight">KW&SC</span>
+                  <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">Portal</span>
                 </div>
-              )}
+              </div>
+              <h1 className="text-4xl sm:text-5xl font-black text-white tracking-tight mb-3">
+                {isLogin ? 'Welcome Back' : 'Create Account'}
+              </h1>
+              <p className="text-slate-400 text-lg">
+                {isLogin 
+                  ? 'Sign in to your One Window Facility dashboard' 
+                  : 'Join the enterprise management system'}
+              </p>
+            </motion.div>
 
-              <div className="space-y-1.5">
+            {/* Form */}
+            <form onSubmit={handleAuth} className="space-y-5">
+              <AnimatePresence mode="wait">
+                {!isLogin && (
+                  <motion.div 
+                    key="name"
+                    initial={{ opacity: 0, height: 0, overflow: 'hidden' }}
+                    animate={{ opacity: 1, height: 'auto', overflow: 'visible' }}
+                    exit={{ opacity: 0, height: 0, overflow: 'hidden' }}
+                    transition={{ duration: 0.3 }}
+                    className="space-y-1.5"
+                  >
+                    <div className="relative group">
+                      <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-blue-400 transition-colors" />
+                      <Input 
+                        id="name" 
+                        placeholder="Full Name" 
+                        className="pl-12 h-14 bg-white/[0.03] border-white/10 text-white placeholder:text-slate-500 focus-visible:ring-blue-500/50 focus-visible:border-blue-500/50 rounded-xl transition-all text-base" 
+                        required={!isLogin}
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                      />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <motion.div variants={itemVariants} className="space-y-1.5">
                 <div className="relative group">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-teal-400 transition-colors" />
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-blue-400 transition-colors" />
                   <Input 
                     id="email" 
                     type="email" 
                     placeholder="Email Address" 
-                    className="pl-12 h-14 bg-white/5 border-white/10 text-white placeholder:text-slate-400 focus-visible:ring-teal-400/50 focus-visible:border-teal-400/50 rounded-xl transition-all" 
+                    className="pl-12 h-14 bg-white/[0.03] border-white/10 text-white placeholder:text-slate-500 focus-visible:ring-blue-500/50 focus-visible:border-blue-500/50 rounded-xl transition-all text-base" 
                     required 
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
-              </div>
+              </motion.div>
 
-              <div className="space-y-1.5">
+              <motion.div variants={itemVariants} className="space-y-1.5">
                 <div className="relative group">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-teal-400 transition-colors" />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-blue-400 transition-colors" />
                   <Input 
                     id="password" 
                     type="password" 
                     placeholder="Password"
-                    className="pl-12 h-14 bg-white/5 border-white/10 text-white placeholder:text-slate-400 focus-visible:ring-teal-400/50 focus-visible:border-teal-400/50 rounded-xl transition-all" 
+                    className="pl-12 h-14 bg-white/[0.03] border-white/10 text-white placeholder:text-slate-500 focus-visible:ring-blue-500/50 focus-visible:border-blue-500/50 rounded-xl transition-all text-base" 
                     required 
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />
                 </div>
                 {isLogin && (
-                  <div className="flex justify-end pt-1">
-                    <button type="button" className="text-xs text-slate-400 hover:text-teal-400 transition-colors">
+                  <div className="flex justify-end pt-2">
+                    <button type="button" className="text-sm font-medium text-slate-400 hover:text-blue-400 transition-colors">
                       Forgot Password?
                     </button>
                   </div>
                 )}
-              </div>
+              </motion.div>
 
-              <Button 
-                className="w-full h-14 mt-4 bg-gradient-to-r from-blue-500 to-teal-400 hover:from-blue-600 hover:to-teal-500 text-white text-base font-bold rounded-xl shadow-lg shadow-blue-500/25 border-0 transition-all hover:scale-[1.02] active:scale-[0.98]" 
-                disabled={loading}
-              >
-                {loading ? (
-                  <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                ) : isLogin ? (
-                  <LogIn className="w-5 h-5 mr-2" />
-                ) : (
-                  <UserPlus className="w-5 h-5 mr-2" />
-                )}
-                {isLogin ? 'Sign In' : 'Create Account'}
-              </Button>
+              <motion.div variants={itemVariants} className="pt-2">
+                <Button 
+                  className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold rounded-xl shadow-xl shadow-blue-900/20 transition-all hover:scale-[1.02] active:scale-[0.98]" 
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                  ) : isLogin ? (
+                    <LogIn className="w-5 h-5 mr-2" />
+                  ) : (
+                    <UserPlus className="w-5 h-5 mr-2" />
+                  )}
+                  {isLogin ? 'Access Portal' : 'Register Account'}
+                </Button>
+              </motion.div>
             </form>
 
-            <div className="mt-8 text-center">
-              <p className="text-sm text-slate-400">
+            <motion.div variants={itemVariants} className="mt-8 text-center">
+              <p className="text-base text-slate-400">
                 {isLogin ? "Don't have an account?" : "Already have an account?"}{' '}
                 <button 
                   type="button" 
@@ -200,23 +216,54 @@ export default function AuthPage() {
                     setFullName('');
                     setPassword('');
                   }}
-                  className="font-semibold text-teal-400 hover:text-teal-300 transition-colors underline-offset-4 hover:underline"
+                  className="font-bold text-blue-400 hover:text-blue-300 transition-colors hover:underline underline-offset-4"
                 >
                   {isLogin ? 'Register' : 'Sign In'}
                 </button>
               </p>
-            </div>
-          </div>
-          
+            </motion.div>
+
+          </motion.div>
         </div>
         
         {/* Footer Text */}
-        <div className="text-center mt-6">
-          <p className="text-xs text-slate-500">
-            Karachi Water & Sewerage Corporation
-          </p>
+        <div className="p-8 text-center text-sm text-slate-500 font-medium">
+          &copy; {new Date().getFullYear()} Karachi Water & Sewerage Corporation
         </div>
       </div>
+
+      {/* Right Side: 3D Canvas Visuals */}
+      <div className="hidden lg:block lg:w-[55%] relative">
+        {/* Elegant Gradient Overlays */}
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-transparent to-transparent z-10 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent z-10 pointer-events-none opacity-50" />
+        
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-600/20 rounded-full blur-[120px] pointer-events-none z-10" />
+        
+        {/* The 3D Scene */}
+        <ThreeDLoginBackground />
+        
+        {/* Feature Text Overlay */}
+        <div className="absolute bottom-16 right-16 z-20 max-w-md text-right">
+          <motion.h2 
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.5, duration: 0.8 }}
+            className="text-3xl font-black text-white mb-2"
+          >
+            Enterprise Intelligence
+          </motion.h2>
+          <motion.p 
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.7, duration: 0.8 }}
+            className="text-slate-300 text-lg"
+          >
+            Unifying File Tracking, Finance, and HRMS into a single robust portal.
+          </motion.p>
+        </div>
+      </div>
+
     </div>
   );
 }
