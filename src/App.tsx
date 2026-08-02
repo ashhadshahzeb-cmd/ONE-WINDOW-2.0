@@ -9,6 +9,7 @@ import Layout from "@/components/Layout";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import Dashboard from "./pages/Dashboard";
 import LandingPage from "./pages/LandingPage";
+import DemoVideoPage from "./pages/DemoVideoPage";
 import ChartOfAccounts from "./pages/ChartOfAccounts";
 import GeneralLedger from "./pages/GeneralLedger";
 import BankAccounts from "./pages/BankAccounts";
@@ -127,6 +128,7 @@ const App = () => {
               <BrowserRouter>
               <Routes>
                 <Route path="/" element={<LandingPage />} />
+                <Route path="/demo" element={<DemoVideoPage />} />
                 <Route path="/login" element={<AuthPage />} />
                 <Route path="/track" element={<TrackingPortal />} />
                 <Route path="/public-track/:diaryNo/*" element={<PublicTracking />} />

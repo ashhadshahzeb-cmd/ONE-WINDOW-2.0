@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import ThreeDScene from '@/components/landing/ThreeDScene';
-import { ChevronRight, Shield, FileText, CheckCircle, Clock, BarChart, Search, Globe, Smartphone, Landmark, Building2, Bell, Wallet, Users, Calendar, Calculator, FileCheck, ArrowRight, Activity, Database, Network } from 'lucide-react';
+import { ChevronRight, Shield, FileText, CheckCircle, Clock, BarChart, Search, Globe, Smartphone, Landmark, Building2, Bell, Wallet, Users, Calendar, Calculator, FileCheck, ArrowRight, Activity, Database, Network, PlayCircle } from 'lucide-react';
 import FileTrackingMockup from '@/components/mockups/FileTrackingMockup';
 import HRMSMockup from '@/components/mockups/HRMSMockup';
 import FinanceMockup from '@/components/mockups/FinanceMockup';
@@ -67,6 +67,7 @@ export default function LandingPage() {
               <a href="#finance" onClick={(e) => { e.preventDefault(); document.getElementById('finance')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:text-white transition-colors">Finance</a>
               <a href="#hrms" onClick={(e) => { e.preventDefault(); document.getElementById('hrms')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:text-white transition-colors">HRMS</a>
               <a href="#modules" onClick={(e) => { e.preventDefault(); document.getElementById('modules')?.scrollIntoView({ behavior: 'smooth' }); }} className="hover:text-white transition-colors">More Modules</a>
+              <button onClick={() => navigate('/demo')} className="hover:text-white text-blue-400 transition-colors flex items-center"><PlayCircle className="w-4 h-4 mr-1.5" /> Watch Demo</button>
             </div>
 
             <div>
@@ -110,6 +111,9 @@ export default function LandingPage() {
               <motion.div variants={fadeUp} className="flex flex-col sm:flex-row gap-4 pt-4">
                 <Button onClick={() => navigate('/login')} className="h-14 px-8 w-full sm:w-auto text-lg font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-xl shadow-blue-900/20 hover:scale-105 transition-transform duration-300">
                   Access Portal <ArrowRight className="ml-2 w-5 h-5" />
+                </Button>
+                <Button onClick={() => navigate('/demo')} variant="outline" className="h-14 px-8 w-full sm:w-auto text-lg font-bold border-slate-700 bg-slate-800/50 hover:bg-slate-800 hover:text-white text-slate-200 rounded-xl hover:scale-105 transition-transform duration-300 backdrop-blur-sm">
+                  <PlayCircle className="mr-2 w-5 h-5" /> Watch Demo
                 </Button>
               </motion.div>
             </motion.div>
