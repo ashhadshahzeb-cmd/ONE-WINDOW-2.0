@@ -115,14 +115,6 @@ export default function LandingPage() {
                 <Button onClick={() => navigate('/demo')} variant="outline" className="h-14 px-8 w-full sm:w-auto text-lg font-bold border-slate-700 bg-slate-800/50 hover:bg-slate-800 hover:text-white text-slate-200 rounded-xl hover:scale-105 transition-transform duration-300 backdrop-blur-sm">
                   <PlayCircle className="mr-2 w-5 h-5" /> Watch Demo
                 </Button>
-                <Button onClick={() => {
-                  const link = document.createElement('a');
-                  link.href = '/kwsc-mobile-app.apk';
-                  link.download = 'KWSC-One-Window-App.apk';
-                  link.click();
-                }} variant="outline" className="h-14 px-8 w-full sm:w-auto text-lg font-bold border-emerald-500/30 bg-emerald-900/20 hover:bg-emerald-800 hover:text-white text-emerald-400 rounded-xl hover:scale-105 transition-transform duration-300 backdrop-blur-sm">
-                  <Smartphone className="mr-2 w-5 h-5" /> Download App
-                </Button>
               </motion.div>
             </motion.div>
 
