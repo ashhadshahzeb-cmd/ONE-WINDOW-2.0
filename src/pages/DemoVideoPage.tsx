@@ -61,25 +61,14 @@ export default function DemoVideoPage() {
           transition={{ duration: 0.6, delay: 0.2 }}
           className="w-full max-w-5xl aspect-video bg-slate-900 rounded-2xl border border-white/10 shadow-2xl shadow-black/50 overflow-hidden relative group flex items-center justify-center"
         >
-          {/* Replace this div with an actual <video> tag or iframe (YouTube/Vimeo) when the video is available */}
-          <div className="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900 flex flex-col items-center justify-center">
-            <div className="w-20 h-20 rounded-full bg-blue-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-              <PlayCircle className="w-10 h-10 text-blue-400" />
-            </div>
-            <h3 className="text-xl font-bold text-slate-300 mb-2">Video Presentation</h3>
-            <p className="text-sm text-slate-500">Insert your dashboard video here</p>
-          </div>
-          
-          {/* Example video tag integration (uncomment and add source):
           <video 
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain bg-black"
             controls
-            poster="/assets/video-thumbnail.jpg"
+            autoPlay
+            src="/dashboard-video.mp4"
           >
-            <source src="/assets/dashboard-demo.mp4" type="video/mp4" />
             Your browser does not support the video tag.
           </video>
-          */}
         </motion.div>
       </main>
     </div>
