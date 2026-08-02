@@ -92,8 +92,8 @@ export default function Dashboard() {
         >
 
           {/* MAIN CHART - INCOME VS EXPENSES */}
-          <motion.div variants={item}>
-            <Card className="border-white/10 bg-[#09090b]/50 backdrop-blur-md flex flex-col min-h-[400px] hover:border-white/20 transition-colors shadow-lg">
+          <motion.div variants={item} className="h-full w-full flex flex-col">
+            <Card className="border-white/10 bg-[#09090b]/50 backdrop-blur-md flex flex-col min-h-[400px] flex-1 hover:border-white/20 transition-colors shadow-lg">
             <CardHeader className="pb-2 border-b border-white/5">
               <CardTitle className="text-sm font-black flex items-center justify-between text-white">
                 <div className="flex items-center gap-2">
@@ -160,8 +160,8 @@ export default function Dashboard() {
           </motion.div>
 
           {/* ACCOUNTS (RIGHT COLUMN) */}
-          <motion.div variants={item}>
-            <Card className="border-white/10 bg-[#09090b]/50 backdrop-blur-md flex flex-col min-h-[400px] hover:border-white/20 transition-colors shadow-lg">
+          <motion.div variants={item} className="h-full w-full flex flex-col">
+            <Card className="border-white/10 bg-[#09090b]/50 backdrop-blur-md flex flex-col min-h-[400px] flex-1 hover:border-white/20 transition-colors shadow-lg">
             <CardHeader className="pb-2 border-b border-white/5">
               <CardTitle className="text-sm font-black flex items-center justify-between text-white">
                 <div className="flex items-center gap-2">
@@ -193,8 +193,8 @@ export default function Dashboard() {
           </motion.div>
 
           {/* NET FLOW (FULL WIDTH) */}
-          <motion.div variants={item} className="col-span-1 lg:col-span-2">
-            <Card className="border-white/10 bg-[#09090b]/50 backdrop-blur-md flex flex-col hover:border-white/20 transition-colors shadow-lg">
+          <motion.div variants={item} className="col-span-1 lg:col-span-2 h-full w-full flex flex-col">
+            <Card className="border-white/10 bg-[#09090b]/50 backdrop-blur-md flex flex-col min-h-[300px] flex-1 hover:border-white/20 transition-colors shadow-lg">
             <CardHeader className="pb-2 border-b border-white/5">
               <CardTitle className="text-sm font-black flex items-center justify-between text-white">
                 <div className="flex items-center gap-2">
@@ -229,8 +229,8 @@ export default function Dashboard() {
           </motion.div>
 
           {/* TRANSACTIONS TABLE (FULL WIDTH) */}
-          <motion.div variants={item} className="col-span-1 lg:col-span-2">
-            <Card className="border-white/10 bg-[#09090b]/50 backdrop-blur-md flex flex-col hover:border-white/20 transition-colors shadow-lg">
+          <motion.div variants={item} className="col-span-1 lg:col-span-2 h-full w-full flex flex-col">
+            <Card className="border-white/10 bg-[#09090b]/50 backdrop-blur-md flex flex-col flex-1 hover:border-white/20 transition-colors shadow-lg">
             <CardHeader className="pb-2 border-b border-white/5">
               <CardTitle className="text-sm font-black flex items-center justify-between text-white">
                 <div className="flex items-center gap-2">
