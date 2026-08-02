@@ -1,15 +1,17 @@
 import { useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 
 const AUTO_LOGOUT_TIME = 5 * 60 * 1000; // 5 minutes in milliseconds
 
 export function useAutoLogout() {
-  const { userRole, isLocalAuth, signOut } = useAuth();
+  const { userRole, signOut } = useAuth();
+  const location = useLocation();
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Only apply auto-logout if user is logged in
-  const isLoggedIn = userRole !== null || isLocalAuth;
+  // Active when user is logged in (has a role)
+  const isLoggedIn = userRole !== null;
 
   const resetTimer = () => {
     if (timerRef.current) {

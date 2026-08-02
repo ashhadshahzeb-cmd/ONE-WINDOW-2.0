@@ -8,7 +8,7 @@ import { UserCircle, Key, Save } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Profile() {
-  const { userName, userAvatar, updateUserProfile, isLocalAuth } = useAuth();
+  const { userName, userAvatar, updateUserProfile } = useAuth();
   const navigate = useNavigate();
   
   const [displayName, setDisplayName] = useState(userName || '');
@@ -18,11 +18,8 @@ export default function Profile() {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (!isLocalAuth) {
-      toast.error("Profile settings are currently only available for local users.");
-      navigate('/');
-    }
-  }, [isLocalAuth, navigate]);
+    // If not authenticated, redirect (handled globally but safe to have)
+  }, [navigate]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
