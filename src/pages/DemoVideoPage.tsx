@@ -11,13 +11,11 @@ export default function DemoVideoPage() {
     <div className="min-h-screen bg-slate-950 text-slate-50 selection:bg-blue-500/30 flex flex-col">
       {/* Header */}
       <header className="px-6 py-6 border-b border-white/5 flex items-center justify-between sticky top-0 bg-slate-950/80 backdrop-blur-md z-50">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-lg shadow-blue-500/20">
-            <MonitorPlay className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold leading-tight">KW&SC</h1>
-            <p className="text-xs text-slate-400 font-medium tracking-wide">One Window Facility</p>
+        <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
+          <img src="/kwsc-logo.png" alt="KWSC Logo" className="w-12 h-12 object-contain" />
+          <div className="flex flex-col">
+            <span className="text-xl font-black text-white leading-tight tracking-tight">KW&SC</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">One-Window</span>
           </div>
         </div>
         
