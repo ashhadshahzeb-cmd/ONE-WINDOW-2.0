@@ -391,7 +391,12 @@ export default function LandingPage() {
                 <Button className="bg-white text-slate-900 w-full sm:w-auto hover:bg-slate-100 font-bold h-14 px-8 rounded-xl flex items-center justify-center gap-3">
                   <span className="text-xl">🍏</span> Download for iOS
                 </Button>
-                <Button variant="outline" className="border-white/20 w-full sm:w-auto text-white hover:text-white hover:bg-white/10 font-bold h-14 px-8 rounded-xl flex items-center justify-center gap-3">
+                <Button onClick={() => {
+                  const link = document.createElement('a');
+                  link.href = '/kwsc-mobile-app.apk';
+                  link.download = 'KWSC-One-Window-App.apk';
+                  link.click();
+                }} variant="outline" className="border-white/20 w-full sm:w-auto text-white hover:text-white hover:bg-white/10 font-bold h-14 px-8 rounded-xl flex items-center justify-center gap-3">
                   <span className="text-xl">🤖</span> Download for Android
                 </Button>
               </div>
