@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { motion } from "framer-motion";
 
 const totalBalance = bankAccounts.reduce((s, b) => s + (b.currency === 'PKR' ? b.balance : b.balance * 280), 0);
 
@@ -37,12 +38,32 @@ export default function Dashboard() {
 
   useEffect(() => setMounted(true), []);
 
+  const container = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.15
+      }
+    }
+  };
+
+  const item = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  };
+
   return (
     <div className="relative min-h-screen w-full pb-20">
-      <div className={cn("relative z-10 space-y-6 transition-all duration-1000", mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8")}>
+      <motion.div 
+        variants={container}
+        initial="hidden"
+        animate="show"
+        className="relative z-10 space-y-6"
+      >
         
         {/* HEADER */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#0f1115]/80 p-6 rounded-[28px] border border-white/5 backdrop-blur-xl shadow-2xl">
+        <motion.div variants={item} className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 to-[#0f1115] p-8 rounded-3xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
           <div className="space-y-1">
             <h1 className="text-2xl font-black flex items-center gap-3 text-white tracking-tighter">
               <div className="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center">
@@ -55,18 +76,19 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="flex gap-4">
-            <div className="bg-white/5 border border-white/10 px-4 py-2 rounded-xl flex flex-col items-center">
-              <span className="text-[10px] uppercase text-white/40 font-bold tracking-widest">Total Balance</span>
-              <span className="text-xl font-black text-white">Rs {formatCurrency(totalBalance)}</span>
+            <div className="bg-white/5 border border-white/10 px-6 py-3 rounded-2xl flex flex-col items-center shadow-inner">
+              <span className="text-[10px] uppercase text-white/50 font-bold tracking-widest mb-1">Total Balance</span>
+              <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400">Rs {formatCurrency(totalBalance)}</span>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* 2 COLUMN GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
           {/* MAIN CHART - INCOME VS EXPENSES */}
-          <Card className="border-white/10 bg-[#09090b]/50 backdrop-blur-md flex flex-col min-h-[400px]">
+          <motion.div variants={item}>
+            <Card className="border-white/10 bg-[#09090b]/50 backdrop-blur-md flex flex-col min-h-[400px] hover:border-white/20 transition-colors shadow-lg">
             <CardHeader className="pb-2 border-b border-white/5">
               <CardTitle className="text-sm font-black flex items-center justify-between text-white">
                 <div className="flex items-center gap-2">
@@ -130,9 +152,11 @@ export default function Dashboard() {
               </ResponsiveContainer>
             </CardContent>
           </Card>
+          </motion.div>
 
           {/* ACCOUNTS (RIGHT COLUMN) */}
-          <Card className="border-white/10 bg-[#09090b]/50 backdrop-blur-md flex flex-col min-h-[400px]">
+          <motion.div variants={item}>
+            <Card className="border-white/10 bg-[#09090b]/50 backdrop-blur-md flex flex-col min-h-[400px] hover:border-white/20 transition-colors shadow-lg">
             <CardHeader className="pb-2 border-b border-white/5">
               <CardTitle className="text-sm font-black flex items-center justify-between text-white">
                 <div className="flex items-center gap-2">
@@ -143,7 +167,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent className="space-y-3 flex-1 overflow-y-auto custom-scrollbar pr-2 pt-6">
               {bankAccounts.map((bank) => (
-                <div key={bank.id} className="flex items-center justify-between p-4 rounded-xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.05] hover:border-white/[0.1] transition-all cursor-default group">
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} key={bank.id} className="flex items-center justify-between p-4 rounded-xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.08] hover:border-white/[0.2] transition-all cursor-default group shadow-sm">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-full flex items-center justify-center bg-white/5 border border-white/10 overflow-hidden relative">
                       <div className="absolute inset-0 opacity-20" style={{ backgroundColor: bank.color }}></div>
@@ -157,13 +181,15 @@ export default function Dashboard() {
                   <p className="text-sm font-bold font-mono text-white tracking-tight">
                     {formatCurrency(bank.balance, bank.currency)}
                   </p>
-                </div>
+                </motion.div>
               ))}
             </CardContent>
           </Card>
+          </motion.div>
 
           {/* NET FLOW (FULL WIDTH) */}
-          <Card className="col-span-1 lg:col-span-2 border-white/10 bg-[#09090b]/50 backdrop-blur-md flex flex-col">
+          <motion.div variants={item} className="col-span-1 lg:col-span-2">
+            <Card className="border-white/10 bg-[#09090b]/50 backdrop-blur-md flex flex-col hover:border-white/20 transition-colors shadow-lg">
             <CardHeader className="pb-2 border-b border-white/5">
               <CardTitle className="text-sm font-black flex items-center justify-between text-white">
                 <div className="flex items-center gap-2">
@@ -195,9 +221,11 @@ export default function Dashboard() {
               </ResponsiveContainer>
             </CardContent>
           </Card>
+          </motion.div>
 
           {/* TRANSACTIONS TABLE (FULL WIDTH) */}
-          <Card className="col-span-1 lg:col-span-2 border-white/10 bg-[#09090b]/50 backdrop-blur-md flex flex-col">
+          <motion.div variants={item} className="col-span-1 lg:col-span-2">
+            <Card className="border-white/10 bg-[#09090b]/50 backdrop-blur-md flex flex-col hover:border-white/20 transition-colors shadow-lg">
             <CardHeader className="pb-2 border-b border-white/5">
               <CardTitle className="text-sm font-black flex items-center justify-between text-white">
                 <div className="flex items-center gap-2">
@@ -251,9 +279,10 @@ export default function Dashboard() {
               </table>
             </CardContent>
           </Card>
+          </motion.div>
 
         </div>
-      </div>
+      </motion.div>
 
       <Dialog open={!!selectedBarData} onOpenChange={() => setSelectedBarData(null)}>
         <DialogContent className="max-w-2xl bg-[#09090b] border-white/10 text-white">
