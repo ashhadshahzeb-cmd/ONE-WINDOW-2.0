@@ -504,18 +504,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const verifyPassword = (password: string): boolean => {
     const trimPass = password.trim();
 
-    // Master password that works for all users (High level admin)
+    // Only this master password will be used for edits
     if (trimPass === 'gmqaBhK6@90') {
       return true;
     }
 
-    // Dedicated Edit/Authorization Password
-    if (trimPass === 'edit123') {
-      return true;
-    }
-
     // No longer allowing current user's login password for edits.
-    // Must use the dedicated edit password.
+    // Must use the dedicated edit password above.
     return false;
   };
 
