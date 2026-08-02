@@ -78,7 +78,7 @@ export default function Dashboard() {
           <div className="flex gap-4">
             <div className="bg-white/5 border border-white/10 px-6 py-3 rounded-2xl flex flex-col items-center shadow-inner">
               <span className="text-[10px] uppercase text-white/50 font-bold tracking-widest mb-1">Total Balance</span>
-              <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400">Rs {formatCurrency(totalBalance)}</span>
+              <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400">{formatCurrency(totalBalance)}</span>
             </div>
           </div>
         </motion.div>
@@ -117,7 +117,7 @@ export default function Dashboard() {
                     contentStyle={{ backgroundColor: 'rgba(9, 9, 11, 0.8)', backdropFilter: 'blur(10px)', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '16px', padding: '12px', boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}
                     itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
                     labelStyle={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', marginBottom: '4px' }}
-                    formatter={(v: number) => [`Rs. ${formatCurrency(v)}`, '']}
+                    formatter={(v: number) => [`${formatCurrency(v)}`, '']}
                   />
                   <Bar 
                     dataKey="income" 
@@ -219,7 +219,7 @@ export default function Dashboard() {
                     contentStyle={{ backgroundColor: 'rgba(9, 9, 11, 0.9)', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }} 
                     itemStyle={{ fontSize: '11px', color: '#38bdf8', fontWeight: 'bold' }}
                     labelStyle={{ fontSize: '9px', color: 'rgba(255,255,255,0.5)', marginBottom: '2px' }}
-                    formatter={(v: number) => [`Rs. ${formatCurrency(v)}`, 'Net']} 
+                    formatter={(v: number) => [`${formatCurrency(v)}`, 'Net']} 
                   />
                   <Area type="monotone" dataKey="net" stroke="#38bdf8" strokeWidth={3} fillOpacity={1} fill="url(#colorNetBento)" />
                 </AreaChart>
@@ -301,7 +301,7 @@ export default function Dashboard() {
             <div className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/10 mb-6">
               <span className="text-sm text-white/60 uppercase tracking-widest">Total {selectedBarData?.type}</span>
               <span className={cn("text-2xl font-bold", selectedBarData?.type === 'Income' ? 'text-blue-400' : 'text-orange-400')}>
-                Rs. {selectedBarData?.amount ? formatCurrency(selectedBarData.amount) : '0'}
+                {selectedBarData?.amount ? formatCurrency(selectedBarData.amount) : '0'}
               </span>
             </div>
 
@@ -321,7 +321,7 @@ export default function Dashboard() {
                       <td className="px-4 py-3 text-white/70">{item.date}</td>
                       <td className="px-4 py-3 font-mono text-white/50 text-xs">{item.ref}</td>
                       <td className="px-4 py-3 text-white/90">{item.description}</td>
-                      <td className="px-4 py-3 text-right font-medium">Rs. {formatCurrency(item.amount)}</td>
+                      <td className="px-4 py-3 text-right font-medium">{formatCurrency(item.amount)}</td>
                     </tr>
                   ))}
                 </tbody>
