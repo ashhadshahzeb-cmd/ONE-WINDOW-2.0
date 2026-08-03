@@ -117,6 +117,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     } catch (err) {
       console.error('Error loading user profile:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
