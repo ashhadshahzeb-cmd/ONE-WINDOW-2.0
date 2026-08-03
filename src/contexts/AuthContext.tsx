@@ -15,6 +15,62 @@ export interface DepartmentUser {
   enforce_attendance?: boolean;
 }
 
+export const DEFAULT_DEPARTMENT_USERS: DepartmentUser[] = [
+  { email: 'hr.admin@kwsb.gov.pk',         password: 'hradmin',      roleId: 'hr_admin',          displayName: 'HR ADMIN' },
+  { email: 'admin@kwsb.gov.pk',            password: 'admin',        roleId: 'admin',             displayName: 'SYSTEM ADMINISTRATOR' },
+  { email: 'cfo@kwsb.gov.pk',              password: 'cfo@12345',    roleId: 'cfo',              displayName: 'CFO' },
+  { email: 'cia@kwsb.gov.pk',              password: 'cia@12345',    roleId: 'cia',              displayName: 'CIA' },
+  { email: 'budget@kwsb.gov.pk',           password: 'budget@12345', roleId: 'budget',            displayName: 'BUDGET' },
+  { email: 'pension@kwsb.gov.pk',          password: 'pension@12345',roleId: 'pension',           displayName: 'PENSION' },
+  { email: 'fund@kwsb.gov.pk',             password: 'fund@12345',   roleId: 'fund',              displayName: 'FUND' },
+  { email: 'audit1@kwsb.gov.pk',           password: 'audit1@12345', roleId: 'internal_audit_1',  displayName: 'INTERNAL AUDIT-1' },
+  { email: 'director.account@kwsb.gov.pk', password: 'da@12345',     roleId: 'director_account',  displayName: 'DIRECTOR ACCOUNT' },
+  { email: 'director.finance@kwsb.gov.pk', password: 'df@12345',     roleId: 'director_finance',  displayName: 'DIRECTOR FINANCE' },
+  { email: 'director.it@kwsb.gov.pk',      password: 'dit@12345',    roleId: 'director_it',       displayName: 'DIRECTOR IT' },
+  { email: 'subcfo@kwsb.gov.pk',           password: 'sub@12345',     roleId: 'sub_cfo',           displayName: 'ASST. CFO' },
+  { email: 'books@kwsb.gov.pk',            password: 'books@12345',   roleId: 'books',             displayName: 'BOOKS' },
+  { email: 'establishment@kwsb.gov.pk',    password: 'est@12345',     roleId: 'establishment',     displayName: 'ESTABLISHMENT' },
+  { email: 'director.audit@kwsb.gov.pk',   password: 'daudit@12345',  roleId: 'director_audit',    displayName: 'DIRECTOR AUDIT' },
+  { email: 'audit2@kwsb.gov.pk',           password: 'audit2@12345',  roleId: 'internal_audit_2',  displayName: 'INTERNAL AUDIT-2' },
+  { email: 'law@kwsb.gov.pk',              password: 'law@12345',     roleId: 'law_department',    displayName: 'LAW DEPARTMENT' },
+  { email: 'chro@kwsb.gov.pk',             password: 'chro@12345',    roleId: 'chro',              displayName: 'CHRO' },
+  { email: 'asst.cfo1@kwsb.gov.pk',        password: 'acfo1@12345',  roleId: 'sub_cfo_1',         displayName: 'ASST. CFO-1' },
+  { email: 'asst.cfo2@kwsb.gov.pk',        password: 'acfo2@12345',  roleId: 'sub_cfo_2',         displayName: 'ASST. CFO-2' },
+  { email: 'asst.cfo3@kwsb.gov.pk',        password: 'acfo3@12345',  roleId: 'sub_cfo_3',         displayName: 'ASST. CFO-3' },
+  { email: 'asst.cfo4@kwsb.gov.pk',        password: 'acfo4@12345',  roleId: 'sub_cfo_4',         displayName: 'ASST. CFO-4' },
+  { email: 'asst.cfo5@kwsb.gov.pk',        password: 'acfo5@12345',  roleId: 'sub_cfo_5',         displayName: 'ASST. CFO-5' },
+  { email: 'mdoffice@kwsb.gov.pk',         password: 'md@12345',      roleId: 'md_office',         displayName: 'MD OFFICE' },
+  { email: 'emp1@kwsb.gov.pk',             password: 'emp1@12345',    roleId: 'emp_operator',      displayName: 'EMPLOYEE REGISTRY 1' },
+  { email: 'transfer@kwsb.gov.pk',         password: 'transfer@12345',roleId: 'transfer_user',   displayName: 'TRANSFER ADVICE' },
+  { email: 'emp2@kwsb.gov.pk',             password: 'emp2@12345',    roleId: 'emp_operator',      displayName: 'EMPLOYEE REGISTRY 2' },
+  { email: 'viewer@kwsb.gov.pk',           password: 'viewer@12345',  roleId: 'file_viewer',       displayName: 'FILE VIEWER' },
+];
+
+export const CUSTOM_USERS_KEY = 'kwsb_custom_users';
+
+export const getDepartmentUsers = (): DepartmentUser[] => {
+  const customStr = localStorage.getItem(CUSTOM_USERS_KEY);
+  if (customStr) {
+    try {
+      const customUsers = JSON.parse(customStr);
+      const merged = [...customUsers];
+      DEFAULT_DEPARTMENT_USERS.forEach(defaultUser => {
+        if (!merged.find((u: DepartmentUser) => u.email === defaultUser.email)) {
+          merged.push(defaultUser);
+        }
+      });
+      return merged;
+    } catch {
+      return DEFAULT_DEPARTMENT_USERS;
+    }
+  }
+  return DEFAULT_DEPARTMENT_USERS;
+};
+
+export const saveDepartmentUsers = (users: DepartmentUser[]) => {
+  localStorage.setItem(CUSTOM_USERS_KEY, JSON.stringify(users));
+};
+
 interface AuthContextType {
   session: Session | null;
   user: User | null;

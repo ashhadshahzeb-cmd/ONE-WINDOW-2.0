@@ -68,6 +68,26 @@ export default function AuthPage() {
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!email) {
+      toast.error('Please enter your email address first to reset your password.');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      
+      if (error) throw error;
+      
+      toast.success('Password reset email sent! Please check your inbox.');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to send reset email.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: { 
@@ -182,7 +202,7 @@ export default function AuthPage() {
                 </div>
                 {isLogin && (
                   <div className="flex justify-end pt-2">
-                    <button type="button" className="text-sm font-medium text-slate-400 hover:text-blue-400 transition-colors">
+                    <button type="button" onClick={handleForgotPassword} className="text-sm font-medium text-slate-400 hover:text-blue-400 transition-colors">
                       Forgot Password?
                     </button>
                   </div>
