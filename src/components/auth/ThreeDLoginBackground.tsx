@@ -55,20 +55,48 @@ function SceneControls() {
   return null;
 }
 
+class WebGLErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
+  constructor(props: {children: React.ReactNode}) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: any) {
+    console.warn("WebGL is not supported or failed to initialize:", error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-sky-900 to-slate-950 opacity-80 pointer-events-none z-0">
+          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function ThreeDLoginBackground() {
   return (
     <div className="absolute inset-0 bg-slate-950 overflow-hidden pointer-events-none z-0">
-      <Canvas camera={{ position: [0, 0, 8], fov: 45 }}>
-        <ambientLight intensity={0.5} />
-        <directionalLight position={[10, 10, 5]} intensity={1} color="#38bdf8" />
-        <directionalLight position={[-10, -10, -5]} intensity={0.5} color="#818cf8" />
-        <pointLight position={[0, 0, 0]} intensity={2} color="#0ea5e9" />
-        
-        <Stars radius={100} depth={50} count={3000} factor={4} saturation={0} fade speed={1} />
-        
-        <AnimatedSphere />
-        <SceneControls />
-      </Canvas>
+      <WebGLErrorBoundary>
+        <Canvas camera={{ position: [0, 0, 8], fov: 45 }}>
+          <ambientLight intensity={0.5} />
+          <directionalLight position={[10, 10, 5]} intensity={1} color="#38bdf8" />
+          <directionalLight position={[-10, -10, -5]} intensity={0.5} color="#818cf8" />
+          <pointLight position={[0, 0, 0]} intensity={2} color="#0ea5e9" />
+          
+          <Stars radius={100} depth={50} count={3000} factor={4} saturation={0} fade speed={1} />
+          
+          <AnimatedSphere />
+          <SceneControls />
+        </Canvas>
+      </WebGLErrorBoundary>
     </div>
   );
 }
