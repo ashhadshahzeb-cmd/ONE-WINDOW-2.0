@@ -46,6 +46,9 @@ import Placeholder from "./pages/Placeholder";
 import UserManagement from "./pages/UserManagement";
 import Messages from "./pages/Messages";
 import TrackingPortal from "./pages/TrackingPortal";
+import MobileDashboard from "./pages/MobileDashboard";
+import MobileAuth from "./pages/MobileAuth";
+import MobileProfile from "./pages/MobileProfile";
 
 // HRMS Imports
 import HRMSDashboard from "./pages/hrms/HRMSDashboard";
@@ -55,6 +58,7 @@ import LeaveManagement from './pages/hrms/LeaveManagement';
 import Payroll from './pages/hrms/Payroll';
 import HRMSProfile from './pages/hrms/Profile';
 import HRMSLayout from './components/HRMSLayout';
+import { Capacitor } from '@capacitor/core';
 
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -127,13 +131,15 @@ const App = () => {
             <VoiceProvider>
               <BrowserRouter>
               <Routes>
-                <Route path="/" element={<LandingPage />} />
+                <Route path="/" element={Capacitor.isNativePlatform() ? <MobileDashboard /> : <LandingPage />} />
                 <Route path="/demo" element={<DemoVideoPage />} />
-                <Route path="/login" element={<AuthPage />} />
+                <Route path="/login" element={Capacitor.isNativePlatform() ? <MobileAuth /> : <AuthPage />} />
                 <Route path="/track" element={<TrackingPortal />} />
                 <Route path="/public-track/:diaryNo/*" element={<PublicTracking />} />
                 <Route path="/mobile-upload/:sessionId" element={<MobileUpload />} />
-                
+                <Route path="/mobile-app" element={<MobileDashboard />} />
+                <Route path="/profile" element={Capacitor.isNativePlatform() ? <ProtectedRoute><MobileProfile /></ProtectedRoute> : <ProtectedRoute><Profile /></ProtectedRoute>} />
+
                 {/* HRMS Routes Top-Level (Outside of Main Layout) */}
                 <Route path="/hrms/dashboard" element={<ProtectedRoute><HRMSLayout><HRMSDashboard /></HRMSLayout></ProtectedRoute>} />
                 <Route path="/hrms/employees" element={<ProtectedRoute><HRMSLayout><Employees /></HRMSLayout></ProtectedRoute>} />

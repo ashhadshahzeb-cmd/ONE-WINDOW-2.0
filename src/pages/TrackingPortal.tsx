@@ -1,16 +1,21 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, MapPin, Package, ShieldCheck, ArrowRight, Loader2, Mail, Phone, MapPin as MapPinIcon } from "lucide-react";
+import { Search, MapPin, Package, ShieldCheck, ArrowRight, Loader2, Bell, Home, FileText, Settings, QrCode } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
+import { useAuth } from '@/contexts/AuthContext';
+import { NotificationDropdown } from '@/components/NotificationDropdown';
+import { MobileMenu } from '@/components/MobileMenu';
 
 export default function TrackingPortal() {
   const [trackingNumber, setTrackingNumber] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const EXPO_OUT = [0.16, 1, 0.3, 1] as any;
 
   const handleTrack = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,139 +57,185 @@ export default function TrackingPortal() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 font-sans flex flex-col relative overflow-hidden text-slate-200">
+    <div className="w-full min-h-screen bg-white flex justify-center overflow-hidden font-sans">
       
-      {/* Background Graphic (Subtle, professional) */}
-      <div className="absolute top-0 inset-x-0 h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.02] -z-10 pointer-events-none"></div>
+      {/* Mobile Device Container - full width on mobile, max-md on desktop */}
+      <div className="relative w-full max-w-md mx-auto flex flex-col h-screen">
+          
+        {/* Status Bar space */}
+        <div className="h-6 w-full bg-white z-40"></div>
 
-      {/* Navbar */}
-      <nav className="w-full z-50 px-6 py-6 border-b border-white/10 bg-slate-950/50 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
-            <img src="/kwsc-logo.png" alt="KW&SC Logo" className="h-10 w-10 object-contain" />
-            <div>
-              <div className="font-black text-xl tracking-tight text-white leading-none">KW&SC</div>
-              <div className="text-[10px] font-bold text-blue-400 tracking-widest uppercase mt-0.5">Portal</div>
+        {/* Top Header */}
+        <motion.div 
+          initial={{ y: -50, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.8, ease: EXPO_OUT }}
+          className="bg-transparent px-5 py-3 flex justify-between items-center z-10 shrink-0"
+        >
+          <div className="flex items-center gap-3">
+            {user ? (
+              <MobileMenu />
+            ) : (
+              <div className="w-10 h-10 bg-white border border-slate-100 rounded-[1.25rem] flex items-center justify-center shadow-sm cursor-pointer" onClick={() => navigate('/mobile-app')}>
+                <img src="/kwsc-logo.png" alt="KWSC Logo" className="w-7 h-7 object-contain" />
+              </div>
+            )}
+            <div className="flex flex-col justify-center cursor-pointer" onClick={() => navigate('/mobile-app')}>
+              <h2 className="text-[13px] font-black text-slate-800 leading-tight">KW&SC</h2>
+              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wide">Tracking Portal</p>
             </div>
           </div>
-          <Button onClick={() => navigate('/login')} className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 rounded-full shadow-lg shadow-blue-900/20">
-            Login to Portal
-          </Button>
-        </div>
-      </nav>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col items-center pt-20 pb-20 px-4 relative z-10">
-        
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-4 mb-10">
-          <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">Track Your Application</h2>
-          <p className="text-sm md:text-base text-slate-400 max-w-lg mx-auto font-medium">Enter your Tracking ID, Receiving Number, or CFO Diary No. to check the live status of your file.</p>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="w-full max-w-2xl">
-          <div className="bg-slate-900/80 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/10">
-            <form onSubmit={handleTrack} className="flex flex-col md:flex-row gap-4 relative">
-              <div className="relative flex-1">
-                <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">
-                  <Search className="w-5 h-5" />
-                </div>
-                <input
-                  type="text"
-                  placeholder="e.g. KWSC-2026-12345"
-                  value={trackingNumber}
-                  onChange={(e) => setTrackingNumber(e.target.value)}
-                  className="w-full h-16 pl-14 pr-6 bg-slate-950 border border-slate-800 rounded-2xl text-lg font-bold text-white focus:bg-slate-950 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all uppercase placeholder:normal-case placeholder:font-medium placeholder:text-slate-500 shadow-inner"
-                />
+          <div className="relative">
+            {user ? (
+              <div className="bg-white border border-slate-100 shadow-[0_4px_12px_rgba(0,0,0,0.04)] rounded-full flex items-center justify-center text-slate-600 [&_button]:w-10 [&_button]:h-10 [&_button]:flex [&_button]:items-center [&_button]:justify-center [&_button]:bg-transparent [&_button]:border-none [&_button]:shadow-none [&_svg]:w-5 [&_svg]:h-5">
+                <NotificationDropdown />
               </div>
-              
-              <button 
-                type="submit" 
-                disabled={isSearching}
-                className="w-full md:w-auto h-16 px-8 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-2xl text-sm shadow-lg shadow-blue-900/40 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shrink-0"
+            ) : (
+              <motion.div 
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => navigate('/login')}
+                className="w-10 h-10 bg-white border border-slate-100 shadow-[0_4px_12px_rgba(0,0,0,0.04)] rounded-full flex items-center justify-center text-slate-600 relative cursor-pointer"
               >
-                {isSearching ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <>
-                    Track Now
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
-            </form>
-
-            {searchResults.length > 0 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-8 pt-6 border-t border-white/10 space-y-3 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
-                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Select a File to View</h3>
-                {searchResults.map((res, idx) => (
-                  <div 
-                    key={idx}
-                    onClick={() => navigate(`/public-track/${res.cfo_diary_number}/${res.receiving_number}`)}
-                    className="p-4 rounded-xl border border-white/5 bg-slate-950 hover:bg-slate-800 hover:border-blue-500/50 cursor-pointer transition-all group flex flex-col gap-2"
-                  >
-                    <div className="flex justify-between items-start">
-                      <span className="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2 py-1 rounded-md uppercase border border-blue-500/20">{res.tracking_id || "NO-ID"}</span>
-                      <span className="text-[10px] font-semibold text-slate-500 flex items-center gap-1"><MapPin size={10}/> {res.inward_date}</span>
-                    </div>
-                    <p className="text-sm font-bold text-slate-200 line-clamp-2 mt-1">{res.subject}</p>
-                    <div className="flex justify-between items-center mt-2 pt-2 border-t border-white/5">
-                      <span className="text-[10px] font-semibold text-slate-500">Receiving: {res.receiving_number}</span>
-                      <ArrowRight className="w-4 h-4 text-blue-500 group-hover:translate-x-1 transition-transform" />
-                    </div>
-                  </div>
-                ))}
+                <Bell className="w-5 h-5" />
               </motion.div>
             )}
+          </div>
+        </motion.div>
 
-            {searchResults.length === 0 && (
-              <div className="mt-8 pt-8 border-t border-white/10 grid grid-cols-2 gap-6">
+        {/* Scrollable Area */}
+        <div className="flex-1 p-5 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, ease: EXPO_OUT }} className="mb-8 px-1">
+            <h2 className="text-2xl font-black text-slate-800 tracking-tight">Track Your File</h2>
+            <p className="text-xs text-slate-500 mt-2 font-medium">Enter your Tracking ID, Receiving No, or CFO Diary No.</p>
+          </motion.div>
+
+          {/* Search / Track - Pill shaped with shadow */}
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, delay: 0.1, ease: EXPO_OUT }}
+            className="relative px-1 mb-6"
+          >
+            <form onSubmit={handleTrack} className="relative shadow-[0_8px_30px_rgba(0,0,0,0.06)] rounded-full bg-white border border-slate-50 flex items-center">
+              <div className="absolute left-5 text-slate-400">
+                <Search className="w-5 h-5" />
+              </div>
+              <input 
+                type="text" 
+                placeholder="e.g. KWSC-2026-12345" 
+                value={trackingNumber}
+                onChange={(e) => setTrackingNumber(e.target.value)}
+                className="flex-1 h-14 bg-transparent rounded-full pl-12 pr-14 text-sm font-bold text-slate-700 focus:outline-none placeholder-slate-400 uppercase placeholder:normal-case" 
+              />
+              <motion.button 
+                type="submit"
+                disabled={isSearching}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="absolute right-1.5 w-11 h-11 bg-blue-600 rounded-full flex items-center justify-center text-white cursor-pointer shadow-md shadow-blue-500/20 disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                {isSearching ? <Loader2 className="w-5 h-5 animate-spin" /> : <ArrowRight className="w-5 h-5" />}
+              </motion.button>
+            </form>
+          </motion.div>
+
+          {/* Search Results */}
+          {searchResults.length > 0 && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="mt-8 space-y-3 px-1">
+              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Select a File to View</h3>
+              {searchResults.map((res, idx) => (
+                <motion.div 
+                  initial={{ x: 50, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.1 * idx, ease: EXPO_OUT }}
+                  key={idx}
+                  onClick={() => navigate(`/public-track/${res.cfo_diary_number}/${res.receiving_number}`)}
+                  className="bg-white p-4 rounded-[1.5rem] border border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] cursor-pointer group flex flex-col gap-2"
+                >
+                  <div className="flex justify-between items-start">
+                    <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full uppercase tracking-wider">{res.tracking_id || "NO-ID"}</span>
+                    <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1"><MapPin size={10}/> {res.inward_date}</span>
+                  </div>
+                  <p className="text-[13px] font-bold text-slate-800 line-clamp-2 mt-1 leading-tight">{res.subject}</p>
+                  <div className="flex justify-between items-center mt-3 pt-3 border-t border-slate-50">
+                    <span className="text-[10px] font-bold text-slate-400">Receiving: {res.receiving_number}</span>
+                    <div className="w-6 h-6 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-blue-50 transition-colors">
+                      <ArrowRight className="w-3 h-3 text-slate-400 group-hover:text-blue-600" />
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+
+          {searchResults.length === 0 && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="mt-8 px-1">
+              <div className="bg-slate-50 rounded-[2rem] p-6 flex flex-col gap-6">
                 <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center shrink-0 border border-slate-700">
-                    <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                  <div className="w-12 h-12 rounded-[1.25rem] bg-emerald-50 flex items-center justify-center shrink-0">
+                    <ShieldCheck className="w-6 h-6 text-emerald-500" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-slate-200 mb-1">Official & Secure</h4>
-                    <p className="text-xs text-slate-400 leading-relaxed">Your file status is fetched directly from the central database.</p>
+                    <h4 className="text-[13px] font-black text-slate-800 mb-0.5">Official & Secure</h4>
+                    <p className="text-[11px] text-slate-500 font-medium leading-relaxed">Status is fetched directly from the central KW&SC database.</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center shrink-0 border border-slate-700">
-                    <Package className="w-5 h-5 text-blue-400" />
+                  <div className="w-12 h-12 rounded-[1.25rem] bg-blue-50 flex items-center justify-center shrink-0">
+                    <Package className="w-6 h-6 text-blue-500" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-slate-200 mb-1">Live Tracking</h4>
-                    <p className="text-xs text-slate-400 leading-relaxed">See exact department locations and approval timestamps instantly.</p>
+                    <h4 className="text-[13px] font-black text-slate-800 mb-0.5">Live Tracking</h4>
+                    <p className="text-[11px] text-slate-500 font-medium leading-relaxed">See exact department locations and approval timestamps instantly.</p>
                   </div>
                 </div>
               </div>
-            )}
-          </div>
+            </motion.div>
+          )}
+
+        </div>
+
+        {/* Bottom Tab Bar (Matching MobileDashboard) */}
+        <motion.div 
+          initial={{ y: 50, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.8, delay: 0.3, ease: EXPO_OUT }}
+          className="h-24 bg-white border-t border-slate-100 flex justify-around items-center px-4 pb-6 z-20 shrink-0"
+        >
+          {[
+            { icon: Home, label: "Home", color: "text-slate-400", route: "/mobile-app" },
+            { icon: FileText, label: "Records", color: "text-blue-600", route: "/track" }
+          ].map((item, i) => (
+            <motion.div key={i} onClick={() => navigate(item.route)} whileHover={{ y: -2 }} whileTap={{ scale: 0.95 }} className={`flex flex-col items-center gap-1.5 ${item.color} cursor-pointer`}>
+              <item.icon className={`w-6 h-6 ${i === 1 ? 'stroke-[2.5]' : ''}`} />
+              <span className="text-[11px] font-extrabold">{item.label}</span>
+            </motion.div>
+          ))}
+          
+          {/* Center Floating Button */}
+          <motion.div 
+            whileHover={{ scale: 1.05, y: -2 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => navigate('/mobile-app')}
+            className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-[0_12px_24px_rgba(37,99,235,0.4)] -mt-12 cursor-pointer relative z-30"
+          >
+            <QrCode className="w-7 h-7" />
+          </motion.div>
+
+          {[
+            { icon: Bell, label: "Alerts", color: "text-slate-400", route: "#" },
+            { icon: Settings, label: "Profile", color: "text-slate-400", route: user ? "/profile" : "/login" }
+          ].map((item, i) => (
+            <motion.div key={i} onClick={() => item.route !== "#" && navigate(item.route)} whileHover={{ y: -2 }} whileTap={{ scale: 0.95 }} className={`flex flex-col items-center gap-1.5 ${item.color} cursor-pointer`}>
+              <item.icon className="w-6 h-6" />
+              <span className="text-[11px] font-extrabold">{item.label}</span>
+            </motion.div>
+          ))}
         </motion.div>
 
       </div>
-
-      {/* Footer (Copied from Landing Page) */}
-      <footer className="bg-slate-950 text-white border-t border-white/10 py-16 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-2 gap-8 items-center border-b border-white/10 pb-8 mb-8">
-            <div className="flex items-center space-x-4">
-              <img src="/kwsc-logo.png" alt="KW&SC Logo" className="w-12 h-12 object-contain" />
-              <div>
-                <h4 className="text-xl font-bold tracking-tight">Karachi Water & Sewerage Corporation</h4>
-                <p className="text-slate-400 text-sm">One Window Facilitation Portal</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex flex-col md:flex-row justify-between items-center text-xs text-slate-500">
-            <p>© 2026 KW&SC. All rights reserved.</p>
-            <div className="flex gap-4 mt-4 md:mt-0">
-              <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
-              <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
-            </div>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

@@ -123,6 +123,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
+    const savedLocal = localStorage.getItem('kwsb_local_auth');
+    if (savedLocal) {
+      try {
+        const parsed = JSON.parse(savedLocal);
+        setUserRole(parsed.roleId);
+        setUserName(parsed.displayName);
+        setSession({} as Session);
+        setUser({ email: parsed.email } as User);
+        setLoading(false);
+        return;
+      } catch {
+        localStorage.removeItem('kwsb_local_auth');
+      }
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -174,6 +189,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (error) {
+        try {
+          const { data: hrmsData, error: hrmsError } = await supabase
+            .from('hrms_employees')
+            .select('*')
+            .eq('email', trimEmail)
+            .maybeSingle();
+
+          if (hrmsData && !hrmsError && hrmsData.password === password) {
+            localStorage.setItem('kwsb_hrms_emp_id', hrmsData.id);
+            localStorage.setItem('kwsb_local_auth', JSON.stringify({
+              roleId: 'hrms_employee',
+              displayName: hrmsData.name,
+              email: hrmsData.email,
+            }));
+            setUserRole('hrms_employee');
+            setUserName(hrmsData.name);
+            setSession({} as Session);
+            setUser({ email: hrmsData.email } as User);
+            
+            logActivity({
+              userRole: 'hrms_employee',
+              userName: hrmsData.name,
+              action: 'LOGIN',
+              details: { email: trimEmail, method: 'hrms_fallback' },
+            });
+            return { success: true };
+          }
+        } catch (e) {
+          console.error("HRMS fallback failed", e);
+        }
+        
         return { success: false, error: error.message };
       }
 
@@ -247,9 +293,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
     }
     await supabase.auth.signOut();
+    localStorage.removeItem('kwsb_local_auth');
     setUserRole(null);
     setUserName(null);
     setIsAdmin(false);
+    setSession(null);
+    setUser(null);
   };
 
   const verifyPassword = (password: string): boolean => {
