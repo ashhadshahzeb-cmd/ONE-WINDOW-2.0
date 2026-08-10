@@ -1,0 +1,55 @@
+{
+  "sap.app": {
+    "id": "sap.fiori",
+    "type": "application",
+    "title": "KWSB File Tracking",
+    "applicationVersion": { "version": "1.0.0" }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "fullWidth": true,
+    "deviceTypes": {
+      "desktop": true,
+      "tablet": true,
+      "phone": true
+    }
+  },
+  "sap.ui5": {
+    "rootView": {
+      "viewName": "sap.fiori.view.App",
+      "type": "XML",
+      "id": "app"
+    },
+    "dependencies": {
+      "libs": {
+        "sap.m": {},
+        "sap.ui.core": {}
+      }
+    },
+    "models": {
+      "": {
+        "type": "sap.ui.model.odata.v4.ODataModel",
+        "settings": {
+          "serviceUrl": "/odata/v4/file-tracking/",
+          "synchronizationMode": "None"
+        }
+      }
+    },
+    "routing": {
+      "config": {
+        "routerClass": "sap.ui.core.routing.Router",
+        "viewType": "XML",
+        "viewPath": "sap.fiori.view",
+        "controlId": "app",
+        "controlAggregation": "pages",
+        "async": true
+      },
+      "routes": [
+        { "pattern": "", "name": "list", "target": ["list"] }
+      ],
+      "targets": {
+        "list": { "viewName": "List", "viewLevel": 1 }
+      }
+    }
+  }
+}

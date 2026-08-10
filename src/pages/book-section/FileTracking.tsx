@@ -263,7 +263,13 @@ export default function FileTracking() {
   const [isPendingFilesLoading, setIsPendingFilesLoading] = useState(false);
 
   const [notifications, setNotifications] = useState<any[]>([]);
-  const [reportDateFilter, setReportDateFilter] = useState("all");
+  const [reportDateFilter, setReportDateFilter] = useState(currentRole === 'super_admin' ? "all" : "today");
+  
+  useEffect(() => {
+    if (currentRole && currentRole !== 'super_admin') {
+      setReportDateFilter("today");
+    }
+  }, [currentRole]);
   const [customFilterStartDate, setCustomFilterStartDate] = useState("");
   const [customFilterEndDate, setCustomFilterEndDate] = useState("");
   const [isInitialLoading, setIsInitialLoading] = useState(true);
@@ -1632,6 +1638,39 @@ export default function FileTracking() {
         mapped = fuse.search(q).map(result => result.item);
       }
 
+      // 4. Date Filter
+      if (reportDateFilter !== 'all') {
+        const now = new Date();
+        let startDate: Date | null = null;
+        let endDate: Date | null = null;
+
+        if (reportDateFilter === 'today' || reportDateFilter === 'daily') {
+          startDate = new Date(now.setHours(0, 0, 0, 0));
+        } else if (reportDateFilter === 'weekly') {
+          startDate = new Date(now.setDate(now.getDate() - 7));
+        } else if (reportDateFilter === 'monthly') {
+          startDate = new Date(now.setMonth(now.getMonth() - 1));
+        } else if (reportDateFilter === 'yearly') {
+          startDate = new Date(now.setFullYear(now.getFullYear() - 1));
+        } else if (reportDateFilter === 'custom') {
+          if (customFilterStartDate) {
+            startDate = new Date(customFilterStartDate);
+            startDate.setHours(0, 0, 0, 0);
+          }
+          if (customFilterEndDate) {
+            endDate = new Date(customFilterEndDate);
+            endDate.setHours(23, 59, 59, 999);
+          }
+        }
+
+        if (startDate) {
+          mapped = mapped.filter((r: any) => new Date(r.created_at || new Date()) >= startDate!);
+        }
+        if (endDate) {
+          mapped = mapped.filter((r: any) => new Date(r.created_at || new Date()) <= endDate!);
+        }
+      }
+
       return mapped;
     };
 
@@ -1775,10 +1814,9 @@ export default function FileTracking() {
 
         // MERGE: Retrieve local unsynced records that aren't in the mappedData yet
         const rawLocalDirtyRecords = await db.records.filter(r => r.is_dirty && !r.deleted_locally).toArray();
-        const filteredDirtyRecords = applyLocalFilters(rawLocalDirtyRecords);
-        const mergedData = [...mappedData];
+        let mergedData = [...mappedData];
         
-        filteredDirtyRecords.forEach(localRecord => {
+        rawLocalDirtyRecords.forEach(localRecord => {
           const idx = mergedData.findIndex(d => d.receiving_number === localRecord.receiving_number);
           if (idx === -1) {
             // It's a new unsynced record, add it to the top
@@ -1789,8 +1827,9 @@ export default function FileTracking() {
           }
         });
 
+        mergedData = applyLocalFilters(mergedData);
         setRecords(mergedData);
-        setTotalRecords((count || 0) + filteredDirtyRecords.length);
+        setTotalRecords((count || 0) + Math.max(0, mergedData.length - mappedData.length));
         setCurrentPage(page);
       }
     } catch (err) {
@@ -2711,37 +2750,41 @@ export default function FileTracking() {
             </Select>
 
             <div className="flex items-center gap-2">
-              <Select value={reportDateFilter} onValueChange={setReportDateFilter}>
-                <SelectTrigger className="w-[150px] h-10 text-xs bg-[#0f1115] border-white/5 text-white/70 hover:text-white transition-all rounded-xl shrink-0">
-                  <SelectValue placeholder="Date Range" />
-                </SelectTrigger>
-                <SelectContent className="bg-[#0f1115] border-white/10 text-white/70">
-                  <SelectItem value="all">All Time Records</SelectItem>
-                  <SelectItem value="today">Daily Report (Today)</SelectItem>
-                  <SelectItem value="weekly">Weekly Summary</SelectItem>
-                  <SelectItem value="monthly">Monthly Audit</SelectItem>
-                  <SelectItem value="yearly">Yearly Overview</SelectItem>
-                  <SelectItem value="custom">Specific Date</SelectItem>
-                </SelectContent>
-              </Select>
+              {currentRole === 'super_admin' && (
+                <>
+                  <Select value={reportDateFilter} onValueChange={setReportDateFilter}>
+                    <SelectTrigger className="w-[150px] h-10 text-xs bg-[#0f1115] border-white/5 text-white/70 hover:text-white transition-all rounded-xl shrink-0">
+                      <SelectValue placeholder="Date Range" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#0f1115] border-white/10 text-white/70">
+                      <SelectItem value="all">All Time Records</SelectItem>
+                      <SelectItem value="today">Daily Report (Today)</SelectItem>
+                      <SelectItem value="weekly">Weekly Summary</SelectItem>
+                      <SelectItem value="monthly">Monthly Audit</SelectItem>
+                      <SelectItem value="yearly">Yearly Overview</SelectItem>
+                      <SelectItem value="custom">Specific Date</SelectItem>
+                    </SelectContent>
+                  </Select>
 
-              {reportDateFilter === 'custom' && (
-                <div className="flex items-center gap-2 animate-in slide-in-from-left-2 duration-300">
-                  <span className="text-[10px] uppercase font-black text-white/40 tracking-wider">From</span>
-                  <Input
-                    type="date"
-                    value={customFilterStartDate}
-                    onChange={(e) => setCustomFilterStartDate(e.target.value)}
-                    className="h-10 w-[130px] bg-[#0f1115] border-white/5 text-xs text-white/70 rounded-xl focus:border-[#14b8a6]/50 focus:ring-[#14b8a6]/20"
-                  />
-                  <span className="text-[10px] uppercase font-black text-white/40 tracking-wider">To</span>
-                  <Input
-                    type="date"
-                    value={customFilterEndDate}
-                    onChange={(e) => setCustomFilterEndDate(e.target.value)}
-                    className="h-10 w-[130px] bg-[#0f1115] border-white/5 text-xs text-white/70 rounded-xl focus:border-[#14b8a6]/50 focus:ring-[#14b8a6]/20"
-                  />
-                </div>
+                  {reportDateFilter === 'custom' && (
+                    <div className="flex items-center gap-2 animate-in slide-in-from-left-2 duration-300">
+                      <span className="text-[10px] uppercase font-black text-white/40 tracking-wider">From</span>
+                      <Input
+                        type="date"
+                        value={customFilterStartDate}
+                        onChange={(e) => setCustomFilterStartDate(e.target.value)}
+                        className="h-10 text-xs bg-[#0f1115] border-white/5 text-white/70"
+                      />
+                      <span className="text-[10px] uppercase font-black text-white/40 tracking-wider">To</span>
+                      <Input
+                        type="date"
+                        value={customFilterEndDate}
+                        onChange={(e) => setCustomFilterEndDate(e.target.value)}
+                        className="h-10 text-xs bg-[#0f1115] border-white/5 text-white/70"
+                      />
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
@@ -3238,25 +3281,27 @@ export default function FileTracking() {
                 <p className="text-sm text-muted-foreground mt-1">Exportable summaries for audits and status monitoring</p>
               </div>
               <div className="flex items-center gap-2">
-                <Select value={reportDateFilter} onValueChange={setReportDateFilter}>
-                  <SelectTrigger className="w-[150px] h-9 bg-[#0f1115] border-white/5 text-xs text-white/70 hover:text-white rounded-xl">
-                    <SelectValue placeholder="Date Range" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-[#0f1115] border-white/10 text-white/70">
-                    <SelectItem value="all">All Time Records</SelectItem>
-                    <SelectItem value="today">Daily Report (Today)</SelectItem>
-                    <SelectItem value="weekly">Weekly Summary</SelectItem>
-                    <SelectItem value="monthly">Monthly Audit</SelectItem>
-                    <SelectItem value="yearly">Yearly Overview</SelectItem>
-                    <SelectItem value="custom">Specific Date</SelectItem>
-                  </SelectContent>
-                </Select>
+                {currentRole === 'super_admin' && (
+                  <>
+                    <Select value={reportDateFilter} onValueChange={setReportDateFilter}>
+                      <SelectTrigger className="w-[150px] h-9 bg-[#0f1115] border-white/5 text-xs text-white/70 hover:text-white rounded-xl">
+                        <SelectValue placeholder="Date Range" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-[#0f1115] border-white/10 text-white/70">
+                        <SelectItem value="all">All Time Records</SelectItem>
+                        <SelectItem value="today">Daily Report (Today)</SelectItem>
+                        <SelectItem value="weekly">Weekly Summary</SelectItem>
+                        <SelectItem value="monthly">Monthly Audit</SelectItem>
+                        <SelectItem value="yearly">Yearly Overview</SelectItem>
+                        <SelectItem value="custom">Specific Date</SelectItem>
+                      </SelectContent>
+                    </Select>
 
-                {reportDateFilter === 'custom' && (
-                  <div className="flex items-center gap-2 animate-in slide-in-from-left-2 duration-300">
-                    <span className="text-[10px] uppercase font-black text-white/40 tracking-wider">From</span>
-                    <Input
-                      type="date"
+                    {reportDateFilter === 'custom' && (
+                      <div className="flex items-center gap-2 animate-in slide-in-from-left-2 duration-300">
+                        <span className="text-[10px] uppercase font-black text-white/40 tracking-wider">From</span>
+                        <Input
+                          type="date"
                       value={customFilterStartDate}
                       onChange={(e) => setCustomFilterStartDate(e.target.value)}
                       className="h-9 w-[120px] bg-[#0f1115] border-white/5 text-xs text-white/70 rounded-xl focus:border-[#14b8a6]/50 focus:ring-[#14b8a6]/20"
@@ -3270,8 +3315,10 @@ export default function FileTracking() {
                     />
                   </div>
                 )}
-                {selectedRecordIds.length > 0 && (
-                  <>
+                </>
+              )}
+              {selectedRecordIds.length > 0 && (
+                <>
                     <Button
                       onClick={() => setIsBulkEditDateModalOpen(true)}
                       className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs gap-2 animate-in fade-in zoom-in-95 duration-150"

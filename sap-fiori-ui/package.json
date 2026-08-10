@@ -1,0 +1,14 @@
+{
+  "name": "sap-fiori-ui",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "ui5 serve -o index.html",
+    "start": "ui5 serve -o index.html",
+    "build": "ui5 build"
+  },
+  "devDependencies": {
+    "@ui5/cli": "^3",
+    "ui5-middleware-simpleproxy": "^3"
+  }
+}

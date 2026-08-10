@@ -16,6 +16,7 @@ export interface DepartmentUser {
 }
 
 export const DEFAULT_DEPARTMENT_USERS: DepartmentUser[] = [
+  { email: 'superadmin@kwsb.gov.pk',       password: 'super@12345',  roleId: 'super_admin',       displayName: 'SUPER ADMIN' },
   { email: 'hr.admin@kwsb.gov.pk',         password: 'hradmin',      roleId: 'hr_admin',          displayName: 'HR ADMIN' },
   { email: 'admin@kwsb.gov.pk',            password: 'admin',        roleId: 'admin',             displayName: 'SYSTEM ADMINISTRATOR' },
   { email: 'cfo@kwsb.gov.pk',              password: 'cfo@12345',    roleId: 'cfo',              displayName: 'CFO' },
@@ -112,8 +113,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUserRole(role);
       setUserName(displayName);
       setUserAvatar(settings?.avatar_url || null);
-      setIsAdmin(role === 'cfo' || role === 'admin');
-      setAllowOverrideDates(settings?.allow_override_dates || role === 'cfo' || role === 'admin');
+      setIsAdmin(role === 'super_admin' || role === 'cfo' || role === 'admin');
+      setAllowOverrideDates(settings?.allow_override_dates || role === 'super_admin' || role === 'cfo' || role === 'admin');
 
     } catch (err) {
       console.error('Error loading user profile:', err);
@@ -220,6 +221,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.error("HRMS fallback failed", e);
         }
         
+        // Final fallback: check hardcoded department users
+        const allUsers = getDepartmentUsers();
+        const localUser = allUsers.find(u => u.email === trimEmail && u.password === password);
+        if (localUser) {
+          localStorage.setItem('kwsb_local_auth', JSON.stringify({
+            roleId: localUser.roleId,
+            displayName: localUser.displayName,
+            email: localUser.email,
+          }));
+          setUserRole(localUser.roleId);
+          setUserName(localUser.displayName);
+          setSession({} as Session);
+          setUser({ email: localUser.email } as User);
+          
+          logActivity({
+            userRole: localUser.roleId,
+            userName: localUser.displayName,
+            action: 'LOGIN',
+            details: { email: trimEmail, method: 'hardcoded_fallback' },
+          });
+          return { success: true };
+        }
+
         return { success: false, error: error.message };
       }
 
