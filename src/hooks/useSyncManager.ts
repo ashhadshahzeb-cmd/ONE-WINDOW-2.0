@@ -26,8 +26,49 @@ export function useSyncManager() {
       await db.syncQueue.update(task.id!, { status: 'processing' });
 
       if (task.table === 'file_tracking_records') {
+        const payloadToUpload = { ...task.payload };
+
+        // Helper to upload base64 to Storage
+        const uploadBase64 = async (base64Str: string) => {
+          if (!base64Str.startsWith('data:image')) return base64Str;
+          try {
+            const base64Data = base64Str.split(',')[1];
+            const byteCharacters = atob(base64Data);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+              byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: 'image/png' });
+            const fileName = `signature_${Date.now()}_${Math.random().toString(36).substring(7)}.png`;
+            
+            const { error: uploadError } = await supabase.storage.from('signatures').upload(fileName, blob, { contentType: 'image/png' });
+            if (uploadError) throw uploadError;
+            
+            const { data: { publicUrl } } = supabase.storage.from('signatures').getPublicUrl(fileName);
+            return publicUrl;
+          } catch (e) {
+            console.error("Failed to upload signature:", e);
+            throw e;
+          }
+        };
+
+        // Process root signature
+        if (payloadToUpload.signature_data && typeof payloadToUpload.signature_data === 'string') {
+          payloadToUpload.signature_data = await uploadBase64(payloadToUpload.signature_data);
+        }
+
+        // Process history signatures
+        if (Array.isArray(payloadToUpload.history)) {
+          for (let i = 0; i < payloadToUpload.history.length; i++) {
+            if (payloadToUpload.history[i].signature_data && typeof payloadToUpload.history[i].signature_data === 'string') {
+              payloadToUpload.history[i].signature_data = await uploadBase64(payloadToUpload.history[i].signature_data);
+            }
+          }
+        }
+
         if (task.action === 'insert') {
-          const { id: _id, is_dirty, deleted_locally, additional_mark_to, department_number, fuel_station, file_image, ...payload } = task.payload;
+          const { id: _id, is_dirty, deleted_locally, additional_mark_to, department_number, fuel_station, file_image, ...payload } = payloadToUpload;
           
           if (payload.amount === "") payload.amount = null;
 
@@ -37,7 +78,7 @@ export function useSyncManager() {
           if (error) throw error;
 
         } else if (task.action === 'update') {
-          const { id: _id, is_dirty, deleted_locally, additional_mark_to, department_number, fuel_station, file_image, ...payload } = task.payload;
+          const { id: _id, is_dirty, deleted_locally, additional_mark_to, department_number, fuel_station, file_image, ...payload } = payloadToUpload;
           
           if (payload.amount === "") payload.amount = null;
 

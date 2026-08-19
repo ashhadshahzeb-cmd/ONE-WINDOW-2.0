@@ -1630,7 +1630,7 @@ export default function FileTracking() {
       if (debouncedSearchQuery) {
         const q = debouncedSearchQuery.trim();
         const fuse = new Fuse(mapped, {
-          keys: ['subject', 'cfo_diary_number', 'receiving_number', 'received_from', 'tracking_id'],
+          keys: ['subject', 'cfo_diary_number', 'receiving_number', 'received_from', 'tracking_id', 'handover_person_name'],
           threshold: 0.5,
           ignoreLocation: true,
           minMatchCharLength: 2
@@ -1785,7 +1785,7 @@ export default function FileTracking() {
       // Apply Search filter
       if (debouncedSearchQuery) {
         const q = `%${debouncedSearchQuery.toLowerCase()}%`;
-        query = query.or(`cfo_diary_number.ilike.${q},receiving_number.ilike.${q},subject.ilike.${q},received_from.ilike.${q},tracking_id.ilike.${q}`);
+        query = query.or(`cfo_diary_number.ilike.${q},receiving_number.ilike.${q},subject.ilike.${q},received_from.ilike.${q},tracking_id.ilike.${q},handover_person_name.ilike.${q}`);
       }
 
       const { data, error, count } = await query
