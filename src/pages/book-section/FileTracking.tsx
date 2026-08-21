@@ -263,10 +263,10 @@ export default function FileTracking() {
   const [isPendingFilesLoading, setIsPendingFilesLoading] = useState(false);
 
   const [notifications, setNotifications] = useState<any[]>([]);
-  const [reportDateFilter, setReportDateFilter] = useState(currentRole === 'super_admin' ? "all" : "today");
+  const [reportDateFilter, setReportDateFilter] = useState((currentRole === 'super_admin' || currentRole === 'entry_operator') ? "all" : "today");
   
   useEffect(() => {
-    if (currentRole && currentRole !== 'super_admin') {
+    if (currentRole && currentRole !== 'super_admin' && currentRole !== 'entry_operator') {
       setReportDateFilter("today");
     }
   }, [currentRole]);
@@ -2920,7 +2920,7 @@ export default function FileTracking() {
             </Select>
 
             <div className="flex items-center gap-2">
-              {currentRole === 'super_admin' && (
+              {(currentRole === 'super_admin' || currentRole === 'entry_operator') && (
                 <>
                   <Select value={reportDateFilter} onValueChange={(v) => {
                     setReportDateFilter(v);
@@ -3488,7 +3488,7 @@ export default function FileTracking() {
                 <p className="text-sm text-muted-foreground mt-1">Exportable summaries for audits and status monitoring</p>
               </div>
               <div className="flex items-center gap-2">
-                {currentRole === 'super_admin' && (
+                {(currentRole === 'super_admin' || currentRole === 'entry_operator') && (
                   <>
                     <Select value={reportDateFilter} onValueChange={(v) => {
                        setReportDateFilter(v);
