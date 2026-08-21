@@ -70,14 +70,14 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     { to: "/", icon: LayoutDashboard, label: "Dashboard", visible: !isRestrictedAsstCFO && !isEmpOperator && !isTransferUser && !isHRMSEmployee },
     { to: "/book-section/file-tracking", icon: Shield, label: "File Tracking", visible: !isEmpOperator && !isTransferUser && !isHRMSEmployee },
     { to: "/bank-entries", icon: Landmark, label: "Bank Entries", visible: !isEmpOperator && !isTransferUser && !isHRMSEmployee },
-    { to: "/budget-control", icon: Wallet, label: "Budget Control", visible: (userRole === 'admin' || userRole === 'cfo') && !isTransferUser && !isHRMSEmployee },
+    { to: "/budget-control", icon: Wallet, label: "Budget Control", visible: (userRole === 'admin' || userRole === 'super_admin' || userRole === 'cfo') && !isTransferUser && !isHRMSEmployee },
     { to: "/notice-board", icon: Megaphone, label: "Notice Board", visible: !isTransferUser && !isHRMSEmployee },
     { to: "/messages", icon: MessageCircle, label: "Messages", visible: !isTransferUser && !isHRMSEmployee },
-    { to: "/user-management", icon: Users, label: "User Management", visible: userRole === 'admin' && !isTransferUser && !isHRMSEmployee },
-    { to: "/admin-config", icon: Settings2, label: "Admin Config", visible: userRole === 'admin' && !isTransferUser && !isHRMSEmployee },
-    { to: "/activity-log", icon: Activity, label: "Activity Log", visible: userRole === 'admin' && !isTransferUser && !isHRMSEmployee },
-    { to: "/file-analytics", icon: BarChart3, label: "File Analytics", visible: (userRole === 'admin' || userRole === 'cfo') && !isTransferUser && !isHRMSEmployee },
-    { to: "/revenue-collection", icon: BarChart3, label: "Revenue Dashboard", visible: (userRole === 'admin' || userRole === 'cfo') && !isTransferUser && !isHRMSEmployee },
+    { to: "/user-management", icon: Users, label: "User Management", visible: (userRole === 'admin' || userRole === 'super_admin') && !isTransferUser && !isHRMSEmployee },
+    { to: "/admin-config", icon: Settings2, label: "Admin Config", visible: (userRole === 'admin' || userRole === 'super_admin') && !isTransferUser && !isHRMSEmployee },
+    { to: "/activity-log", icon: Activity, label: "Activity Log", visible: (userRole === 'admin' || userRole === 'super_admin') && !isTransferUser && !isHRMSEmployee },
+    { to: "/file-analytics", icon: BarChart3, label: "File Analytics", visible: (userRole === 'admin' || userRole === 'super_admin' || userRole === 'cfo') && !isTransferUser && !isHRMSEmployee },
+    { to: "/revenue-collection", icon: BarChart3, label: "Revenue Dashboard", visible: (userRole === 'admin' || userRole === 'super_admin' || userRole === 'cfo') && !isTransferUser && !isHRMSEmployee },
   ].filter(item => item.visible);
 
   const categories = [];

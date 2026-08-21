@@ -26,3 +26,13 @@ dist-ssr
 .env
 firebase-admin.json
 google-services.json
+
+# PostgreSQL binaries, zip archives, and local scripts
+pgsql*
+pgsql_bin/
+pgsql17_bin/
+*.zip
+*.ps1
+scratch/
+.agents/
+skills-lock.json

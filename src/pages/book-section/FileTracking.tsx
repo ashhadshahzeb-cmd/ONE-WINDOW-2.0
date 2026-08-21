@@ -706,6 +706,7 @@ export default function FileTracking() {
   }, [activeTab, isForwardingMode, isEditingMode]);
 
   const [records, setRecords] = useState<any[]>([]);
+  const [allMatchingRecords, setAllMatchingRecords] = useState<any[]>([]);
 
   // Helper for CSV Export
   const subCatReadable = (val: string | null | undefined) => {
@@ -1155,10 +1156,19 @@ export default function FileTracking() {
   };
 
   const handleSaveForm = async () => {
+    const isEntryOperator = currentRole === 'entry_operator';
     const isSubCategoryRequired = formData.mainCategory !== 'impress' && formData.mainCategory !== 'pol_bills';
-    if (!formData.cfo_diary_number || !formData.receiving_number || !formData.subject || !formData.mainCategory || (isSubCategoryRequired && !formData.subCategory) || !formData.mark_to || !formData.handover_person_name || !formData.file_purpose) {
-      toast.error("Please fill all required fields");
-      return;
+    
+    if (isEntryOperator) {
+      if (!formData.cfo_diary_number) {
+        toast.error("CFO Diary Number is required");
+        return;
+      }
+    } else {
+      if (!formData.cfo_diary_number || !formData.receiving_number || !formData.subject || !formData.mainCategory || (isSubCategoryRequired && !formData.subCategory) || !formData.mark_to || !formData.handover_person_name || !formData.file_purpose) {
+        toast.error("Please fill all required fields");
+        return;
+      }
     }
     setIsSavingForm(true);
 
@@ -1681,6 +1691,7 @@ export default function FileTracking() {
         const filteredLocal = applyLocalFilters(localData);
         setRecords(filteredLocal);
         setTotalRecords(filteredLocal.length);
+        setAllMatchingRecords(filteredLocal);
       }
     } catch (localErr) {
       console.error("IndexedDB load error:", localErr);
@@ -1788,11 +1799,122 @@ export default function FileTracking() {
         query = query.or(`cfo_diary_number.ilike.${q},receiving_number.ilike.${q},subject.ilike.${q},received_from.ilike.${q},tracking_id.ilike.${q},handover_person_name.ilike.${q}`);
       }
 
-      const { data, error, count } = await query
+      // 1. Build the paginated query
+      const pagedQueryPromise = query
         .order('created_at', { ascending: sortOrder === 'asc' })
         .range(from, to);
 
-      if (error) throw error;
+      // 2. Build the query to get all matching records for statistics & global selection
+      let allQuery = supabase
+        .from('file_tracking_records' as any)
+        .select('id, amount, main_category, sub_category, mark_to, created_at, history');
+
+      // Status filters
+      if (activeTab === 'trash_box' && isAdmin) {
+        allQuery = allQuery.contains('history', '[{"action": "TRASHED"}]');
+      }
+
+      if (activeTab === 'tray' || activeTab === 'timeline' || activeTab === 'returned_files') {
+        const effectiveRole = effectiveViewingRole;
+        if (!(currentRole === 'cfo' || isAdmin)) {
+          if (activeTab === 'tray') {
+            allQuery = allQuery.eq('mark_to', effectiveRole);
+          } else if (activeTab === 'returned_files') {
+            allQuery = allQuery.eq('additional_mark_to', currentRole);
+          } else {
+            allQuery = allQuery.or(`mark_to.eq.${effectiveRole},history.cs.[{"processed_by":"${sections.find(s => s.id === effectiveRole)?.name}"}]`);
+          }
+        } else if (currentRole === 'cfo' || isAdmin) {
+          if (activeTab === 'tray') {
+            allQuery = allQuery.eq('mark_to', effectiveRole);
+          } else if (activeTab === 'returned_files') {
+            if (viewingRole === 'cfo' || viewingRole === 'admin') {
+              allQuery = allQuery.not('additional_mark_to', 'is', null).neq('additional_mark_to', '');
+            } else {
+              allQuery = allQuery.eq('additional_mark_to', effectiveRole);
+            }
+          }
+        }
+      } else if (activeTab === 'cfo_all_files') {
+        if (filterStatus === 'exited') {
+          allQuery = allQuery.eq('mark_to', 'exited');
+        } else {
+          allQuery = allQuery.eq('mark_to', 'cfo');
+        }
+      } else if (activeTab === 'bulk_modified') {
+        allQuery = allQuery.contains('history', '[{"action": "BULK_DATE_EDITED"}]');
+      }
+
+      if (filterCategory !== 'all') {
+        allQuery = allQuery.eq('main_category', filterCategory);
+      }
+
+      if (filterSubCategory !== 'all') {
+        allQuery = allQuery.eq('sub_category', filterSubCategory);
+      }
+
+      if (filterSection !== 'all') {
+        allQuery = allQuery.eq('mark_to', filterSection);
+      }
+
+      if (reportDateFilter !== 'all') {
+        const now = new Date();
+        let startDate: Date | null = null;
+        let endDate: Date | null = null;
+
+        if (reportDateFilter === 'today' || reportDateFilter === 'daily') {
+          startDate = new Date(now.setHours(0, 0, 0, 0));
+        } else if (reportDateFilter === 'weekly') {
+          startDate = new Date(now.setDate(now.getDate() - 7));
+        } else if (reportDateFilter === 'monthly') {
+          startDate = new Date(now.setMonth(now.getMonth() - 1));
+        } else if (reportDateFilter === 'yearly') {
+          startDate = new Date(now.setFullYear(now.getFullYear() - 1));
+        } else if (reportDateFilter === 'custom') {
+          if (customFilterStartDate) {
+            startDate = new Date(customFilterStartDate);
+            startDate.setHours(0, 0, 0, 0);
+          }
+          if (customFilterEndDate) {
+            endDate = new Date(customFilterEndDate);
+            endDate.setHours(23, 59, 59, 999);
+          }
+        }
+
+        if (startDate) {
+          allQuery = allQuery.gte('created_at', safeISOString(startDate));
+        }
+        if (endDate) {
+          allQuery = allQuery.lte('created_at', safeISOString(endDate));
+        }
+      }
+
+      if (debouncedSearchQuery) {
+        const q = `%${debouncedSearchQuery.toLowerCase()}%`;
+        allQuery = allQuery.or(`cfo_diary_number.ilike.${q},receiving_number.ilike.${q},subject.ilike.${q},received_from.ilike.${q},tracking_id.ilike.${q},handover_person_name.ilike.${q}`);
+      }
+
+      const allQueryPromise = allQuery.order('created_at', { ascending: sortOrder === 'asc' });
+
+      // 3. Execute queries in parallel
+      const [pagedResult, allResult] = await Promise.all([pagedQueryPromise, allQueryPromise]);
+
+      if (pagedResult.error) throw pagedResult.error;
+      if (allResult.error) throw allResult.error;
+
+      const data = pagedResult.data;
+      const count = pagedResult.count;
+      const allData = allResult.data;
+
+      if (allData) {
+        const mappedAll = (allData as any[]).map(d => ({
+          ...d,
+          mainCategory: d.main_category,
+          subCategory: d.sub_category,
+        }));
+        const filteredAll = applyLocalFilters(mappedAll);
+        setAllMatchingRecords(filteredAll);
+      }
 
       if (data) {
         const mappedData = (data as any[]).map(d => ({
@@ -1916,75 +2038,79 @@ export default function FileTracking() {
           'id, tracking_id, cfo_diary_number, inward_date, received_from, receiving_number, main_category, sub_category, subject, mark_to, outward_date, remarks, amount, created_at, employee_number, voucher_code, vehicle_no'
         );
 
-      // Apply same filters as fetchRecords
-      if (activeTab === 'tray' || activeTab === 'timeline') {
-        const effectiveRole = effectiveViewingRole;
-        if (!(currentRole === 'cfo' || isAdmin)) {
-          if (activeTab === 'tray') {
-            query = query.eq('mark_to', effectiveRole);
+      if (selectedRecordIds.length > 0) {
+        query = query.in('id', selectedRecordIds);
+      } else {
+        // Apply same filters as fetchRecords
+        if (activeTab === 'tray' || activeTab === 'timeline') {
+          const effectiveRole = effectiveViewingRole;
+          if (!(currentRole === 'cfo' || isAdmin)) {
+            if (activeTab === 'tray') {
+              query = query.eq('mark_to', effectiveRole);
+            } else {
+              query = query.or(`mark_to.eq.${effectiveRole},history.cs.[{"processed_by":"${sectionName}"}]`);
+            }
+          } else if (currentRole === 'cfo' || isAdmin) {
+            if (activeTab === 'tray') {
+              query = query.eq('mark_to', effectiveRole);
+            }
+          }
+        } else if (activeTab === 'cfo_all_files') {
+          if (filterStatus === 'exited') {
+            query = query.eq('mark_to', 'exited');
           } else {
-            query = query.or(`mark_to.eq.${effectiveRole},history.cs.[{"processed_by":"${sectionName}"}]`);
-          }
-        } else if (currentRole === 'cfo' || isAdmin) {
-          if (activeTab === 'tray') {
-            query = query.eq('mark_to', effectiveRole);
-          }
-        }
-      } else if (activeTab === 'cfo_all_files') {
-        if (filterStatus === 'exited') {
-          query = query.eq('mark_to', 'exited');
-        } else {
-          query = query.neq('mark_to', 'exited');
-        }
-      }
-
-      if (filterCategory !== 'all') {
-        query = query.eq('main_category', filterCategory);
-      }
-
-      if (filterSubCategory !== 'all') {
-        query = query.eq('sub_category', filterSubCategory);
-      }
-
-      if (filterSection !== 'all') {
-        query = query.eq('mark_to', filterSection);
-      }
-
-      if (reportDateFilter !== 'all') {
-        const now = new Date();
-        let startDate: Date | null = null;
-        let endDate: Date | null = null;
-
-        if (reportDateFilter === 'today' || reportDateFilter === 'daily') {
-          startDate = new Date(now.setHours(0, 0, 0, 0));
-        } else if (reportDateFilter === 'weekly') {
-          startDate = new Date(now.setDate(now.getDate() - 7));
-        } else if (reportDateFilter === 'monthly') {
-          startDate = new Date(now.setMonth(now.getMonth() - 1));
-        } else if (reportDateFilter === 'yearly') {
-          startDate = new Date(now.setFullYear(now.getFullYear() - 1));
-        } else if (reportDateFilter === 'custom') {
-          if (customFilterStartDate) {
-            startDate = new Date(customFilterStartDate);
-            startDate.setHours(0, 0, 0, 0);
-          }
-          if (customFilterEndDate) {
-            endDate = new Date(customFilterEndDate);
-            endDate.setHours(23, 59, 59, 999);
+            query = query.neq('mark_to', 'exited');
           }
         }
 
-        if (startDate) {
-          query = query.gte('created_at', safeISOString(startDate));
+        if (filterCategory !== 'all') {
+          query = query.eq('main_category', filterCategory);
         }
-        if (endDate) {
-          query = query.lte('created_at', safeISOString(endDate));
-        }
-      }
 
-      if (debouncedSearchQuery) {
-        const q = `%${debouncedSearchQuery.toLowerCase()}%`;
-        query = query.or(`cfo_diary_number.ilike.${q},receiving_number.ilike.${q},subject.ilike.${q},received_from.ilike.${q},tracking_id.ilike.${q}`);
+        if (filterSubCategory !== 'all') {
+          query = query.eq('sub_category', filterSubCategory);
+        }
+
+        if (filterSection !== 'all') {
+          query = query.eq('mark_to', filterSection);
+        }
+
+        if (reportDateFilter !== 'all') {
+          const now = new Date();
+          let startDate: Date | null = null;
+          let endDate: Date | null = null;
+
+          if (reportDateFilter === 'today' || reportDateFilter === 'daily') {
+            startDate = new Date(now.setHours(0, 0, 0, 0));
+          } else if (reportDateFilter === 'weekly') {
+            startDate = new Date(now.setDate(now.getDate() - 7));
+          } else if (reportDateFilter === 'monthly') {
+            startDate = new Date(now.setMonth(now.getMonth() - 1));
+          } else if (reportDateFilter === 'yearly') {
+            startDate = new Date(now.setFullYear(now.getFullYear() - 1));
+          } else if (reportDateFilter === 'custom') {
+            if (customFilterStartDate) {
+              startDate = new Date(customFilterStartDate);
+              startDate.setHours(0, 0, 0, 0);
+            }
+            if (customFilterEndDate) {
+              endDate = new Date(customFilterEndDate);
+              endDate.setHours(23, 59, 59, 999);
+            }
+          }
+
+          if (startDate) {
+            query = query.gte('created_at', safeISOString(startDate));
+          }
+          if (endDate) {
+            query = query.lte('created_at', safeISOString(endDate));
+          }
+        }
+
+        if (debouncedSearchQuery) {
+          const q = `%${debouncedSearchQuery.toLowerCase()}%`;
+          query = query.or(`cfo_diary_number.ilike.${q},receiving_number.ilike.${q},subject.ilike.${q},received_from.ilike.${q},tracking_id.ilike.${q}`);
+        }
       }
 
       const { data, error } = await query.order('created_at', { ascending: sortOrder === 'asc' });
@@ -2077,12 +2203,34 @@ export default function FileTracking() {
   };
 
   useEffect(() => {
+    if (isFileViewer) {
+      if (activeTab === "register" || activeTab === "tray" || activeTab === "pending_scans" || activeTab === "returned_files") {
+        setActiveTab("view_only");
+      }
+    }
+  }, [isFileViewer, activeTab]);
+
+
+
+  useEffect(() => {
     if (activeTab === 'bulk_modified') {
       fetchBulkModifiedRecords();
     } else {
       fetchRecords(currentPage);
     }
   }, [currentPage, filterCategory, filterSubCategory, filterSection, filterStatus, sortOrder, debouncedSearchQuery, activeTab, viewingRole, reportDateFilter, customFilterStartDate, customFilterEndDate]);
+
+  // Auto-select records when category changes to a specific category
+  useEffect(() => {
+    if (filterCategory && filterCategory !== 'all') {
+      const targetIds = allMatchingRecords
+        .filter(r => r.mainCategory === filterCategory)
+        .map(r => r.id);
+      setSelectedRecordIds(targetIds);
+    } else if (filterCategory === 'all') {
+      setSelectedRecordIds([]);
+    }
+  }, [filterCategory, allMatchingRecords]);
 
 
   useEffect(() => {
@@ -2361,12 +2509,18 @@ export default function FileTracking() {
   };
 
   const toggleSelectAll = (ids: string[]) => {
-    if (selectedRecordIds.length === ids.length) {
-      setSelectedRecordIds([]);
+    const allSelected = ids.every(id => selectedRecordIds.includes(id));
+    if (allSelected) {
+      setSelectedRecordIds(prev => prev.filter(id => !ids.includes(id)));
     } else {
-      setSelectedRecordIds(ids);
+      setSelectedRecordIds(prev => {
+        const union = new Set([...prev, ...ids]);
+        return Array.from(union);
+      });
     }
   };
+
+
   const fetchPendingFilesList = async () => {
     setIsPendingFilesLoading(true);
     try {
@@ -2410,6 +2564,15 @@ export default function FileTracking() {
     setIsPreEntryModalOpen(false);
     setActiveTab("register");
   };
+
+  const allMatchingIds = allMatchingRecords.map(f => f.id);
+  const isAllSelected = allMatchingIds.length > 0 && allMatchingIds.every(id => selectedRecordIds.includes(id));
+  const isSomeSelected = allMatchingIds.length > 0 && !isAllSelected && allMatchingIds.some(id => selectedRecordIds.includes(id));
+  
+  const totalAmountMatching = allMatchingRecords.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+  const selectedAmount = allMatchingRecords
+    .filter(r => selectedRecordIds.includes(r.id))
+    .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
 
   return (
     <div className="space-y-6 animate-page-enter pb-10">
@@ -2696,6 +2859,7 @@ export default function FileTracking() {
             <Select value={filterCategory} onValueChange={(v) => {
               setFilterCategory(v);
               setFilterSubCategory("all"); // Reset subcategory when category changes
+              setCurrentPage(0);
             }}>
               <SelectTrigger className="w-[140px] h-10 text-xs bg-[#0f1115] border-white/5 text-white/70 hover:text-white transition-all rounded-xl shrink-0">
                 <SelectValue placeholder="Category View" />
@@ -2708,7 +2872,10 @@ export default function FileTracking() {
               </SelectContent>
             </Select>
 
-            <Select value={filterSubCategory} onValueChange={setFilterSubCategory}>
+            <Select value={filterSubCategory} onValueChange={(v) => {
+              setFilterSubCategory(v);
+              setCurrentPage(0);
+            }}>
               <SelectTrigger className="w-[155px] h-10 text-xs bg-[#0f1115] border-white/5 text-white/70 hover:text-white transition-all rounded-xl shrink-0">
                 <SelectValue placeholder="Sub Category">
                   {filterSubCategory === 'all'
@@ -2735,7 +2902,10 @@ export default function FileTracking() {
               </SelectContent>
             </Select>
 
-            <Select value={filterSection} onValueChange={setFilterSection}>
+            <Select value={filterSection} onValueChange={(v) => {
+              setFilterSection(v);
+              setCurrentPage(0);
+            }}>
               <SelectTrigger className="w-[140px] h-10 text-xs bg-[#0f1115] border-white/5 text-white/70 hover:text-white transition-all rounded-xl shrink-0">
                 <SelectValue placeholder="Section View" />
               </SelectTrigger>
@@ -2752,7 +2922,10 @@ export default function FileTracking() {
             <div className="flex items-center gap-2">
               {currentRole === 'super_admin' && (
                 <>
-                  <Select value={reportDateFilter} onValueChange={setReportDateFilter}>
+                  <Select value={reportDateFilter} onValueChange={(v) => {
+                    setReportDateFilter(v);
+                    setCurrentPage(0);
+                  }}>
                     <SelectTrigger className="w-[150px] h-10 text-xs bg-[#0f1115] border-white/5 text-white/70 hover:text-white transition-all rounded-xl shrink-0">
                       <SelectValue placeholder="Date Range" />
                     </SelectTrigger>
@@ -2772,14 +2945,20 @@ export default function FileTracking() {
                       <Input
                         type="date"
                         value={customFilterStartDate}
-                        onChange={(e) => setCustomFilterStartDate(e.target.value)}
+                        onChange={(e) => {
+                          setCustomFilterStartDate(e.target.value);
+                          setCurrentPage(0);
+                        }}
                         className="h-10 text-xs bg-[#0f1115] border-white/5 text-white/70"
                       />
                       <span className="text-[10px] uppercase font-black text-white/40 tracking-wider">To</span>
                       <Input
                         type="date"
                         value={customFilterEndDate}
-                        onChange={(e) => setCustomFilterEndDate(e.target.value)}
+                        onChange={(e) => {
+                          setCustomFilterEndDate(e.target.value);
+                          setCurrentPage(0);
+                        }}
                         className="h-10 text-xs bg-[#0f1115] border-white/5 text-white/70"
                       />
                     </div>
@@ -2824,14 +3003,14 @@ export default function FileTracking() {
             {selectedRecordIds.length > 0 && (
               <div className="flex items-center gap-1 ml-2 animate-in fade-in slide-in-from-right-4">
                 <Badge variant="secondary" className="h-9 px-3 rounded-md bg-primary/10 text-primary border-primary/20 flex items-center gap-2">
-                  <span className="font-bold">{selectedRecordIds.length} Selected</span>
+                  <span className="font-bold">{selectedRecordIds.length} Selected | Total: {formatCurrency(selectedAmount)}</span>
                   <div className="flex gap-1 border-l border-primary/20 pl-2">
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-6 w-6 hover:bg-primary/20 text-primary"
                       title="Export Selected to PDF"
-                      onClick={() => handlePrintFullReport(records.filter(r => selectedRecordIds.includes(r.id)))}
+                      onClick={() => handlePrintFullReport(allMatchingRecords.filter(r => selectedRecordIds.includes(r.id)))}
                     >
                       <FileText className="w-3.5 h-3.5" />
                     </Button>
@@ -2840,7 +3019,7 @@ export default function FileTracking() {
                       size="icon"
                       className="h-6 w-6 hover:bg-primary/20 text-primary"
                       title="Export Selected to CSV"
-                      onClick={() => exportToCSV(records.filter(r => selectedRecordIds.includes(r.id)), "Selected_Files")}
+                      onClick={() => exportToCSV(allMatchingRecords.filter(r => selectedRecordIds.includes(r.id)), "Selected_Files")}
                     >
                       <Plus className="w-3.5 h-3.5 rotate-45" />
                     </Button>
@@ -2897,6 +3076,34 @@ export default function FileTracking() {
               </div>
             </CardHeader>
             <CardContent>
+              {/* Summary Stats Row */}
+              {!isInitialLoading && !isLoading && allMatchingRecords.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-4 mb-4 p-4 rounded-xl bg-[#0f1115]/50 border border-white/5">
+                  <div className="flex gap-6">
+                    <div>
+                      <p className="text-[10px] uppercase font-black text-white/40 tracking-wider">Total Matching Files</p>
+                      <p className="text-lg font-bold text-[#14b8a6]">{allMatchingRecords.length}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase font-black text-white/40 tracking-wider">Total Matching Amount</p>
+                      <p className="text-lg font-bold text-emerald-500">{formatCurrency(totalAmountMatching)}</p>
+                    </div>
+                  </div>
+                  {selectedRecordIds.length > 0 && (
+                    <div className="flex gap-6 border-l border-white/10 pl-6">
+                      <div>
+                        <p className="text-[10px] uppercase font-black text-amber-400">Selected Files</p>
+                        <p className="text-lg font-bold text-amber-400">{selectedRecordIds.length}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase font-black text-amber-400">Selected Amount</p>
+                        <p className="text-lg font-bold text-amber-400">{formatCurrency(selectedAmount)}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {isInitialLoading || isLoading ? (
                 <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
                   <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
@@ -2932,8 +3139,8 @@ export default function FileTracking() {
                         <TableRow>
                           <TableHead className="w-[40px]">
                             <Checkbox
-                              checked={records.length > 0 && records.every(f => selectedRecordIds.includes(f.id))}
-                              onCheckedChange={() => toggleSelectAll(records.map(f => f.id))}
+                              checked={isAllSelected ? true : (isSomeSelected ? "indeterminate" : false)}
+                              onCheckedChange={() => toggleSelectAll(allMatchingIds)}
                             />
                           </TableHead>
                           <TableHead className="text-xs uppercase font-bold">Diary/Ref No</TableHead>
@@ -3283,7 +3490,10 @@ export default function FileTracking() {
               <div className="flex items-center gap-2">
                 {currentRole === 'super_admin' && (
                   <>
-                    <Select value={reportDateFilter} onValueChange={setReportDateFilter}>
+                    <Select value={reportDateFilter} onValueChange={(v) => {
+                       setReportDateFilter(v);
+                       setCurrentPage(0);
+                     }}>
                       <SelectTrigger className="w-[150px] h-9 bg-[#0f1115] border-white/5 text-xs text-white/70 hover:text-white rounded-xl">
                         <SelectValue placeholder="Date Range" />
                       </SelectTrigger>
@@ -3302,21 +3512,27 @@ export default function FileTracking() {
                         <span className="text-[10px] uppercase font-black text-white/40 tracking-wider">From</span>
                         <Input
                           type="date"
-                      value={customFilterStartDate}
-                      onChange={(e) => setCustomFilterStartDate(e.target.value)}
-                      className="h-9 w-[120px] bg-[#0f1115] border-white/5 text-xs text-white/70 rounded-xl focus:border-[#14b8a6]/50 focus:ring-[#14b8a6]/20"
-                    />
-                    <span className="text-[10px] uppercase font-black text-white/40 tracking-wider">To</span>
-                    <Input
-                      type="date"
-                      value={customFilterEndDate}
-                      onChange={(e) => setCustomFilterEndDate(e.target.value)}
-                      className="h-9 w-[120px] bg-[#0f1115] border-white/5 text-xs text-white/70 rounded-xl focus:border-[#14b8a6]/50 focus:ring-[#14b8a6]/20"
-                    />
-                  </div>
+                          value={customFilterStartDate}
+                          onChange={(e) => {
+                            setCustomFilterStartDate(e.target.value);
+                            setCurrentPage(0);
+                          }}
+                          className="h-9 w-[120px] bg-[#0f1115] border-white/5 text-xs text-white/70 rounded-xl focus:border-[#14b8a6]/50 focus:ring-[#14b8a6]/20"
+                        />
+                        <span className="text-[10px] uppercase font-black text-white/40 tracking-wider">To</span>
+                        <Input
+                          type="date"
+                          value={customFilterEndDate}
+                          onChange={(e) => {
+                            setCustomFilterEndDate(e.target.value);
+                            setCurrentPage(0);
+                          }}
+                          className="h-9 w-[120px] bg-[#0f1115] border-white/5 text-xs text-white/70 rounded-xl focus:border-[#14b8a6]/50 focus:ring-[#14b8a6]/20"
+                        />
+                      </div>
+                    )}
+                  </>
                 )}
-                </>
-              )}
               {selectedRecordIds.length > 0 && (
                 <>
                     <Button
@@ -3351,14 +3567,40 @@ export default function FileTracking() {
               </div>
             </CardHeader>
             <CardContent>
+              {/* Summary Stats Row */}
+              <div className="flex flex-wrap items-center justify-between gap-4 mb-4 p-4 rounded-xl bg-[#0f1115]/50 border border-white/5">
+                <div className="flex gap-6">
+                  <div>
+                    <p className="text-[10px] uppercase font-black text-white/40 tracking-wider">Total Matching Files</p>
+                    <p className="text-lg font-bold text-[#14b8a6]">{totalRecords}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase font-black text-white/40 tracking-wider">Total Matching Amount</p>
+                    <p className="text-lg font-bold text-emerald-500">{formatCurrency(totalAmountMatching)}</p>
+                  </div>
+                </div>
+                {selectedRecordIds.length > 0 && (
+                  <div className="flex gap-6 border-l border-white/10 pl-6">
+                    <div>
+                      <p className="text-[10px] uppercase font-black text-amber-400">Selected Files</p>
+                      <p className="text-lg font-bold text-amber-400">{selectedRecordIds.length}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase font-black text-amber-400">Selected Amount</p>
+                      <p className="text-lg font-bold text-amber-400">{formatCurrency(selectedAmount)}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="rounded-xl border border-border/50 overflow-hidden bg-background/40">
                 <Table>
                   <TableHeader className="bg-muted/50 text-[10px] uppercase font-black tracking-tighter">
                     <TableRow>
                       <TableHead className="w-[40px]">
                         <Checkbox
-                          checked={records.length > 0 && records.every(f => selectedRecordIds.includes(f.id))}
-                          onCheckedChange={() => toggleSelectAll(records.map(f => f.id))}
+                          checked={isAllSelected ? true : (isSomeSelected ? "indeterminate" : false)}
+                          onCheckedChange={() => toggleSelectAll(allMatchingIds)}
                         />
                       </TableHead>
                       <TableHead>Diary #</TableHead>
@@ -4231,40 +4473,46 @@ export default function FileTracking() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-xs uppercase font-bold text-[#14b8a6]">File Owner / Handover Person <span className="text-red-500">*</span></Label>
-                <Input
-                  placeholder="Handover Person / Owner"
-                  value={formData.handover_person_name || ""}
-                  onChange={e => setFormData({ ...formData, handover_person_name: e.target.value })}
-                  className="bg-muted/20 border-border/50 border-[#14b8a6]/30 text-[#14b8a6]"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs uppercase font-bold text-[#14b8a6]">File Purpose / Description <span className="text-red-500">*</span></Label>
-                <Input
-                  placeholder="File Purpose"
-                  value={formData.file_purpose || ""}
-                  onChange={e => setFormData({ ...formData, file_purpose: e.target.value })}
-                  className="bg-muted/20 border-border/50 border-[#14b8a6]/30 text-[#14b8a6]"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs uppercase font-bold text-muted-foreground">Budget Code <span className="text-muted-foreground/50 text-[10px]">(Optional)</span></Label>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <FileText className="h-4 w-4 text-amber-400" />
-                  </div>
+              {currentRole !== 'entry_operator' && (
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase font-bold text-[#14b8a6]">File Owner / Handover Person {currentRole !== 'entry_operator' && <span className="text-red-500">*</span>}</Label>
                   <Input
-                    placeholder="e.g. BC-2024-001"
-                    className="pl-10 bg-background/50 border-white/10 text-white font-mono h-11 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-all rounded-xl"
-                    value={formData.budget_code || ""}
-                    onChange={e => setFormData({ ...formData, budget_code: e.target.value })}
+                    placeholder="Handover Person / Owner"
+                    value={formData.handover_person_name || ""}
+                    onChange={e => setFormData({ ...formData, handover_person_name: e.target.value })}
+                    className="bg-muted/20 border-border/50 border-[#14b8a6]/30 text-[#14b8a6]"
                   />
                 </div>
-              </div>
+              )}
+
+              {currentRole !== 'entry_operator' && (
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase font-bold text-[#14b8a6]">File Purpose / Description {currentRole !== 'entry_operator' && <span className="text-red-500">*</span>}</Label>
+                  <Input
+                    placeholder="File Purpose"
+                    value={formData.file_purpose || ""}
+                    onChange={e => setFormData({ ...formData, file_purpose: e.target.value })}
+                    className="bg-muted/20 border-border/50 border-[#14b8a6]/30 text-[#14b8a6]"
+                  />
+                </div>
+              )}
+
+              {currentRole !== 'entry_operator' && (
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase font-bold text-muted-foreground">Budget Code <span className="text-muted-foreground/50 text-[10px]">(Optional)</span></Label>
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <FileText className="h-4 w-4 text-amber-400" />
+                    </div>
+                    <Input
+                      placeholder="e.g. BC-2024-001"
+                      className="pl-10 bg-background/50 border-white/10 text-white font-mono h-11 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-all rounded-xl"
+                      value={formData.budget_code || ""}
+                      onChange={e => setFormData({ ...formData, budget_code: e.target.value })}
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label className="text-xs uppercase font-bold text-muted-foreground">Received From Section (Optional)</Label>
@@ -4277,7 +4525,7 @@ export default function FileTracking() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs uppercase font-bold text-muted-foreground">Receiving Number <span className="text-red-500">*</span></Label>
+                <Label className="text-xs uppercase font-bold text-muted-foreground">Receiving Number {currentRole !== 'entry_operator' && <span className="text-red-500">*</span>}</Label>
                 <Input
                   placeholder="Enter Receiving Number"
                   value={formData.receiving_number}
@@ -4285,23 +4533,25 @@ export default function FileTracking() {
                   className="bg-muted/20 border-border/50 font-mono border-primary/30"
                 />
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs uppercase font-bold text-muted-foreground">Department Number <span className="text-muted-foreground/50 text-[10px]">(Optional)</span></Label>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <FileText className="h-4 w-4 text-[#14b8a6]" />
+              {currentRole !== 'entry_operator' && (
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase font-bold text-muted-foreground">Department Number <span className="text-muted-foreground/50 text-[10px]">(Optional)</span></Label>
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <FileText className="h-4 w-4 text-[#14b8a6]" />
+                    </div>
+                    <Input
+                      placeholder="e.g. DEPT-123"
+                      className="pl-10 bg-background/50 border-white/10 text-white font-mono h-11 focus:border-[#14b8a6] focus:ring-1 focus:ring-[#14b8a6] transition-all rounded-xl"
+                      value={formData.department_number || ""}
+                      onChange={e => setFormData({ ...formData, department_number: e.target.value })}
+                    />
                   </div>
-                  <Input
-                    placeholder="e.g. DEPT-123"
-                    className="pl-10 bg-background/50 border-white/10 text-white font-mono h-11 focus:border-[#14b8a6] focus:ring-1 focus:ring-[#14b8a6] transition-all rounded-xl"
-                    value={formData.department_number || ""}
-                    onChange={e => setFormData({ ...formData, department_number: e.target.value })}
-                  />
                 </div>
-              </div>
+              )}
 
               <div className="space-y-2">
-                <Label className="text-xs uppercase font-bold text-muted-foreground">Main Category <span className="text-red-500">*</span></Label>
+                <Label className="text-xs uppercase font-bold text-muted-foreground">Main Category {currentRole !== 'entry_operator' && <span className="text-red-500">*</span>}</Label>
                 <Select
                   value={formData.mainCategory}
                   onValueChange={v => setFormData({ ...formData, mainCategory: v, subCategory: "" })}
@@ -4358,7 +4608,7 @@ export default function FileTracking() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <Label className="text-xs uppercase font-bold text-muted-foreground">Sub Category {formData.mainCategory !== 'impress' && formData.mainCategory !== 'pol_bills' && <span className="text-red-500">*</span>}</Label>
+                  <Label className="text-xs uppercase font-bold text-muted-foreground">Sub Category {currentRole !== 'entry_operator' && formData.mainCategory !== 'impress' && formData.mainCategory !== 'pol_bills' && <span className="text-red-500">*</span>}</Label>
                   <Select
                     value={formData.subCategory}
                     onValueChange={v => setFormData({ ...formData, subCategory: v })}
@@ -4506,7 +4756,7 @@ export default function FileTracking() {
               )}
 
               <div className="space-y-2 lg:col-span-1">
-                <Label className="text-xs uppercase font-bold text-muted-foreground">Subject <span className="text-red-500">*</span></Label>
+                <Label className="text-xs uppercase font-bold text-muted-foreground">Subject {currentRole !== 'entry_operator' && <span className="text-red-500">*</span>}</Label>
                 <Input
                   placeholder="Purpose of file"
                   value={formData.subject}
@@ -4657,7 +4907,7 @@ export default function FileTracking() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs uppercase font-bold text-muted-foreground">Mark To (Forward) <span className="text-red-500">*</span></Label>
+                <Label className="text-xs uppercase font-bold text-muted-foreground">Mark To (Forward) {currentRole !== 'entry_operator' && <span className="text-red-500">*</span>}</Label>
                 <Select value={formData.mark_to} onValueChange={v => setFormData({ ...formData, mark_to: v })}>
                   <SelectTrigger className="bg-muted/20 border-border/50 border-primary/30">
                     <SelectValue placeholder="Target Section" />
@@ -5060,7 +5310,6 @@ export default function FileTracking() {
                           <TableHead>From & Mark To</TableHead>
                           <TableHead>Created At</TableHead>
                           <TableHead>Amount</TableHead>
-                          <TableHead className="text-right pr-6">Export</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -5094,34 +5343,6 @@ export default function FileTracking() {
                             </TableCell>
                             <TableCell className="font-bold text-[10px] text-primary">
                               {formatCurrency(file.amount || 0)}
-                            </TableCell>
-                            <TableCell className="text-right pr-6">
-                              <div className="flex justify-end gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 hover:text-emerald-500"
-                                  onClick={() => exportToCSV([file], `Report_${file.receiving_number}`)}
-                                >
-                                  <Upload className="w-3.5 h-3.5 rotate-180" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 hover:text-red-400"
-                                  onClick={() => handlePrintFullReport([file])}
-                                >
-                                  <FileText className="w-3.5 h-3.5" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 hover:text-blue-500"
-                                  onClick={() => handleQRClick(file.cfo_diary_number, file.receiving_number, getLocalDateString(file.created_at), getLocalDateString(file.created_at))}
-                                >
-                                  <Printer className="w-3.5 h-3.5" />
-                                </Button>
-                              </div>
                             </TableCell>
                           </TableRow>
                         ))}

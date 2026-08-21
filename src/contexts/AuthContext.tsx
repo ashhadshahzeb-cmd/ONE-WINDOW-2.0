@@ -45,7 +45,7 @@ export const DEFAULT_DEPARTMENT_USERS: DepartmentUser[] = [
   { email: 'transfer@kwsb.gov.pk',         password: 'transfer@12345',roleId: 'transfer_user',   displayName: 'TRANSFER ADVICE' },
   { email: 'emp2@kwsb.gov.pk',             password: 'emp2@12345',    roleId: 'emp_operator',      displayName: 'EMPLOYEE REGISTRY 2' },
   { email: 'viewer@kwsb.gov.pk',           password: 'viewer@12345',  roleId: 'file_viewer',       displayName: 'FILE VIEWER' },
-];
+  { email: 'entry@kwsb.gov.pk',            password: 'entry@12345',  roleId: 'entry_operator',    displayName: 'ENTRY OPERATOR' },];
 
 export const CUSTOM_USERS_KEY = 'kwsb_custom_users';
 
@@ -128,10 +128,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (savedLocal) {
       try {
         const parsed = JSON.parse(savedLocal);
-        setUserRole(parsed.roleId);
+        const role = parsed.roleId;
+        setUserRole(role);
         setUserName(parsed.displayName);
         setSession({} as Session);
         setUser({ email: parsed.email } as User);
+        setIsAdmin(role === 'super_admin' || role === 'cfo' || role === 'admin');
+        setAllowOverrideDates(role === 'super_admin' || role === 'cfo' || role === 'admin');
         setLoading(false);
         return;
       } catch {
@@ -208,6 +211,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUserName(hrmsData.name);
             setSession({} as Session);
             setUser({ email: hrmsData.email } as User);
+            setIsAdmin(false);
+            setAllowOverrideDates(false);
             
             logActivity({
               userRole: 'hrms_employee',
@@ -230,10 +235,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             displayName: localUser.displayName,
             email: localUser.email,
           }));
-          setUserRole(localUser.roleId);
+          const role = localUser.roleId;
+          setUserRole(role);
           setUserName(localUser.displayName);
           setSession({} as Session);
           setUser({ email: localUser.email } as User);
+          setIsAdmin(role === 'super_admin' || role === 'cfo' || role === 'admin');
+          setAllowOverrideDates(role === 'super_admin' || role === 'cfo' || role === 'admin');
           
           logActivity({
             userRole: localUser.roleId,
