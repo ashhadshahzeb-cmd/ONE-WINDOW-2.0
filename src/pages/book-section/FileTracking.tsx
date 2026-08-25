@@ -267,8 +267,12 @@ export default function FileTracking() {
   const [reportDateFilter, setReportDateFilter] = useState((currentRole === 'super_admin' || currentRole === 'entry_operator') ? "all" : "today");
   
   useEffect(() => {
-    if (currentRole && currentRole !== 'super_admin' && currentRole !== 'entry_operator') {
-      setReportDateFilter("today");
+    if (currentRole) {
+      if (currentRole !== 'super_admin' && currentRole !== 'entry_operator') {
+        setReportDateFilter("today");
+      } else {
+        setReportDateFilter("all");
+      }
     }
   }, [currentRole]);
   const [customFilterStartDate, setCustomFilterStartDate] = useState("");
@@ -1636,6 +1640,8 @@ export default function FileTracking() {
       if (filterCategory !== 'all') mapped = mapped.filter(r => r.mainCategory === filterCategory);
       if (filterSubCategory !== 'all') mapped = mapped.filter(r => r.subCategory === filterSubCategory);
       if (filterSection !== 'all') mapped = mapped.filter(r => r.mark_to === filterSection);
+      if (filterAmount === 'above_2_lac') mapped = mapped.filter(r => (r.amount || 0) > 200000);
+      if (filterAmount === 'below_2_lac') mapped = mapped.filter(r => (r.amount || 0) <= 200000);
 
       // 3. Search Filter (Fuzzy Search with Fuse.js)
       if (debouncedSearchQuery) {
@@ -1812,10 +1818,18 @@ export default function FileTracking() {
         .order('created_at', { ascending: sortOrder === 'asc' })
         .range(from, to);
 
+      let selectFields = 'id, amount, main_category, sub_category, mark_to, created_at';
+      if (
+        activeTab === 'bulk_modified' ||
+        ((activeTab === 'tray' || activeTab === 'timeline' || activeTab === 'returned_files') && !(currentRole === 'cfo' || currentRole?.startsWith('sub_cfo') || isAdmin))
+      ) {
+        selectFields += ', history';
+      }
+
       // 2. Build the query to get all matching records for statistics & global selection
       let allQuery = supabase
         .from('file_tracking_records' as any)
-        .select('id, amount, main_category, sub_category, mark_to, created_at, history');
+        .select(selectFields);
 
       // Status filters
       if (activeTab === 'trash_box' && isAdmin) {
