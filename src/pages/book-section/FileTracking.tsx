@@ -166,6 +166,7 @@ export default function FileTracking() {
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterSubCategory, setFilterSubCategory] = useState<string>("all");
   const [filterSection, setFilterSection] = useState<string>("all");
+  const [filterAmount, setFilterAmount] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<"active" | "exited">("active");
   const [isExitingFile, setIsExitingFile] = useState(false);
   
@@ -1531,7 +1532,7 @@ export default function FileTracking() {
 
   useEffect(() => {
     setCurrentPage(0);
-  }, [filterCategory, filterSubCategory, filterSection, filterStatus, sortOrder, debouncedSearchQuery, activeTab, viewingRole, reportDateFilter, customFilterStartDate, customFilterEndDate]);
+  }, [filterCategory, filterSubCategory, filterSection, filterAmount, filterStatus, sortOrder, debouncedSearchQuery, activeTab, viewingRole, reportDateFilter, customFilterStartDate, customFilterEndDate]);
 
   const handleRestoreRecord = async (file: any) => {
     try {
@@ -1760,6 +1761,13 @@ export default function FileTracking() {
         query = query.eq('mark_to', filterSection);
       }
 
+      // Apply Amount filter
+      if (filterAmount === 'above_2_lac') {
+        query = query.gt('amount', 200000);
+      } else if (filterAmount === 'below_2_lac') {
+        query = query.lte('amount', 200000);
+      }
+
       // Apply Date filter
       if (reportDateFilter !== 'all') {
         const now = new Date();
@@ -1855,6 +1863,12 @@ export default function FileTracking() {
 
       if (filterSection !== 'all') {
         allQuery = allQuery.eq('mark_to', filterSection);
+      }
+
+      if (filterAmount === 'above_2_lac') {
+        allQuery = allQuery.gt('amount', 200000);
+      } else if (filterAmount === 'below_2_lac') {
+        allQuery = allQuery.lte('amount', 200000);
       }
 
       if (reportDateFilter !== 'all') {
@@ -2075,6 +2089,12 @@ export default function FileTracking() {
           query = query.eq('mark_to', filterSection);
         }
 
+        if (filterAmount === 'above_2_lac') {
+          query = query.gt('amount', 200000);
+        } else if (filterAmount === 'below_2_lac') {
+          query = query.lte('amount', 200000);
+        }
+
         if (reportDateFilter !== 'all') {
           const now = new Date();
           let startDate: Date | null = null;
@@ -2218,7 +2238,7 @@ export default function FileTracking() {
     } else {
       fetchRecords(currentPage);
     }
-  }, [currentPage, filterCategory, filterSubCategory, filterSection, filterStatus, sortOrder, debouncedSearchQuery, activeTab, viewingRole, reportDateFilter, customFilterStartDate, customFilterEndDate]);
+  }, [currentPage, filterCategory, filterSubCategory, filterSection, filterAmount, filterStatus, sortOrder, debouncedSearchQuery, activeTab, viewingRole, reportDateFilter, customFilterStartDate, customFilterEndDate]);
 
   // Auto-select records when category changes to a specific category
   useEffect(() => {
@@ -2916,6 +2936,20 @@ export default function FileTracking() {
                     {s.name}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={filterAmount} onValueChange={(v) => {
+              setFilterAmount(v);
+              setCurrentPage(0);
+            }}>
+              <SelectTrigger className="w-[140px] h-10 text-xs bg-[#0f1115] border-white/5 text-white/70 hover:text-white transition-all rounded-xl shrink-0">
+                <SelectValue placeholder="Amount View" />
+              </SelectTrigger>
+              <SelectContent className="bg-[#0f1115] border-white/10 text-white/70">
+                <SelectItem value="all">All Amounts</SelectItem>
+                <SelectItem value="above_2_lac">&gt; 2 Lac</SelectItem>
+                <SelectItem value="below_2_lac">&le; 2 Lac</SelectItem>
               </SelectContent>
             </Select>
 
