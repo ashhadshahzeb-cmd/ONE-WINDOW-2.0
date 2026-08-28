@@ -11,8 +11,8 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsVisible(false);
-      setTimeout(onComplete, 800); // Wait for exit animation to complete
-    }, 2500); // Show for 2.5 seconds
+      setTimeout(onComplete, 300); // Wait for exit animation to complete
+    }, 500); // Show for 0.5 seconds
 
     return () => clearTimeout(timer);
   }, [onComplete]);

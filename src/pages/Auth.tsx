@@ -28,16 +28,9 @@ export default function AuthPage() {
         if (localResult.success) {
           toast.success('Welcome! Login successful.');
           navigate('/dashboard');
-          return;
+        } else {
+          toast.error(localResult.error || 'Invalid login credentials.');
         }
-
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) {
-          toast.error(localResult.error || error.message);
-          return;
-        }
-        toast.success('Welcome! Login successful.');
-        navigate('/dashboard');
       } else {
         const { data, error } = await supabase.auth.signUp({ 
           email, 

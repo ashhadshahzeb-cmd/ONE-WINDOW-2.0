@@ -196,7 +196,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           const { data: hrmsData, error: hrmsError } = await supabase
             .from('hrms_employees')
-            .select('*')
+            .select('id, email, password, name')
             .eq('email', trimEmail)
             .maybeSingle();
 
