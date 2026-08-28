@@ -246,6 +246,8 @@ export default function FileTracking() {
     mark_to: "",
     outward_date: getLocalDateString(),
     amount: 0,
+    gross_amount: 0,
+    deduction: 0,
     remarks: "",
     employee_number: "",
     voucher_code: "",
@@ -490,6 +492,8 @@ export default function FileTracking() {
               subCategory: recordToEdit.subCategory || recordToEdit.sub_category || "",
               subject: recordToEdit.subject || "",
               amount: recordToEdit.amount || 0,
+              gross_amount: recordToEdit.gross_amount || 0,
+              deduction: recordToEdit.deduction || 0,
               remarks: recordToEdit.remarks || "",
               mark_to: recordToEdit.mark_to || "cfo",
               signature_data: recordToEdit.signature_data || "",
@@ -534,6 +538,8 @@ export default function FileTracking() {
         subCategory: record.subCategory || record.sub_category || "",
         subject: record.subject || "",
         amount: record.amount || 0,
+        gross_amount: record.gross_amount || 0,
+        deduction: record.deduction || 0,
         remarks: record.remarks || "",
         mark_to: record.mark_to || "cfo",
         signature_data: record.signature_data || "",
@@ -626,6 +632,8 @@ export default function FileTracking() {
       subCategory: recordToEdit.subCategory || recordToEdit.sub_category || "",
       subject: recordToEdit.subject || "",
       amount: recordToEdit.amount || 0,
+      gross_amount: recordToEdit.gross_amount || 0,
+      deduction: recordToEdit.deduction || 0,
       remarks: recordToEdit.remarks || "",
       mark_to: recordToEdit.mark_to || "cfo",
       signature_data: recordToEdit.signature_data || "",
@@ -1184,6 +1192,8 @@ export default function FileTracking() {
         processed_by: sections.find(s => s.id === currentRole)?.name,
         action: isEditingMode ? "EDITED" : (isForwardingMode ? "FORWARDED" : "REGISTERED"),
         amount: formData.amount,
+        gross_amount: formData.gross_amount || 0,
+        deduction: formData.deduction || 0,
         file_image: fileImage || undefined
       };
 
@@ -1203,6 +1213,8 @@ export default function FileTracking() {
           outward_date: formData.outward_date,
           remarks: formData.remarks,
           amount: formData.amount,
+        gross_amount: formData.gross_amount || 0,
+        deduction: formData.deduction || 0,
           employee_number: formData.employee_number,
           voucher_code: formData.voucher_code,
           vehicle_no: formData.vehicle_no,
@@ -1278,6 +1290,8 @@ export default function FileTracking() {
           sub_category: formData.subCategory,
           received_from: formData.received_from,
           amount: formData.amount,
+        gross_amount: formData.gross_amount || 0,
+        deduction: formData.deduction || 0,
           employee_number: formData.employee_number,
           voucher_code: formData.voucher_code,
           vehicle_no: formData.vehicle_no,
@@ -1369,6 +1383,8 @@ export default function FileTracking() {
           outward_date: formData.outward_date,
           remarks: formData.remarks,
           amount: formData.amount,
+        gross_amount: formData.gross_amount || 0,
+        deduction: formData.deduction || 0,
           employee_number: formData.employee_number,
           voucher_code: formData.voucher_code,
           vehicle_no: formData.vehicle_no,
@@ -4813,27 +4829,69 @@ export default function FileTracking() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs uppercase font-bold text-muted-foreground">Amount (PKR) <span className="text-emerald-500 text-[9px]">(Net Amount)</span></Label>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="no_amount_chk"
-                      checked={formData.no_amount || false}
-                      onCheckedChange={(checked) => setFormData({ ...formData, no_amount: !!checked, amount: checked ? 0 : formData.amount })}
-                    />
-                    <label htmlFor="no_amount_chk" className="text-[11px] font-semibold text-white/60 cursor-pointer select-none">No Amount</label>
+              {(formData.mainCategory === 'employee' || formData.mainCategory === 'contractor') ? (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs uppercase font-bold text-muted-foreground">Amount (PKR) <span className="text-emerald-500 text-[9px]">(Gross Amount)</span></Label>
+                      <Input
+                        type="number"
+                        placeholder="Enter Gross Amount"
+                        value={formData.gross_amount}
+                        onChange={e => {
+                          const gross = Number(e.target.value);
+                          setFormData({ ...formData, gross_amount: gross, amount: gross - (formData.deduction || 0) })
+                        }}
+                        className="bg-muted/20 border-border/50 font-bold text-primary"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs uppercase font-bold text-muted-foreground">Deduction (PKR)</Label>
+                      <Input
+                        type="number"
+                        placeholder="Enter Deduction"
+                        value={formData.deduction}
+                        onChange={e => {
+                          const ded = Number(e.target.value);
+                          setFormData({ ...formData, deduction: ded, amount: (formData.gross_amount || 0) - ded })
+                        }}
+                        className="bg-muted/20 border-border/50 font-bold text-red-400"
+                      />
+                    </div>
                   </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase font-bold text-muted-foreground">Amount (PKR) <span className="text-emerald-500 text-[9px]">(Net Amount)</span></Label>
+                    <Input
+                      type="number"
+                      disabled
+                      value={formData.amount}
+                      className="bg-muted/20 border-emerald-500/30 font-black text-emerald-400 opacity-90 cursor-not-allowed"
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs uppercase font-bold text-muted-foreground">Amount (PKR) <span className="text-emerald-500 text-[9px]">(Net Amount)</span></Label>
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="no_amount_chk"
+                        checked={formData.no_amount || false}
+                        onCheckedChange={(checked) => setFormData({ ...formData, no_amount: !!checked, amount: checked ? 0 : formData.amount })}
+                      />
+                      <label htmlFor="no_amount_chk" className="text-[11px] font-semibold text-white/60 cursor-pointer select-none">No Amount</label>
+                    </div>
+                  </div>
+                  <Input
+                    type="number"
+                    placeholder="Enter Amount"
+                    value={formData.amount}
+                    disabled={formData.no_amount || false}
+                    onChange={e => setFormData({ ...formData, amount: Number(e.target.value) })}
+                    className="bg-muted/20 border-border/50 font-bold text-primary disabled:opacity-40 disabled:cursor-not-allowed"
+                  />
                 </div>
-                <Input
-                  type="number"
-                  placeholder="Enter Amount"
-                  value={formData.amount}
-                  disabled={formData.no_amount || false}
-                  onChange={e => setFormData({ ...formData, amount: Number(e.target.value) })}
-                  className="bg-muted/20 border-border/50 font-bold text-primary disabled:opacity-40 disabled:cursor-not-allowed"
-                />
-              </div>
+              )}
 
               <div className="space-y-4">
                 <Label className="text-xs uppercase font-bold text-muted-foreground">Digital Authorization (E-Signature)</Label>
