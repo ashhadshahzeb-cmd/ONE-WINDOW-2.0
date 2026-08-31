@@ -33,9 +33,14 @@ export default function PublicTracking() {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+
   const EXPO_OUT = [0.16, 1, 0.3, 1] as any;
 
   useEffect(() => {
+    if (!isAuthenticated) return;
     const fetchRecord = async () => {
       setLoading(true);
       try {
@@ -88,7 +93,55 @@ export default function PublicTracking() {
       }
     };
     fetchRecord();
-  }, [diaryNo, receivingNo]);
+  }, [diaryNo, receivingNo, isAuthenticated]);
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center p-4 font-sans">
+        <div className="w-full max-w-sm bg-white p-8 rounded-[2rem] shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-slate-100 text-center">
+          <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
+            <ShieldCheck className="w-8 h-8 text-blue-600" />
+          </div>
+          <h2 className="text-xl font-black text-slate-900 mb-2">Secure Tracking</h2>
+          <p className="text-sm font-bold text-slate-500 mb-6">Please enter the password to view file details</p>
+          <div className="space-y-4">
+            <input
+              type="password"
+              placeholder="Enter Password"
+              value={passwordInput}
+              onChange={(e) => {
+                setPasswordInput(e.target.value);
+                setPasswordError("");
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  if (passwordInput === 'gmqaBhK6@90') {
+                    setIsAuthenticated(true);
+                  } else {
+                    setPasswordError("Incorrect password");
+                  }
+                }
+              }}
+              className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-center font-bold text-slate-800 outline-none focus:border-blue-500 transition-colors"
+            />
+            {passwordError && <p className="text-xs font-bold text-red-500">{passwordError}</p>}
+            <Button
+              className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl uppercase tracking-widest text-xs"
+              onClick={() => {
+                if (passwordInput === 'gmqaBhK6@90') {
+                  setIsAuthenticated(true);
+                } else {
+                  setPasswordError("Incorrect password");
+                }
+              }}
+            >
+              Unlock Record
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
