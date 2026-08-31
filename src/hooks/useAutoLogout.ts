@@ -10,8 +10,8 @@ export function useAutoLogout() {
   const location = useLocation();
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Active when user is logged in (has a role)
-  const isLoggedIn = userRole !== null;
+  // Active when user is logged in (has a role) and is NOT a super_admin
+  const isLoggedIn = userRole !== null && userRole !== 'super_admin';
 
   const resetTimer = () => {
     if (timerRef.current) {
