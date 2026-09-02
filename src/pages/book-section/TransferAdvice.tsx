@@ -1,15 +1,18 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Trash2, Printer, Save } from "lucide-react";
+import { Plus, Trash2, Printer, Save, Camera } from "lucide-react";
 import { numberToWords } from "@/lib/numberToWords";
 import { toast } from "sonner";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { QRCodeCanvas } from "qrcode.react";
 
 const getLocalDateString = (dateStr?: string | Date | null): string => {
   if (!dateStr) {
@@ -20,6 +23,10 @@ const getLocalDateString = (dateStr?: string | Date | null): string => {
   const d = new Date(dateStr);
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
   return d.toISOString().split('T')[0];
+};
+
+const generateId = () => {
+  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 };
 
 interface AdviceItem {
@@ -39,14 +46,202 @@ export default function TransferAdvice() {
   const [bankDetails, setBankDetails] = useState("The Chief Manager,\nHabib Bank Limited,\nSindh Secretariat Branch,\nKarachi.");
   const [subject, setSubject] = useState("TRANSFER ADVICE.");
   const [isSaving, setIsSaving] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!import.meta.env.VITE_GEMINI_API_KEY) {
+      toast.error("Please add VITE_GEMINI_API_KEY to your .env file first.");
+      return;
+    }
+
+    setIsScanning(true);
+    toast.info("Scanning document... Please wait.", { duration: 5000 });
+
+    try {
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+          if (typeof reader.result === 'string') {
+            resolve(reader.result.split(',')[1]);
+          } else {
+            reject(new Error('Failed to read file'));
+          }
+        };
+        reader.onerror = error => reject(error);
+      });
+
+      const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+      const prompt = `
+Extract the following information from the provided transfer advice image and format it as a strictly valid JSON object.
+Do not include markdown blocks or any other text outside the JSON.
+
+Expected JSON structure:
+{
+  "advice_no": "String (e.g. KW&SC/DIR-ACC/F.D/A/2026/1234)",
+  "date": "YYYY-MM-DD",
+  "bank_details": "String (Multiline address)",
+  "subject": "String",
+  "items": [
+    {
+      "amount": number,
+      "ac_debit": "String",
+      "ac_credit": "String",
+      "in_respect_of": "String"
+    }
+  ]
+}
+`;
+
+      const result = await model.generateContent([
+        {
+          inlineData: {
+            data: base64Data,
+            mimeType: file.type
+          }
+        },
+        prompt
+      ]);
+
+      const responseText = result.response.text().replace(/```json/g, '').replace(/```/g, '').trim();
+      const parsed = JSON.parse(responseText);
+
+      if (parsed.advice_no) setAdviceNo(parsed.advice_no);
+      if (parsed.date) setAdviceDate(parsed.date);
+      if (parsed.bank_details) setBankDetails(parsed.bank_details);
+      if (parsed.subject) setSubject(parsed.subject);
+
+      if (parsed.items && Array.isArray(parsed.items) && parsed.items.length > 0) {
+        setItems(parsed.items.map((item: any) => ({
+          id: generateId(),
+          amount: item.amount || 0,
+          ac_debit: item.ac_debit || "",
+          ac_credit: item.ac_credit || "",
+          in_respect_of: item.in_respect_of || "",
+          payment_method: "None",
+          payment_number: ""
+        })));
+      }
+
+      toast.success("Document scanned successfully!");
+    } catch (error) {
+      console.error("Scan error:", error);
+      toast.error("Failed to scan document. Please try again.");
+    } finally {
+      setIsScanning(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const [isQRScanOpen, setIsQRScanOpen] = useState(false);
+  const [scanSessionId, setScanSessionId] = useState("");
   
+  useEffect(() => {
+    if (!scanSessionId || !isQRScanOpen) return;
+    
+    const channelName = `mobile-upload-${scanSessionId}`;
+    const channel = supabase.channel(channelName);
+    
+    channel.on('broadcast', { event: 'image-uploaded' }, async (payload) => {
+      const dataUrl = payload.payload?.image;
+      if (!dataUrl) return;
+      
+      const base64Data = dataUrl.split(',')[1];
+      setIsQRScanOpen(false);
+      
+      if (!import.meta.env.VITE_GEMINI_API_KEY) {
+        toast.error("Please add VITE_GEMINI_API_KEY to your .env file first.");
+        return;
+      }
+      
+      setIsScanning(true);
+      toast.info("Image received! Scanning document... Please wait.", { duration: 5000 });
+      
+      try {
+        const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const prompt = `
+Extract the following information from the provided transfer advice image and format it as a strictly valid JSON object.
+Do not include markdown blocks or any other text outside the JSON.
+
+Expected JSON structure:
+{
+  "advice_no": "String (e.g. KW&SC/DIR-ACC/F.D/A/2026/1234)",
+  "date": "YYYY-MM-DD",
+  "bank_details": "String (Multiline address)",
+  "subject": "String",
+  "items": [
+    {
+      "amount": number,
+      "ac_debit": "String",
+      "ac_credit": "String",
+      "in_respect_of": "String"
+    }
+  ]
+}
+`;
+        const result = await model.generateContent([
+          { inlineData: { data: base64Data, mimeType: "image/jpeg" } },
+          prompt
+        ]);
+        const responseText = result.response.text().replace(/```json/g, '').replace(/```/g, '').trim();
+        const parsed = JSON.parse(responseText);
+
+        if (parsed.advice_no) setAdviceNo(parsed.advice_no);
+        if (parsed.date) setAdviceDate(parsed.date);
+        if (parsed.bank_details) setBankDetails(parsed.bank_details);
+        if (parsed.subject) setSubject(parsed.subject);
+        if (parsed.items && Array.isArray(parsed.items) && parsed.items.length > 0) {
+          setItems(parsed.items.map((item: any) => ({
+            id: generateId(),
+            amount: item.amount || 0,
+            ac_debit: item.ac_debit || "",
+            ac_credit: item.ac_credit || "",
+            in_respect_of: item.in_respect_of || "",
+            payment_method: "None",
+            payment_number: ""
+          })));
+        }
+        toast.success("Document scanned successfully!");
+      } catch (error) {
+        console.error("Scan error:", error);
+        toast.error("Failed to scan document. Please try again.");
+      } finally {
+        setIsScanning(false);
+      }
+    });
+
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        console.log("Ready to receive mobile scan");
+      }
+    });
+    
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [scanSessionId, isQRScanOpen]);
+
+  const startMobileScan = () => {
+    setScanSessionId(generateId());
+    setIsQRScanOpen(true);
+  };
+
   const [items, setItems] = useState<AdviceItem[]>([
-    { id: crypto.randomUUID(), amount: 100000000, ac_debit: "09167900975803", ac_credit: "09167900975903", in_respect_of: "REGULAR SALARY", payment_method: "None", payment_number: "" }
+    { id: generateId(), amount: 100000000, ac_debit: "09167900975803", ac_credit: "09167900975903", in_respect_of: "REGULAR SALARY", payment_method: "None", payment_number: "" }
   ]);
 
   const addItem = () => {
     setItems([...items, { 
-      id: crypto.randomUUID(), 
+      id: generateId(), 
       amount: 0, 
       ac_debit: "09167900975803",
       ac_credit: "09167900975903", 
@@ -79,7 +274,7 @@ export default function TransferAdvice() {
     
     setIsSaving(true);
     try {
-      const adviceId = crypto.randomUUID();
+      const adviceId = generateId();
       
       // Save header
       const { error: headerErr } = await supabase.from('transfer_advices').insert({
@@ -97,7 +292,7 @@ export default function TransferAdvice() {
 
       // Save items
       const itemsToSave = items.map((item, index) => ({
-        id: crypto.randomUUID(),
+        id: generateId(),
         transfer_advice_id: adviceId,
         s_no: index + 1,
         transfer_amount: item.amount,
@@ -130,7 +325,28 @@ export default function TransferAdvice() {
       <div className="no-print space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold text-white">Transfer Advice Generator</h1>
-          <div className="space-x-2">
+          <div className="space-x-2 flex items-center">
+            <input 
+              type="file" 
+              accept="image/*" 
+              capture="environment" 
+              ref={fileInputRef}
+              onChange={handleScan}
+              className="hidden" 
+            />
+            <Button 
+              variant="outline" 
+              onClick={startMobileScan} 
+              disabled={isScanning}
+              className="text-white border-emerald-500/50 bg-emerald-500/10 hover:bg-emerald-500/20"
+            >
+              {isScanning ? (
+                <div className="w-4 h-4 mr-2 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                <Camera className="w-4 h-4 mr-2 text-emerald-400" />
+              )}
+              {isScanning ? "Scanning..." : "Scan Auto-Fill"}
+            </Button>
             <Button variant="outline" onClick={handleSave} className="text-white border-white/20">
               <Save className="w-4 h-4 mr-2" /> Save
             </Button>
@@ -396,6 +612,33 @@ export default function TransferAdvice() {
         </div>
 
       </div>
+
+      {/* --- QR DIALOG --- */}
+      <Dialog open={isQRScanOpen} onOpenChange={setIsQRScanOpen}>
+        <DialogContent className="sm:max-w-md bg-[#0f1115] text-white border border-white/10">
+          <DialogHeader>
+            <DialogTitle>Scan with Mobile</DialogTitle>
+            <DialogDescription className="text-zinc-400">
+              Scan this QR code with your mobile phone to take a picture of the document. The data will automatically sync here.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center justify-center space-y-6 py-6">
+            {scanSessionId && (
+              <div className="bg-white p-4 rounded-xl shadow-xl">
+                <QRCodeCanvas 
+                  value={`${window.location.origin}/mobile-upload/${scanSessionId}`}
+                  size={220}
+                  level="H"
+                  includeMargin={false}
+                />
+              </div>
+            )}
+            <p className="text-sm font-mono text-emerald-400 animate-pulse">
+              Waiting for mobile upload...
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

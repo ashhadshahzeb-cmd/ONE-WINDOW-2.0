@@ -43,7 +43,7 @@ import { useAutoLogout } from "@/hooks/useAutoLogout";
 import { NotificationDropdown } from "@/components/NotificationDropdown";
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
-  useAutoLogout();
+  // useAutoLogout();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openCategory, setOpenCategory] = useState<string | null>("book-section");

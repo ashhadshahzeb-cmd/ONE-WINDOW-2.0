@@ -118,6 +118,28 @@ const DiffViewer = ({ before, after }: { before: any, after: any }) => {
   );
 };
 
+const PayloadViewer = ({ data }: { data: any }) => {
+  if (!data) return null;
+  const keys = Object.keys(data).filter(k => !['history', 'file_image', 'signature_data'].includes(k));
+  
+  if (keys.length === 0) {
+    return <div className="text-white/50 text-xs italic bg-white/5 p-4 rounded-lg text-center border border-white/10">No structured data found.</div>;
+  }
+
+  return (
+    <div className="grid grid-cols-2 gap-4 bg-white/[0.02] p-4 rounded-xl border border-white/[0.05] max-h-96 overflow-y-auto">
+      {keys.map(k => (
+        <div key={k} className="bg-black/20 p-2 rounded-lg border border-white/5">
+          <Label className="text-[9px] text-white/40 uppercase tracking-widest block mb-1 font-bold">{k.replace(/_/g, ' ')}</Label>
+          <div className="text-xs text-white/90 font-medium break-words">
+            {typeof data[k] === 'object' ? JSON.stringify(data[k]) : String(data[k] || '---')}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 export default function ActivityLog() {
   const { userRole, isAdmin } = useAuth();
   const isAdminUser = userRole === 'admin' || isAdmin;
@@ -720,12 +742,8 @@ export default function ActivityLog() {
                 // Human Readable Diff View
                 <DiffViewer before={selectedLog.details.before} after={selectedLog.details.after || selectedLog.details} />
               ) : (
-                // Standard Raw JSON View
-                <ScrollArea className="h-64 bg-black/60 rounded-xl border border-white/10 p-4">
-                  <pre className="text-[11px] font-mono text-white/70 whitespace-pre-wrap">
-                    {JSON.stringify(selectedLog?.details || {}, null, 2)}
-                  </pre>
-                </ScrollArea>
+                // Nicely formatted Payload View
+                <PayloadViewer data={selectedLog?.details} />
               )}
             </div>
 

@@ -1427,7 +1427,7 @@ export default function FileTracking() {
           diaryNumber: formData.cfo_diary_number,
           receivingNumber: formData.receiving_number,
           subject: formData.subject,
-          details: { mark_to: formData.mark_to, amount: formData.amount }
+          details: { ...newEntry }
         });
 
         if (linkedPendingId) {
