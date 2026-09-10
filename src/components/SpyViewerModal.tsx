@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import * as rrweb from 'rrweb';
+import rrwebPlayer from 'rrweb-player';
+import 'rrweb-player/dist/style.css';
 import { Loader2 } from 'lucide-react';
 import LZString from 'lz-string';
 
@@ -41,29 +42,21 @@ export default function SpyViewerModal({ isOpen, onClose, targetUserEmail }: Spy
         if (!replayerRef.current && containerRef.current) {
            events.push(...incomingEvents);
            if (events.some(e => e.type === 2)) {
-              replayerRef.current = new rrweb.Replayer(events, {
-                root: containerRef.current,
-                liveMode: true,
+              
+              const width = containerRef.current.clientWidth || 1024;
+              const height = containerRef.current.clientHeight || 768;
+              
+              replayerRef.current = new rrwebPlayer({
+                target: containerRef.current,
+                props: {
+                  events: events,
+                  autoPlay: true,
+                  liveMode: true,
+                  width: width,
+                  height: height,
+                  showController: false,
+                }
               });
-              replayerRef.current.play();
-
-              const scalePlayer = () => {
-                 if (replayerRef.current && replayerRef.current.wrapper && containerRef.current) {
-                    const cW = containerRef.current.clientWidth;
-                    const cH = containerRef.current.clientHeight;
-                    const frame = replayerRef.current.iframe;
-                    if (frame) {
-                       const fW = parseInt(frame.width || frame.style.width || "1024", 10);
-                       const fH = parseInt(frame.height || frame.style.height || "768", 10);
-                       const scale = Math.min(cW / fW, cH / fH, 1);
-                       replayerRef.current.wrapper.style.transform = `scale(${scale})`;
-                       replayerRef.current.wrapper.style.transformOrigin = 'top left';
-                    }
-                 }
-              };
-              setTimeout(scalePlayer, 500);
-              window.addEventListener('resize', scalePlayer);
-              replayerRef.current.__cleanupScale = () => window.removeEventListener('resize', scalePlayer);
 
            } else if (events.length > 0) {
               events = [];
@@ -73,7 +66,6 @@ export default function SpyViewerModal({ isOpen, onClose, targetUserEmail }: Spy
            incomingEvents.forEach((ev: any) => {
               replayerRef.current.addEvent(ev);
            });
-           replayerRef.current.play();
         }
       } catch(e) {
         console.error("Failed to parse compressed events", e);
@@ -114,7 +106,7 @@ export default function SpyViewerModal({ isOpen, onClose, targetUserEmail }: Spy
             </span>
           </DialogTitle>
         </DialogHeader>
-        <div className="flex-1 overflow-hidden relative block bg-black" ref={containerRef}>
+        <div className="flex-1 overflow-hidden relative flex items-center justify-center bg-black" ref={containerRef}>
           {status !== 'Connected (Live)' && (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-zinc-500 gap-4">
               <Loader2 className="w-12 h-12 animate-spin text-zinc-700" />
