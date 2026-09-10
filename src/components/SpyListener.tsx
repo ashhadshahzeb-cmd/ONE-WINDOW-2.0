@@ -1,87 +1,80 @@
-import React, { useEffect, useRef } from 'react';
+﻿import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import * as rrweb from 'rrweb';
 import { toast } from 'sonner';
-import LZString from 'lz-string';
+
+const CHUNK_SIZE = 200 * 1024; // 200KB per chunk
 
 export default function SpyListener() {
   const { user, userRole } = useAuth();
-  const stopFnRef = useRef<(() => void) | null>(null);
-  
-  useEffect(() => {
-    if (!user || userRole === 'super_admin') return;
+  const stopFnRef = useRef(null);
+  const flushIntervalRef = useRef(null);
 
-    const emailKey = user.email ? user.email.replace(/[^a-zA-Z0-9]/g, '_') : 'unknown';
-    const channelName = `spy_watch_${emailKey}`;
-    let eventBuffer: any[] = [];
-    let flushInterval: any = null;
+  useEffect(() => {
+    if (!user || !user.email) return;
+    if (userRole === 'super_admin' || userRole === 'admin') return;
+
+    const emailKey = user.email.replace(/[^a-zA-Z0-9]/g, '_');
+    const channelName = `spy_${emailKey}`;
 
     const channel = supabase.channel(channelName, {
-      config: {
-        broadcast: { ack: false },
-      },
+      config: { broadcast: { ack: false, self: false } },
     });
-    
-    channel.on('broadcast', { event: 'start_watch' }, (payload) => {
-      toast.info("Super Admin is currently viewing your screen.");
-      
-      if (stopFnRef.current) {
-        stopFnRef.current();
-      }
 
-      eventBuffer = [];
+    const startRecording = () => {
+      if (stopFnRef.current) { stopFnRef.current(); stopFnRef.current = null; }
+      if (flushIntervalRef.current) { clearInterval(flushIntervalRef.current); flushIntervalRef.current = null; }
+
+      const eventBuffer = [];
 
       stopFnRef.current = rrweb.record({
-        emit(event) {
-          eventBuffer.push(event);
-        },
-        recordCanvas: true,
-        recordLog: true,
+        emit(event) { eventBuffer.push(event); },
       });
 
-      flushInterval = setInterval(async () => {
-        if (eventBuffer.length > 0) {
-          const payloadStr = JSON.stringify(eventBuffer);
-          eventBuffer = [];
-          
-          const compressed = LZString.compressToUTF16(payloadStr);
-          
-          const CHUNK_SIZE = 50000; // 50KB to stay well under 256KB
-          const totalChunks = Math.ceil(compressed.length / CHUNK_SIZE);
-          const chunkGroupId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+      flushIntervalRef.current = setInterval(async () => {
+        if (eventBuffer.length === 0) return;
+        const batch = eventBuffer.splice(0, eventBuffer.length);
+        const payloadStr = JSON.stringify(batch);
+        const totalChunks = Math.ceil(payloadStr.length / CHUNK_SIZE);
+        const groupId = `${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
 
-          for (let i = 0; i < totalChunks; i++) {
-            const chunk = compressed.substring(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+        for (let i = 0; i < totalChunks; i++) {
+          const chunk = payloadStr.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+          try {
             await channel.send({
               type: 'broadcast',
-              event: 'rrweb_chunked_compressed',
-              payload: { chunkGroupId, chunkIndex: i, totalChunks, data: chunk }
+              event: 'screen_chunk',
+              payload: { groupId, idx: i, total: totalChunks, chunk },
             });
-            // Delay slightly to prevent rate limiting
-            await new Promise(r => setTimeout(r, 80));
+          } catch (err) {
+            console.error('[SpyListener] send error', err);
           }
+          if (totalChunks > 1) await new Promise(r => setTimeout(r, 50));
         }
-      }, 1000); // send every 1 second
-    });
+      }, 500);
+    };
 
-    channel.on('broadcast', { event: 'stop_watch' }, () => {
-      if (stopFnRef.current) {
-        stopFnRef.current();
-        stopFnRef.current = null;
-      }
-      if (flushInterval) {
-        clearInterval(flushInterval);
-        flushInterval = null;
-      }
-      toast.info("Super Admin has stopped viewing your screen.");
-    });
+    const stopRecording = () => {
+      if (stopFnRef.current) { stopFnRef.current(); stopFnRef.current = null; }
+      if (flushIntervalRef.current) { clearInterval(flushIntervalRef.current); flushIntervalRef.current = null; }
+    };
 
-    channel.subscribe();
+    channel
+      .on('broadcast', { event: 'watch_start' }, () => {
+        toast.info('Super Admin is viewing your screen.');
+        startRecording();
+      })
+      .on('broadcast', { event: 'watch_stop' }, () => {
+        stopRecording();
+        toast.info('Super Admin stopped viewing your screen.');
+      })
+      .subscribe((status) => {
+        console.log('[SpyListener] channel status:', status);
+      });
 
     return () => {
-      if (stopFnRef.current) stopFnRef.current();
-      if (flushInterval) clearInterval(flushInterval);
+      stopRecording();
       supabase.removeChannel(channel);
     };
   }, [user, userRole]);

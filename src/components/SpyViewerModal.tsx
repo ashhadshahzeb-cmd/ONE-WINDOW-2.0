@@ -1,9 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import * as rrweb from 'rrweb';
 import { Loader2 } from 'lucide-react';
-import LZString from 'lz-string';
 
 interface SpyViewerModalProps {
   isOpen: boolean;
@@ -14,117 +13,83 @@ interface SpyViewerModalProps {
 export default function SpyViewerModal({ isOpen, onClose, targetUserEmail }: SpyViewerModalProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const replayerRef = useRef<rrweb.Replayer | null>(null);
+  const channelRef = useRef<any>(null);
   const [status, setStatus] = useState<string>('Connecting...');
-  
+
   useEffect(() => {
     if (!isOpen || !targetUserEmail) return;
+
     setStatus('Connecting...');
+    replayerRef.current = null;
 
     const emailKey = targetUserEmail.replace(/[^a-zA-Z0-9]/g, '_');
-    const channelName = `spy_watch_${emailKey}`;
+    const channelName = `spy_${emailKey}`;
+
+    const pendingChunks: Record<string, string[]> = {};
+    const events: any[] = [];
+
+    const processEvents = (incoming: any[]) => {
+      if (!incoming || incoming.length === 0) return;
+
+      setStatus('Connected (Live)');
+
+      if (!replayerRef.current && containerRef.current) {
+        events.push(...incoming);
+        // Wait until we have the full snapshot (type 2)
+        if (events.some(e => e.type === 2)) {
+          replayerRef.current = new rrweb.Replayer(events, {
+            root: containerRef.current,
+            liveMode: true,
+          });
+          replayerRef.current.startLive();
+        }
+      } else if (replayerRef.current) {
+        incoming.forEach(ev => replayerRef.current!.addEvent(ev));
+      }
+    };
+
     const channel = supabase.channel(channelName, {
-      config: { broadcast: { ack: false } },
+      config: { broadcast: { ack: false, self: false } },
     });
 
-    let events: any[] = [];
-    let chunkGroups: Record<string, string[]> = {};
+    channelRef.current = channel;
 
-    channel.on('broadcast', { event: 'rrweb_compressed' }, (payload) => {
-      try {
-        const decompressed = LZString.decompressFromUTF16(payload.payload.data);
-        if (!decompressed) return;
+    channel
+      .on('broadcast', { event: 'screen_chunk' }, ({ payload }) => {
+        const { groupId, idx, total, chunk } = payload;
+        if (!pendingChunks[groupId]) pendingChunks[groupId] = new Array(total).fill(null);
+        pendingChunks[groupId][idx] = chunk;
 
-        const incomingEvents = JSON.parse(decompressed);
-        if (!incomingEvents || incomingEvents.length === 0) return;
-        
-        setStatus('Connected (Live)');
-
-        if (!replayerRef.current && containerRef.current) {
-           events.push(...incomingEvents);
-           if (events.some(e => e.type === 2)) {
-              replayerRef.current = new rrweb.Replayer(events, {
-                root: containerRef.current,
-                liveMode: true,
-              });
-              replayerRef.current.startLive();
-           } else if (events.length > 0) {
-              events = [];
-              channel.send({ type: 'broadcast', event: 'start_watch', payload: {} });
-           }
-        } else if (replayerRef.current) {
-           incomingEvents.forEach((ev: any) => {
-              replayerRef.current!.addEvent(ev);
-           });
-        }
-      } catch(e) {
-        console.error("Failed to parse compressed events", e);
-      }
-    });
-
-    channel.on('broadcast', { event: 'rrweb_chunked_compressed' }, (payload) => {
-      const { chunkGroupId, chunkIndex, totalChunks, data } = payload.payload;
-      
-      if (!chunkGroups[chunkGroupId]) {
-        chunkGroups[chunkGroupId] = new Array(totalChunks).fill(null);
-      }
-      chunkGroups[chunkGroupId][chunkIndex] = data;
-
-      if (chunkGroups[chunkGroupId].every(c => c !== null)) {
-        const fullCompressedStr = chunkGroups[chunkGroupId].join('');
-        delete chunkGroups[chunkGroupId];
-
-        try {
-          const decompressed = LZString.decompressFromUTF16(fullCompressedStr);
-          if (!decompressed) return;
-
-          const incomingEvents = JSON.parse(decompressed);
-          if (!incomingEvents || incomingEvents.length === 0) return;
-          
-          setStatus('Connected (Live)');
-
-          if (!replayerRef.current && containerRef.current) {
-             events.push(...incomingEvents);
-             if (events.some(e => e.type === 2)) {
-                
-                replayerRef.current = new rrweb.Replayer(events, {
-                  root: containerRef.current,
-                  liveMode: true,
-                });
-                replayerRef.current.startLive();
-
-             } else if (events.length > 0) {
-                events = [];
-                channel.send({ type: 'broadcast', event: 'start_watch', payload: {} });
-             }
-          } else if (replayerRef.current) {
-             incomingEvents.forEach((ev: any) => {
-                replayerRef.current!.addEvent(ev);
-             });
+        if (pendingChunks[groupId].every(c => c !== null)) {
+          const full = pendingChunks[groupId].join('');
+          delete pendingChunks[groupId];
+          try {
+            const parsed = JSON.parse(full);
+            processEvents(parsed);
+          } catch (e) {
+            console.error('[SpyViewer] parse error', e);
           }
-        } catch(e) {
-          console.error("Failed to parse chunked compressed events", e);
         }
-      }
-    });
-
-    channel.subscribe((subStatus) => {
-      if (subStatus === 'SUBSCRIBED') {
-        setStatus('Waiting for screen data...');
-        channel.send({
-          type: 'broadcast',
-          event: 'start_watch',
-          payload: {}
-        });
-      }
-    });
+      })
+      .subscribe((subStatus) => {
+        console.log('[SpyViewer] channel status:', subStatus);
+        if (subStatus === 'SUBSCRIBED') {
+          setStatus('Waiting for screen data...');
+          // Signal the user to start recording
+          channel.send({
+            type: 'broadcast',
+            event: 'watch_start',
+            payload: {},
+          });
+        }
+      });
 
     return () => {
-      channel.send({ type: 'broadcast', event: 'stop_watch', payload: {} });
+      channel.send({ type: 'broadcast', event: 'watch_stop', payload: {} });
       supabase.removeChannel(channel);
-      if (replayerRef.current) {
-        containerRef.current!.innerHTML = '';
-        replayerRef.current = null;
-      }
+      channelRef.current = null;
+      if (containerRef.current) containerRef.current.innerHTML = '';
+      replayerRef.current = null;
     };
   }, [isOpen, targetUserEmail]);
 
@@ -140,11 +105,11 @@ export default function SpyViewerModal({ isOpen, onClose, targetUserEmail }: Spy
             </span>
           </DialogTitle>
         </DialogHeader>
-        <div className="flex-1 overflow-auto relative block bg-black" ref={containerRef}>
+        <div className="flex-1 overflow-auto bg-black" ref={containerRef} style={{ position: 'relative' }}>
           {status !== 'Connected (Live)' && (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-zinc-500 gap-4">
               <Loader2 className="w-12 h-12 animate-spin text-zinc-700" />
-              <p>Connecting to user's screen stream...</p>
+              <p>{status}</p>
             </div>
           )}
         </div>
