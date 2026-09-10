@@ -1,8 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import rrwebPlayer from 'rrweb-player';
-import 'rrweb-player/dist/style.css';
+import * as rrweb from 'rrweb';
 import { Loader2 } from 'lucide-react';
 
 interface SpyViewerModalProps {
@@ -23,9 +22,7 @@ export default function SpyViewerModal({ isOpen, onClose, targetUserEmail }: Spy
     const emailKey = targetUserEmail.replace(/[^a-zA-Z0-9]/g, '_');
     const channelName = `spy_watch_${emailKey}`;
     const channel = supabase.channel(channelName, {
-      config: {
-        broadcast: { ack: false },
-      },
+      config: { broadcast: { ack: false } },
     });
 
     let events: any[] = [];
@@ -37,7 +34,6 @@ export default function SpyViewerModal({ isOpen, onClose, targetUserEmail }: Spy
       if (!chunkGroups[chunkGroupId]) {
         chunkGroups[chunkGroupId] = new Array(totalChunks).fill(null);
       }
-      
       chunkGroups[chunkGroupId][chunkIndex] = data;
 
       if (chunkGroups[chunkGroupId].every(c => c !== null)) {
@@ -57,32 +53,43 @@ export default function SpyViewerModal({ isOpen, onClose, targetUserEmail }: Spy
                 const width = containerRef.current.clientWidth || 1024;
                 const height = containerRef.current.clientHeight || 768;
                 
-                replayerRef.current = new rrwebPlayer({
-                  target: containerRef.current,
-                  props: {
-                    events: events,
-                    autoPlay: true,
-                    liveMode: true,
-                    width: width,
-                    height: height,
-                    showController: false,
-                  }
+                replayerRef.current = new rrweb.Replayer(events, {
+                  root: containerRef.current,
+                  liveMode: true,
                 });
+                replayerRef.current.play();
+
+                // Auto-scale wrapper to fit container
+                const scalePlayer = () => {
+                   if (replayerRef.current && replayerRef.current.wrapper && containerRef.current) {
+                      const cW = containerRef.current.clientWidth;
+                      const cH = containerRef.current.clientHeight;
+                      // the iframe has dimensions stored in wrapper.style.width/height usually
+                      // but we can just use CSS transform
+                      const frame = replayerRef.current.iframe;
+                      if (frame) {
+                         const fW = parseInt(frame.width || frame.style.width || "1024", 10);
+                         const fH = parseInt(frame.height || frame.style.height || "768", 10);
+                         const scale = Math.min(cW / fW, cH / fH, 1);
+                         replayerRef.current.wrapper.style.transform = `scale(\${scale})`;
+                         replayerRef.current.wrapper.style.transformOrigin = 'top left';
+                      }
+                   }
+                };
+                setTimeout(scalePlayer, 500);
+                window.addEventListener('resize', scalePlayer);
+                replayerRef.current.__cleanupScale = () => window.removeEventListener('resize', scalePlayer);
+
              } else if (events.length > 0) {
-                // We received incremental events but missed the full snapshot!
                 // Request a restart to get a fresh full snapshot.
                 events = [];
                 channel.send({ type: 'broadcast', event: 'start_watch', payload: {} });
              }
           } else if (replayerRef.current) {
-             const targetReplayer = typeof replayerRef.current.getReplayer === 'function' 
-                ? replayerRef.current.getReplayer() 
-                : replayerRef.current;
              incomingEvents.forEach((ev: any) => {
-                if (targetReplayer && typeof targetReplayer.addEvent === 'function') {
-                   targetReplayer.addEvent(ev);
-                }
+                replayerRef.current.addEvent(ev);
              });
+             replayerRef.current.play(); // force play
           }
         } catch(e) {
           console.error("Failed to parse chunked events", e);
@@ -105,6 +112,7 @@ export default function SpyViewerModal({ isOpen, onClose, targetUserEmail }: Spy
       channel.send({ type: 'broadcast', event: 'stop_watch', payload: {} });
       supabase.removeChannel(channel);
       if (replayerRef.current) {
+        if (replayerRef.current.__cleanupScale) replayerRef.current.__cleanupScale();
         containerRef.current!.innerHTML = '';
         replayerRef.current = null;
       }
