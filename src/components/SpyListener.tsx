@@ -44,7 +44,7 @@ export default function SpyListener() {
           const payloadStr = JSON.stringify(eventBuffer);
           eventBuffer = [];
           
-          const CHUNK_SIZE = 150000; // 150KB to stay under 256KB limit safely
+          const CHUNK_SIZE = 60000; // 60KB to prevent Supabase drops
           const totalChunks = Math.ceil(payloadStr.length / CHUNK_SIZE);
           const chunkGroupId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
 
@@ -56,7 +56,7 @@ export default function SpyListener() {
                 event: 'rrweb_chunk',
                 payload: { chunkGroupId, chunkIndex: i, totalChunks, data: chunk }
               });
-              await new Promise(r => setTimeout(r, 40));
+              await new Promise(r => setTimeout(r, 100)); // 100ms delay between chunks
             }
           };
           sendChunks();

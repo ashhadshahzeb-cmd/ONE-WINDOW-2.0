@@ -68,6 +68,11 @@ export default function SpyViewerModal({ isOpen, onClose, targetUserEmail }: Spy
                     showController: false,
                   }
                 });
+             } else if (events.length > 0) {
+                // We received incremental events but missed the full snapshot!
+                // Request a restart to get a fresh full snapshot.
+                events = [];
+                channel.send({ type: 'broadcast', event: 'start_watch', payload: {} });
              }
           } else if (replayerRef.current) {
              const targetReplayer = typeof replayerRef.current.getReplayer === 'function' 
