@@ -1,8 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import rrwebPlayer from 'rrweb-player';
-import 'rrweb-player/dist/style.css';
+import * as rrweb from 'rrweb';
 import { Loader2 } from 'lucide-react';
 
 interface SpyViewerModalProps {
@@ -40,16 +39,11 @@ export default function SpyViewerModal({ isOpen, onClose, targetUserEmail }: Spy
          events.push(...incomingEvents);
          // Ensure we have at least one full snapshot before starting
          if (events.some(e => e.type === 2)) {
-            replayerRef.current = new rrwebPlayer({
-              target: containerRef.current,
-              props: {
-                events: events,
-                autoPlay: true,
-                liveMode: true,
-                width: containerRef.current.clientWidth,
-                height: containerRef.current.clientHeight,
-              }
+            replayerRef.current = new rrweb.Replayer(events, {
+              root: containerRef.current,
+              liveMode: true,
             });
+            replayerRef.current.play();
          }
       } else if (replayerRef.current) {
          incomingEvents.forEach((ev: any) => replayerRef.current.addEvent(ev));
