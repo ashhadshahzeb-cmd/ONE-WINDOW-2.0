@@ -76,19 +76,26 @@ export default function AuthPage() {
                   navigate('/dashboard');
                }
             } else {
-               // Not enrolled, let's enroll them
-               setMfaStep('enroll');
-               const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp' });
-               if (error) {
-                  console.error("MFA Enroll Error:", error);
-                  toast.error(error.message || 'Failed to start 2FA enrollment');
-                  setLoading(false);
-                  return;
-               }
-               setFactorId(data.id);
-               setQrCodeData(data.totp.uri); // MUST BE URI for QRCodeSVG
-               setLoading(false);
-               return;
+                 // Not enrolled or has unverified factor, let's enroll them
+                 const { data: existingFactors } = await supabase.auth.mfa.listFactors();
+                 const unverifiedFactors = existingFactors?.all?.filter(f => f.status === 'unverified') || [];
+                 if (unverifiedFactors.length > 0) {
+                    await supabase.auth.mfa.unenroll({ factorId: unverifiedFactors[0].id });
+                 }
+
+                 setMfaStep('enroll');
+                 const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp' });
+                 if (error) {
+                    console.error("MFA Enroll Error:", error);
+                    toast.error(error.message || 'Failed to start 2FA enrollment');
+                    setMfaStep('none');
+                    setLoading(false);
+                    return;
+                 }
+                 setFactorId(data.id);
+                 setQrCodeData(data.totp.uri); // MUST BE URI for QRCodeSVG
+                 setLoading(false);
+                 return;
             }
           } else {
             // HRMS Fallback
