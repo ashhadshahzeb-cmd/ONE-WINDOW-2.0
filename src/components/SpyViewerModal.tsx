@@ -68,8 +68,6 @@ export default function SpyViewerModal({ isOpen, onClose, targetUserEmail }: Spy
              incomingEvents.forEach((ev: any) => {
                 replayerRef.current!.addEvent(ev);
              });
-             // Use startLive for liveMode
-             replayerRef.current.startLive();
           }
         } catch(e) {
           console.error("Failed to parse chunked compressed events", e);
