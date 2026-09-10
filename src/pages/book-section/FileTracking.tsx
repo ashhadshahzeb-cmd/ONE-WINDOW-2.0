@@ -1265,8 +1265,12 @@ export default function FileTracking() {
           }
         });
 
-        toast.success(isOnline ? "Record updated successfully!" : "Saved locally. Will sync when online.");
-        setQrFullScreen({ diary: formData.cfo_diary_number, receiving: formData.receiving_number, print_date: formData.print_date, subject: formData.subject, mark_to: formData.mark_to, additional_mark_to: formData.additional_mark_to });
+        if (currentRole !== 'super_admin' && formData.cfo_diary_number && formData.cfo_diary_number.includes('-2026-')) {
+          toast.success("Record updated successfully! (This record is restricted to Super Admin)");
+        } else {
+          toast.success(isOnline ? "Record updated successfully!" : "Saved locally. Will sync when online.");
+          setQrFullScreen({ diary: formData.cfo_diary_number, receiving: formData.receiving_number, print_date: formData.print_date, subject: formData.subject, mark_to: formData.mark_to, additional_mark_to: formData.additional_mark_to });
+        }
         handleFormReset();
         fetchRecords(0);
 
@@ -1334,8 +1338,12 @@ export default function FileTracking() {
           }
         });
 
-        toast.success(isOnline ? `File forwarded to ${formData.mark_to}` : "Forwarded locally. Will sync when online.");
-        setQrFullScreen({ diary: formData.cfo_diary_number, receiving: formData.receiving_number, print_date: formData.print_date, subject: formData.subject, mark_to: formData.mark_to, additional_mark_to: formData.additional_mark_to });
+        if (currentRole !== 'super_admin' && formData.cfo_diary_number && formData.cfo_diary_number.includes('-2026-')) {
+          toast.success(`File forwarded to ${formData.mark_to}. (This record is restricted to Super Admin)`);
+        } else {
+          toast.success(isOnline ? `File forwarded to ${formData.mark_to}` : "Forwarded locally. Will sync when online.");
+          setQrFullScreen({ diary: formData.cfo_diary_number, receiving: formData.receiving_number, print_date: formData.print_date, subject: formData.subject, mark_to: formData.mark_to, additional_mark_to: formData.additional_mark_to });
+        }
         handleFormReset();
         fetchRecords(0);
 
@@ -1443,8 +1451,12 @@ export default function FileTracking() {
           setPendingTrackingCode("");
         }
 
-        toast.success(isOnline ? `File registered successfully` : "Registered offline. Will sync when online.");
-        setQrFullScreen({ diary: formData.cfo_diary_number, receiving: formData.receiving_number, print_date: formData.print_date, subject: formData.subject, mark_to: formData.mark_to, additional_mark_to: formData.additional_mark_to });
+        if (currentRole !== 'super_admin' && formData.cfo_diary_number && formData.cfo_diary_number.includes('-2026-')) {
+          toast.success("File registered successfully. (This record is restricted to Super Admin)");
+        } else {
+          toast.success(isOnline ? `File registered successfully` : "Registered offline. Will sync when online.");
+          setQrFullScreen({ diary: formData.cfo_diary_number, receiving: formData.receiving_number, print_date: formData.print_date, subject: formData.subject, mark_to: formData.mark_to, additional_mark_to: formData.additional_mark_to });
+        }
         handleFormReset();
         fetchRecords(0);
       }
@@ -1604,13 +1616,23 @@ export default function FileTracking() {
   const fetchRecords = async (page = 0) => {
     setIsLoading(true);
     
-    const applyLocalFilters = (rawRecords: any[]) => {
-      let mapped = rawRecords.map((d: any) => ({
+    const applyLocalFilters = (data: any[]) => {
+      let mapped = [...data].sort((a, b) => {
+        const da = new Date(a.created_at || 0).getTime();
+        const db = new Date(b.created_at || 0).getTime();
+        return sortOrder === 'asc' ? da - db : db - da;
+      });
+
+      // GLOBAL RESTRICTION: Hide 2026 CFO Diary Numbers from non-superadmins
+      if (currentRole !== 'super_admin') {
+        mapped = mapped.filter(r => !(r.cfo_diary_number && r.cfo_diary_number.includes('-2026-')));
+      }
+
+      mapped = mapped.map((d: any) => ({
         ...d,
         mainCategory: d.main_category || d.mainCategory,
         subCategory: d.sub_category || d.subCategory,
       }));
-
 
       // 1. Role-based & Status filters
       if (activeTab === 'trash_box') {
@@ -1649,6 +1671,8 @@ export default function FileTracking() {
           }
         } else if (activeTab === 'bulk_modified') {
           mapped = mapped.filter(r => r.history && r.history.some((h: any) => h.action === 'BULK_DATE_EDITED'));
+        } else if (activeTab === 'backdate_2026') {
+          mapped = mapped.filter(r => r.cfo_diary_number && r.cfo_diary_number.includes('-2026-'));
         }
       }
 
@@ -1766,6 +1790,8 @@ export default function FileTracking() {
         }
       } else if (activeTab === 'bulk_modified') {
         query = query.contains('history', '[{"action": "BULK_DATE_EDITED"}]');
+      } else if (activeTab === 'backdate_2026') {
+        query = query.like('cfo_diary_number', '%-2026-%');
       }
 
       // Apply Category filter
@@ -1881,6 +1907,8 @@ export default function FileTracking() {
         }
       } else if (activeTab === 'bulk_modified') {
         allQuery = allQuery.contains('history', '[{"action": "BULK_DATE_EDITED"}]');
+      } else if (activeTab === 'backdate_2026') {
+        allQuery = allQuery.like('cfo_diary_number', '%-2026-%');
       }
 
       if (filterCategory !== 'all') {
@@ -2846,6 +2874,14 @@ export default function FileTracking() {
                     className="flex items-center gap-2 px-6 py-2.5 rounded-xl data-[state=active]:bg-[#14b8a6] data-[state=active]:text-[#0f1115] text-white/50 hover:text-white transition-all font-black text-sm"
                   >
                     <Building2 className="w-4 h-4" /> CFO Dashboard
+                  </TabsTrigger>
+                )}
+                {currentRole === 'super_admin' && (
+                  <TabsTrigger
+                    value="backdate_2026"
+                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl data-[state=active]:bg-purple-500 data-[state=active]:text-white text-white/50 hover:text-purple-400 transition-all font-black text-sm"
+                  >
+                    <History className="w-4 h-4" /> Backdate (2026)
                   </TabsTrigger>
                 )}
                 {isAdmin && (
@@ -5652,6 +5688,75 @@ export default function FileTracking() {
             </CardContent>
           </Card>
         </TabsContent>
+        {currentRole === 'super_admin' && (
+        <TabsContent value="backdate_2026" className="mt-6 space-y-6">
+          <Card className="glass-card border-none shadow-2xl">
+            <CardHeader className="flex flex-col md:flex-row md:items-center justify-between pb-6 gap-4">
+              <div>
+                <CardTitle className="text-2xl font-black flex items-center gap-3 text-purple-500">
+                  <History className="w-6 h-6 text-purple-500" />
+                  Backdate (2026) Restricted Files
+                </CardTitle>
+                <p className="text-xs text-white/40 mt-2 font-medium">View files registered with 2026 CFO Diary Numbers</p>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-2xl border border-white/5 overflow-hidden bg-black/20">
+                <Table>
+                  <TableHeader className="bg-white/5">
+                    <TableRow>
+                      <TableHead className="font-black text-[10px] uppercase tracking-widest">Diary No</TableHead>
+                      <TableHead className="font-black text-[10px] uppercase tracking-widest">Subject</TableHead>
+                      <TableHead className="font-black text-[10px] uppercase tracking-widest">Category</TableHead>
+                      <TableHead className="font-black text-[10px] uppercase tracking-widest">Amount</TableHead>
+                      <TableHead className="text-right font-black text-[10px] uppercase tracking-widest pr-6">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="h-32 text-center text-white/30 font-medium">
+                          <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#14b8a6]" />
+                        </TableCell>
+                      </TableRow>
+                    ) : records.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="h-32 text-center text-white/30 font-medium">No 2026 backdated files found.</TableCell>
+                      </TableRow>
+                    ) : (
+                      records.map((file, i) => (
+                        <TableRow key={i} className="hover:bg-white/5 border-white/5 transition-colors animate-row-slide-in" style={{ animationDelay: `${i * 0.05}s` }}>
+                          <TableCell className="font-mono text-xs font-bold text-purple-400">{file.cfo_diary_number}</TableCell>
+                          <TableCell>
+                            <div className="font-semibold text-sm">{file.subject}</div>
+                            <div className="text-[10px] text-white/40">{file.receiving_number}</div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-[9px] uppercase border-white/10 bg-white/5">{mainCatReadable(file.mainCategory)}</Badge>
+                          </TableCell>
+                          <TableCell className="font-black text-xs text-emerald-400">{formatCurrency(file.amount || 0)}</TableCell>
+                          <TableCell className="text-right pr-6 flex justify-end gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => {
+                                 setQrFullScreen({ diary: file.cfo_diary_number, receiving: file.receiving_number, print_date: file.print_date, subject: file.subject, mark_to: file.mark_to, additional_mark_to: file.additional_mark_to });
+                              }}
+                              className="h-8 gap-2 border-primary/20 text-primary hover:bg-primary hover:text-[#0f1115] transition-all rounded-xl"
+                            >
+                              <Printer className="w-3 h-3" /> Print QR
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        )}
         {isAdmin && (
         <TabsContent value="trash_box" className="mt-6 space-y-6">
           <Card className="glass-card border-none shadow-2xl">

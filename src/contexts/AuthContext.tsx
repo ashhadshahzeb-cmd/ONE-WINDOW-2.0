@@ -81,7 +81,7 @@ interface AuthContextType {
   userRole: string | null;
   userName: string | null;
   userAvatar: string | null;
-  localSignIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  localSignIn: (email: string, password: string) => Promise<{ success: boolean; error?: string; method?: string }>;
   verifyPassword: (password: string) => boolean;
   allowOverrideDates: boolean;
   updateUserProfile: (newName: string, newPassword?: string, newAvatar?: string) => Promise<{ success: boolean; error?: string }>;
@@ -98,6 +98,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userName, setUserName] = useState<string | null>(null);
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [allowOverrideDates, setAllowOverrideDates] = useState(false);
+  const [isMaintenance, setIsMaintenance] = useState(false);
+
+  useEffect(() => {
+    const checkMaintenance = async () => {
+      try {
+        const { data } = await supabase.storage.from('bucket_assets').download('system/maintenance.json');
+        let overrideDate = null;
+        let force = false;
+        if (data) {
+          const text = await data.text();
+          const json = JSON.parse(text);
+          overrideDate = json.override_date;
+          force = json.force_maintenance;
+        }
+
+        const now = new Date();
+        const currentHour = now.getHours();
+        const todayStr = now.toISOString().split('T')[0];
+        
+        const isAuto = currentHour >= 17;
+        
+        if (force) {
+          setIsMaintenance(true);
+        } else if (isAuto && overrideDate !== todayStr) {
+          setIsMaintenance(true);
+        } else {
+          setIsMaintenance(false);
+        }
+      } catch (e) {
+        console.error("Maintenance check error:", e);
+      }
+    };
+
+    checkMaintenance();
+    const int = setInterval(checkMaintenance, 60000);
+    return () => clearInterval(int);
+  }, []);
+
+  const toggleMaintenance = async (action: 'force' | 'override' | 'clear') => {
+      const now = new Date();
+      const todayStr = now.toISOString().split('T')[0];
+      const payload = { 
+         force_maintenance: action === 'force', 
+         override_date: action === 'override' ? todayStr : null 
+      };
+      await supabase.storage.from('bucket_assets').upload('system/maintenance.json', JSON.stringify(payload), { upsert: true });
+      if (action === 'force') setIsMaintenance(true);
+      else if (action === 'override') setIsMaintenance(false);
+      else setIsMaintenance(now.getHours() >= 17);
+  };
 
   const loadUserProfile = async (currentUser: User) => {
     try {
@@ -183,7 +233,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [userName]);
 
-  const localSignIn = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const localSignIn = async (email: string, password: string): Promise<{ success: boolean; error?: string; method?: string }> => {
     const trimEmail = email.trim().toLowerCase();
     
     try {
@@ -220,7 +270,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               action: 'LOGIN',
               details: { email: trimEmail, method: 'hrms_fallback' },
             });
-            return { success: true };
+            return { success: true, method: 'hrms' };
           }
         } catch (e) {
           console.error("HRMS fallback failed", e);
@@ -249,7 +299,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             action: 'LOGIN',
             details: { email: trimEmail, method: 'hardcoded_fallback' },
           });
-          return { success: true };
+          return { success: true, method: 'hardcoded' };
         }
 
         return { success: false, error: error.message };
@@ -275,7 +325,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         details: { email: trimEmail, method: 'supabase' },
       });
 
-      return { success: true };
+      return { success: true, method: 'supabase' };
     } catch (err: any) {
       return { success: false, error: err.message || 'An unexpected error occurred during login.' };
     }

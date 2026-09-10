@@ -8,6 +8,7 @@ import { LogIn, UserPlus, Mail, Lock, User as UserIcon, Loader2, ArrowLeft } fro
 import { useAuth } from '@/contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import ThreeDLoginBackground from '@/components/auth/ThreeDLoginBackground';
+import { QRCodeSVG } from 'qrcode.react';
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -15,6 +16,13 @@ export default function AuthPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  
+  // MFA States
+  const [mfaStep, setMfaStep] = useState<'none' | 'enroll' | 'verify'>('none');
+  const [factorId, setFactorId] = useState('');
+  const [qrCodeData, setQrCodeData] = useState('');
+  const [mfaCode, setMfaCode] = useState('');
+  
   const navigate = useNavigate();
   const { localSignIn } = useAuth();
 
@@ -26,8 +34,68 @@ export default function AuthPage() {
       if (isLogin) {
         const localResult = await localSignIn(email, password);
         if (localResult.success) {
-          toast.success('Welcome! Login successful.');
-          navigate('/dashboard');
+          
+          if (localResult.method === 'supabase') {
+            // Check MFA Status
+            const { data: mfaData, error: mfaError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+            
+            if (mfaError) {
+              toast.error('Failed to check security level.');
+              setLoading(false);
+              return;
+            }
+
+            if (mfaData.nextLevel === 'aal2') {
+               if (mfaData.currentLevel === 'aal1') {
+                  const { data: factors } = await supabase.auth.mfa.listFactors();
+                  
+                  // Get the first available TOTP factor (verified or unverified)
+                  const totpFactors = factors?.all?.filter(f => f.factor_type === 'totp') || [];
+                  if (totpFactors.length > 0) {
+                     setFactorId(totpFactors[0].id);
+                     
+                     // If it is unverified, technically they should be enrolling, but since they have the code, we let them verify.
+                     if (totpFactors[0].status === 'unverified') {
+                        setMfaStep('enroll'); // Show Verify box but keeping step conceptually for UI
+                        // But wait, if they refreshed, they don't have qrCodeData. The UI will just hide the QR and show the box.
+                     } else {
+                        setMfaStep('verify');
+                     }
+                  } else {
+                     toast.error('No MFA factors found. Please contact support to reset your account.');
+                     setLoading(false);
+                     return;
+                  }
+                  
+                  setMfaStep('verify'); // Always show verify box
+                  setLoading(false);
+                  return;
+               } else {
+                  // Already aal2
+                  toast.success('Welcome! Login successful.');
+                  navigate('/dashboard');
+               }
+            } else {
+               // Not enrolled, let's enroll them
+               setMfaStep('enroll');
+               const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp' });
+               if (error) {
+                  console.error("MFA Enroll Error:", error);
+                  toast.error(error.message || 'Failed to start 2FA enrollment');
+                  setLoading(false);
+                  return;
+               }
+               setFactorId(data.id);
+               setQrCodeData(data.totp.uri); // MUST BE URI for QRCodeSVG
+               setLoading(false);
+               return;
+            }
+          } else {
+            // HRMS Fallback
+            toast.success('Welcome! Login successful.');
+            navigate('/dashboard');
+          }
+
         } else {
           toast.error(localResult.error || 'Invalid login credentials.');
         }
@@ -56,6 +124,31 @@ export default function AuthPage() {
       }
     } catch (error: any) {
       toast.error(error.message || 'Something went wrong. Please try again.');
+    } finally {
+      if (mfaStep === 'none') {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleMfaVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const challenge = await supabase.auth.mfa.challenge({ factorId });
+      if (challenge.error) throw challenge.error;
+      
+      const verify = await supabase.auth.mfa.verify({
+        factorId,
+        challengeId: challenge.data.id,
+        code: mfaCode
+      });
+      if (verify.error) throw verify.error;
+
+      toast.success('Authentication successful!');
+      navigate('/dashboard');
+    } catch (error: any) {
+      toast.error(error.message || 'Invalid 2FA code.');
     } finally {
       setLoading(false);
     }
@@ -129,112 +222,167 @@ export default function AuthPage() {
                 </div>
               </div>
               <h1 className="text-4xl sm:text-5xl font-black text-white tracking-tight mb-3">
-                {isLogin ? 'Welcome Back' : 'Create Account'}
+                {mfaStep !== 'none' ? 'Two-Factor Auth' : isLogin ? 'Welcome Back' : 'Create Account'}
               </h1>
               <p className="text-slate-400 text-lg">
-                {isLogin 
+                {mfaStep === 'enroll' 
+                  ? 'Scan the QR code with your Authenticator app' 
+                  : mfaStep === 'verify'
+                  ? 'Enter the 6-digit code from your Authenticator app'
+                  : isLogin 
                   ? 'Sign in to your One Window Facility dashboard' 
                   : 'Join the enterprise management system'}
               </p>
             </motion.div>
 
             {/* Form */}
-            <form onSubmit={handleAuth} className="space-y-5">
-              <AnimatePresence mode="wait">
-                {!isLogin && (
-                  <motion.div 
-                    key="name"
-                    initial={{ opacity: 0, height: 0, overflow: 'hidden' }}
-                    animate={{ opacity: 1, height: 'auto', overflow: 'visible' }}
-                    exit={{ opacity: 0, height: 0, overflow: 'hidden' }}
-                    transition={{ duration: 0.3 }}
-                    className="space-y-1.5"
-                  >
-                    <div className="relative group">
-                      <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-blue-400 transition-colors" />
-                      <Input 
-                        id="name" 
-                        placeholder="Full Name" 
-                        className="pl-12 h-14 bg-white/[0.03] border-white/10 text-white placeholder:text-slate-500 focus-visible:ring-blue-500/50 focus-visible:border-blue-500/50 rounded-xl transition-all text-base" 
-                        required={!isLogin}
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                      />
-                    </div>
+            {mfaStep !== 'none' ? (
+              <form onSubmit={handleMfaVerify} className="space-y-5">
+                {mfaStep === 'enroll' && qrCodeData && (
+                  <motion.div variants={itemVariants} className="flex flex-col items-center justify-center p-6 bg-white rounded-xl mb-6 w-fit mx-auto">
+                    <QRCodeSVG value={qrCodeData} size={200} />
                   </motion.div>
                 )}
-              </AnimatePresence>
-
-              <motion.div variants={itemVariants} className="space-y-1.5">
-                <div className="relative group">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-blue-400 transition-colors" />
-                  <Input 
-                    id="email" 
-                    type="email" 
-                    placeholder="Email Address" 
-                    className="pl-12 h-14 bg-white/[0.03] border-white/10 text-white placeholder:text-slate-500 focus-visible:ring-blue-500/50 focus-visible:border-blue-500/50 rounded-xl transition-all text-base" 
-                    required 
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
-              </motion.div>
-
-              <motion.div variants={itemVariants} className="space-y-1.5">
-                <div className="relative group">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-blue-400 transition-colors" />
-                  <Input 
-                    id="password" 
-                    type="password" 
-                    placeholder="Password"
-                    className="pl-12 h-14 bg-white/[0.03] border-white/10 text-white placeholder:text-slate-500 focus-visible:ring-blue-500/50 focus-visible:border-blue-500/50 rounded-xl transition-all text-base" 
-                    required 
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </div>
-                {isLogin && (
-                  <div className="flex justify-end pt-2">
-                    <button type="button" onClick={handleForgotPassword} className="text-sm font-medium text-slate-400 hover:text-blue-400 transition-colors">
-                      Forgot Password?
-                    </button>
+                
+                <motion.div variants={itemVariants} className="space-y-1.5">
+                  <div className="relative group">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-blue-400 transition-colors" />
+                    <Input 
+                      id="mfaCode" 
+                      type="text" 
+                      placeholder="6-digit Authenticator Code"
+                      className="pl-12 h-14 bg-white/[0.03] border-white/10 text-white placeholder:text-slate-500 focus-visible:ring-blue-500/50 focus-visible:border-blue-500/50 rounded-xl transition-all text-base text-center tracking-widest text-2xl font-mono" 
+                      required 
+                      value={mfaCode}
+                      onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    />
                   </div>
-                )}
-              </motion.div>
+                </motion.div>
 
-              <motion.div variants={itemVariants} className="pt-2">
-                <Button 
-                  className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold rounded-xl shadow-xl shadow-blue-900/20 transition-all hover:scale-[1.02] active:scale-[0.98]" 
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                  ) : isLogin ? (
-                    <LogIn className="w-5 h-5 mr-2" />
-                  ) : (
-                    <UserPlus className="w-5 h-5 mr-2" />
+                <motion.div variants={itemVariants} className="pt-2">
+                  <Button 
+                    className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold rounded-xl shadow-xl shadow-blue-900/20 transition-all hover:scale-[1.02] active:scale-[0.98]" 
+                    disabled={loading || mfaCode.length < 6}
+                  >
+                    {loading ? (
+                      <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    ) : (
+                      <Lock className="w-5 h-5 mr-2" />
+                    )}
+                    Verify & Access
+                  </Button>
+                </motion.div>
+                
+                <div className="text-center mt-4">
+                   <button 
+                     type="button"
+                     onClick={() => setMfaStep('none')}
+                     className="text-sm font-medium text-slate-400 hover:text-white transition-colors"
+                   >
+                     Cancel & Return to Login
+                   </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleAuth} className="space-y-5">
+                <AnimatePresence mode="wait">
+                  {!isLogin && (
+                    <motion.div 
+                      key="name"
+                      initial={{ opacity: 0, height: 0, overflow: 'hidden' }}
+                      animate={{ opacity: 1, height: 'auto', overflow: 'visible' }}
+                      exit={{ opacity: 0, height: 0, overflow: 'hidden' }}
+                      transition={{ duration: 0.3 }}
+                      className="space-y-1.5"
+                    >
+                      <div className="relative group">
+                        <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-blue-400 transition-colors" />
+                        <Input 
+                          id="name" 
+                          placeholder="Full Name" 
+                          className="pl-12 h-14 bg-white/[0.03] border-white/10 text-white placeholder:text-slate-500 focus-visible:ring-blue-500/50 focus-visible:border-blue-500/50 rounded-xl transition-all text-base" 
+                          required={!isLogin}
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                        />
+                      </div>
+                    </motion.div>
                   )}
-                  {isLogin ? 'Access Portal' : 'Register Account'}
-                </Button>
-              </motion.div>
-            </form>
+                </AnimatePresence>
 
-            <motion.div variants={itemVariants} className="mt-8 text-center">
-              <p className="text-base text-slate-400">
-                {isLogin ? "Don't have an account?" : "Already have an account?"}{' '}
-                <button 
-                  type="button" 
-                  onClick={() => {
-                    setIsLogin(!isLogin);
-                    setFullName('');
-                    setPassword('');
-                  }}
-                  className="font-bold text-blue-400 hover:text-blue-300 transition-colors hover:underline underline-offset-4"
-                >
-                  {isLogin ? 'Register' : 'Sign In'}
-                </button>
-              </p>
-            </motion.div>
+                <motion.div variants={itemVariants} className="space-y-1.5">
+                  <div className="relative group">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-blue-400 transition-colors" />
+                    <Input 
+                      id="email" 
+                      type="email" 
+                      placeholder="Email Address" 
+                      className="pl-12 h-14 bg-white/[0.03] border-white/10 text-white placeholder:text-slate-500 focus-visible:ring-blue-500/50 focus-visible:border-blue-500/50 rounded-xl transition-all text-base" 
+                      required 
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+                </motion.div>
+
+                <motion.div variants={itemVariants} className="space-y-1.5">
+                  <div className="relative group">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-blue-400 transition-colors" />
+                    <Input 
+                      id="password" 
+                      type="password" 
+                      placeholder="Password"
+                      className="pl-12 h-14 bg-white/[0.03] border-white/10 text-white placeholder:text-slate-500 focus-visible:ring-blue-500/50 focus-visible:border-blue-500/50 rounded-xl transition-all text-base" 
+                      required 
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                  </div>
+                  {isLogin && (
+                    <div className="flex justify-end pt-2">
+                      <button type="button" onClick={handleForgotPassword} className="text-sm font-medium text-slate-400 hover:text-blue-400 transition-colors">
+                        Forgot Password?
+                      </button>
+                    </div>
+                  )}
+                </motion.div>
+
+                <motion.div variants={itemVariants} className="pt-2">
+                  <Button 
+                    className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold rounded-xl shadow-xl shadow-blue-900/20 transition-all hover:scale-[1.02] active:scale-[0.98]" 
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    ) : isLogin ? (
+                      <LogIn className="w-5 h-5 mr-2" />
+                    ) : (
+                      <UserPlus className="w-5 h-5 mr-2" />
+                    )}
+                    {isLogin ? 'Access Portal' : 'Register Account'}
+                  </Button>
+                </motion.div>
+              </form>
+            )}
+
+            {mfaStep === 'none' && (
+              <motion.div variants={itemVariants} className="mt-8 text-center">
+                <p className="text-base text-slate-400">
+                  {isLogin ? "Don't have an account?" : "Already have an account?"}{' '}
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      setIsLogin(!isLogin);
+                      setFullName('');
+                      setPassword('');
+                    }}
+                    className="font-bold text-blue-400 hover:text-blue-300 transition-colors hover:underline underline-offset-4"
+                  >
+                    {isLogin ? 'Register' : 'Sign In'}
+                  </button>
+                </p>
+              </motion.div>
+            )}
 
           </motion.div>
         </div>

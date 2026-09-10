@@ -286,21 +286,23 @@ export default function AdminConfig() {
         .eq('config_key', 'maintenance_mode')
         .maybeSingle();
 
+      const todayStr = new Date().toISOString().split('T')[0];
+      
+      // Update maintenance_mode
       if (existing) {
-        await supabase
-          .from('app_config' as any)
-          .update({ config_label: checked ? 'true' : 'false' })
-          .eq('id', existing.id);
+        await supabase.from('app_config' as any).update({ config_label: checked ? 'true' : 'false' }).eq('id', existing.id);
       } else {
-        await supabase
-          .from('app_config' as any)
-          .insert({
-            config_type: 'system_setting',
-            config_key: 'maintenance_mode',
-            config_label: checked ? 'true' : 'false',
-            is_active: true,
-            sort_order: 0
-          });
+        await supabase.from('app_config' as any).insert({ config_type: 'system_setting', config_key: 'maintenance_mode', config_label: checked ? 'true' : 'false', is_active: true, sort_order: 0 });
+      }
+
+      // Update maintenance_override_date
+      const { data: existingOverride } = await supabase.from('app_config' as any).select('id').eq('config_type', 'system_setting').eq('config_key', 'maintenance_override_date').maybeSingle();
+      const overrideVal = checked ? 'null' : todayStr;
+      
+      if (existingOverride) {
+        await supabase.from('app_config' as any).update({ config_label: overrideVal }).eq('id', existingOverride.id);
+      } else {
+        await supabase.from('app_config' as any).insert({ config_type: 'system_setting', config_key: 'maintenance_override_date', config_label: overrideVal, is_active: true, sort_order: 0 });
       }
       toast.success(checked ? 'Maintenance Mode Enabled' : 'Maintenance Mode Disabled');
       refetch();

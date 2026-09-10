@@ -28,6 +28,7 @@ import AllEmployeeDetail from "./pages/book-section/AllEmployeeDetail";
 import Medical from "./pages/book-section/Medical";
 import Contractor from "./pages/book-section/Contractor";
 import SecurityDeposit from "./pages/book-section/SecurityDeposit";
+import VendorCreation from "./pages/book-section/VendorCreation";
 import PolBills from "./pages/book-section/PolBills";
 import Contingencies from "./pages/book-section/Contingencies";
 import ChequeRecord from "./pages/book-section/ChequeRecord";
@@ -176,6 +177,7 @@ const App = () => {
                           <Route path="/book-section/all-employees/:id" element={<AllEmployeeDetail />} />
                           <Route path="/book-section/medical" element={<Medical />} />
                           <Route path="/book-section/contractor" element={<Contractor />} />
+                          <Route path="/book-section/vendor-creation" element={<VendorCreation />} />
                           <Route path="/book-section/security-deposit" element={<SecurityDeposit />} />
                           <Route path="/book-section/pol-bills" element={<PolBills />} />
                           <Route path="/book-section/contingencies" element={<Contingencies />} />

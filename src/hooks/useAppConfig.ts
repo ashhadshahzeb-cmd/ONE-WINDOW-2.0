@@ -48,7 +48,15 @@ export function useAppConfig(): AppConfigState {
       const sc = localConfigs.filter(r => r.config_type === 'sub_category') as AppConfigItem[];
       const se = localConfigs.filter(r => r.config_type === 'section') as AppConfigItem[];
       const sys = localConfigs.filter(r => r.config_type === 'system_setting') as AppConfigItem[];
-      const maint = sys.find(s => s.config_key === 'maintenance_mode')?.config_label === 'true';
+      
+      const isManualForce = sys.find(s => s.config_key === 'maintenance_mode')?.config_label === 'true';
+      const overrideDateStr = sys.find(s => s.config_key === 'maintenance_override_date')?.config_label;
+      const now = new Date();
+      const currentHour = now.getHours();
+      const todayStr = now.toISOString().split('T')[0];
+      const isAuto = currentHour >= 17;
+      const maint = isManualForce || (isAuto && overrideDateStr !== todayStr);
+
 
       setMainCategories(mc);
       setSubCategories(sc);
@@ -102,7 +110,15 @@ export function useAppConfig(): AppConfigState {
         const sc = all.filter(r => r.config_type === 'sub_category');
         const se = all.filter(r => r.config_type === 'section');
         const sys = all.filter(r => r.config_type === 'system_setting');
-        const maint = sys.find(s => s.config_key === 'maintenance_mode')?.config_label === 'true';
+        
+      const isManualForce = sys.find(s => s.config_key === 'maintenance_mode')?.config_label === 'true';
+      const overrideDateStr = sys.find(s => s.config_key === 'maintenance_override_date')?.config_label;
+      const now = new Date();
+      const currentHour = now.getHours();
+      const todayStr = now.toISOString().split('T')[0];
+      const isAuto = currentHour >= 17;
+      const maint = isManualForce || (isAuto && overrideDateStr !== todayStr);
+
 
         cachedConfig = { mainCategories: mc, subCategories: sc, sections: se, isMaintenanceMode: maint };
         setMainCategories(mc);
@@ -131,6 +147,14 @@ export function useAppConfig(): AppConfigState {
     fetchConfig();
   }, [fetchConfig]);
 
+  useEffect(() => {
+    const int = setInterval(() => {
+      // Re-fetch quietly every minute to catch 5 PM transitions
+      refreshFromSupabase().then(() => fetchConfig(false));
+    }, 60000);
+    return () => clearInterval(int);
+  }, [fetchConfig]);
+
   const refetch = useCallback(() => {
     fetchConfig(true);
   }, [fetchConfig]);
@@ -153,7 +177,15 @@ async function refreshFromSupabase() {
     const sc = (data as AppConfigItem[]).filter(r => r.config_type === 'sub_category');
     const se = (data as AppConfigItem[]).filter(r => r.config_type === 'section');
     const sys = (data as AppConfigItem[]).filter(r => r.config_type === 'system_setting');
-    const maint = sys.find(s => s.config_key === 'maintenance_mode')?.config_label === 'true';
+    
+      const isManualForce = sys.find(s => s.config_key === 'maintenance_mode')?.config_label === 'true';
+      const overrideDateStr = sys.find(s => s.config_key === 'maintenance_override_date')?.config_label;
+      const now = new Date();
+      const currentHour = now.getHours();
+      const todayStr = now.toISOString().split('T')[0];
+      const isAuto = currentHour >= 17;
+      const maint = isManualForce || (isAuto && overrideDateStr !== todayStr);
+
     
     cachedConfig = { mainCategories: mc, subCategories: sc, sections: se, isMaintenanceMode: maint };
   } catch (_) {
