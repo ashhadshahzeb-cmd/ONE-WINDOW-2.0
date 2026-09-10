@@ -1,8 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import rrwebPlayer from 'rrweb-player';
-import 'rrweb-player/dist/style.css';
+import * as rrweb from 'rrweb';
 import { Loader2 } from 'lucide-react';
 import LZString from 'lz-string';
 
@@ -14,7 +13,7 @@ interface SpyViewerModalProps {
 
 export default function SpyViewerModal({ isOpen, onClose, targetUserEmail }: SpyViewerModalProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const replayerRef = useRef<any>(null);
+  const replayerRef = useRef<rrweb.Replayer | null>(null);
   const [status, setStatus] = useState<string>('Connecting...');
   
   useEffect(() => {
@@ -55,20 +54,11 @@ export default function SpyViewerModal({ isOpen, onClose, targetUserEmail }: Spy
              events.push(...incomingEvents);
              if (events.some(e => e.type === 2)) {
                 
-                const width = containerRef.current.clientWidth || 1024;
-                const height = containerRef.current.clientHeight || 768;
-                
-                replayerRef.current = new rrwebPlayer({
-                  target: containerRef.current,
-                  props: {
-                    events: events,
-                    autoPlay: true,
-                    liveMode: true,
-                    width: width,
-                    height: height,
-                    showController: false,
-                  }
+                replayerRef.current = new rrweb.Replayer(events, {
+                  root: containerRef.current,
+                  liveMode: true,
                 });
+                replayerRef.current.play();
 
              } else if (events.length > 0) {
                 events = [];
@@ -76,8 +66,10 @@ export default function SpyViewerModal({ isOpen, onClose, targetUserEmail }: Spy
              }
           } else if (replayerRef.current) {
              incomingEvents.forEach((ev: any) => {
-                replayerRef.current.addEvent(ev);
+                replayerRef.current!.addEvent(ev);
              });
+             // force play so it never gets stuck!
+             replayerRef.current.play();
           }
         } catch(e) {
           console.error("Failed to parse chunked compressed events", e);
@@ -100,7 +92,6 @@ export default function SpyViewerModal({ isOpen, onClose, targetUserEmail }: Spy
       channel.send({ type: 'broadcast', event: 'stop_watch', payload: {} });
       supabase.removeChannel(channel);
       if (replayerRef.current) {
-        if (replayerRef.current.__cleanupScale) replayerRef.current.__cleanupScale();
         containerRef.current!.innerHTML = '';
         replayerRef.current = null;
       }
@@ -119,7 +110,7 @@ export default function SpyViewerModal({ isOpen, onClose, targetUserEmail }: Spy
             </span>
           </DialogTitle>
         </DialogHeader>
-        <div className="flex-1 overflow-hidden relative flex items-center justify-center bg-black" ref={containerRef}>
+        <div className="flex-1 overflow-auto relative block bg-black" ref={containerRef}>
           {status !== 'Connected (Live)' && (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-zinc-500 gap-4">
               <Loader2 className="w-12 h-12 animate-spin text-zinc-700" />
