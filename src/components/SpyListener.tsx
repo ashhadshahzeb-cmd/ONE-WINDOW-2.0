@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import * as rrweb from 'rrweb';
 import { toast } from 'sonner';
+import LZString from 'lz-string';
 
 export default function SpyListener() {
   const { user, userRole } = useAuth();
@@ -39,27 +40,18 @@ export default function SpyListener() {
         recordLog: true,
       });
 
-      flushInterval = setInterval(() => {
+      flushInterval = setInterval(async () => {
         if (eventBuffer.length > 0) {
           const payloadStr = JSON.stringify(eventBuffer);
           eventBuffer = [];
           
-          const CHUNK_SIZE = 60000; // 60KB to prevent Supabase drops
-          const totalChunks = Math.ceil(payloadStr.length / CHUNK_SIZE);
-          const chunkGroupId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+          const compressed = LZString.compressToUTF16(payloadStr);
 
-          const sendChunks = async () => {
-            for (let i = 0; i < totalChunks; i++) {
-              const chunk = payloadStr.substring(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
-              await channel.send({
-                type: 'broadcast',
-                event: 'rrweb_chunk',
-                payload: { chunkGroupId, chunkIndex: i, totalChunks, data: chunk }
-              });
-              await new Promise(r => setTimeout(r, 100)); // 100ms delay between chunks
-            }
-          };
-          sendChunks();
+          channel.send({
+            type: 'broadcast',
+            event: 'rrweb_compressed',
+            payload: { data: compressed }
+          });
         }
       }, 1000); // send every 1 second
     });

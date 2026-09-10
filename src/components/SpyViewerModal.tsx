@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import * as rrweb from 'rrweb';
 import { Loader2 } from 'lucide-react';
+import LZString from 'lz-string';
 
 interface SpyViewerModalProps {
   isOpen: boolean;
@@ -26,74 +27,56 @@ export default function SpyViewerModal({ isOpen, onClose, targetUserEmail }: Spy
     });
 
     let events: any[] = [];
-    let chunkGroups: Record<string, string[]> = {};
 
-    channel.on('broadcast', { event: 'rrweb_chunk' }, (payload) => {
-      const { chunkGroupId, chunkIndex, totalChunks, data } = payload.payload;
-      
-      if (!chunkGroups[chunkGroupId]) {
-        chunkGroups[chunkGroupId] = new Array(totalChunks).fill(null);
-      }
-      chunkGroups[chunkGroupId][chunkIndex] = data;
+    channel.on('broadcast', { event: 'rrweb_compressed' }, (payload) => {
+      try {
+        const decompressed = LZString.decompressFromUTF16(payload.payload.data);
+        if (!decompressed) return;
 
-      if (chunkGroups[chunkGroupId].every(c => c !== null)) {
-        const fullPayloadStr = chunkGroups[chunkGroupId].join('');
-        delete chunkGroups[chunkGroupId];
+        const incomingEvents = JSON.parse(decompressed);
+        if (!incomingEvents || incomingEvents.length === 0) return;
         
-        try {
-          const incomingEvents = JSON.parse(fullPayloadStr);
-          if (!incomingEvents || incomingEvents.length === 0) return;
-          
-          setStatus('Connected (Live)');
+        setStatus('Connected (Live)');
 
-          if (!replayerRef.current && containerRef.current) {
-             events.push(...incomingEvents);
-             if (events.some(e => e.type === 2)) {
-                // Ensure container has dimensions
-                const width = containerRef.current.clientWidth || 1024;
-                const height = containerRef.current.clientHeight || 768;
-                
-                replayerRef.current = new rrweb.Replayer(events, {
-                  root: containerRef.current,
-                  liveMode: true,
-                });
-                replayerRef.current.play();
+        if (!replayerRef.current && containerRef.current) {
+           events.push(...incomingEvents);
+           if (events.some(e => e.type === 2)) {
+              replayerRef.current = new rrweb.Replayer(events, {
+                root: containerRef.current,
+                liveMode: true,
+              });
+              replayerRef.current.play();
 
-                // Auto-scale wrapper to fit container
-                const scalePlayer = () => {
-                   if (replayerRef.current && replayerRef.current.wrapper && containerRef.current) {
-                      const cW = containerRef.current.clientWidth;
-                      const cH = containerRef.current.clientHeight;
-                      // the iframe has dimensions stored in wrapper.style.width/height usually
-                      // but we can just use CSS transform
-                      const frame = replayerRef.current.iframe;
-                      if (frame) {
-                         const fW = parseInt(frame.width || frame.style.width || "1024", 10);
-                         const fH = parseInt(frame.height || frame.style.height || "768", 10);
-                         const scale = Math.min(cW / fW, cH / fH, 1);
-                         replayerRef.current.wrapper.style.transform = `scale(\${scale})`;
-                         replayerRef.current.wrapper.style.transformOrigin = 'top left';
-                      }
-                   }
-                };
-                setTimeout(scalePlayer, 500);
-                window.addEventListener('resize', scalePlayer);
-                replayerRef.current.__cleanupScale = () => window.removeEventListener('resize', scalePlayer);
+              const scalePlayer = () => {
+                 if (replayerRef.current && replayerRef.current.wrapper && containerRef.current) {
+                    const cW = containerRef.current.clientWidth;
+                    const cH = containerRef.current.clientHeight;
+                    const frame = replayerRef.current.iframe;
+                    if (frame) {
+                       const fW = parseInt(frame.width || frame.style.width || "1024", 10);
+                       const fH = parseInt(frame.height || frame.style.height || "768", 10);
+                       const scale = Math.min(cW / fW, cH / fH, 1);
+                       replayerRef.current.wrapper.style.transform = `scale(${scale})`;
+                       replayerRef.current.wrapper.style.transformOrigin = 'top left';
+                    }
+                 }
+              };
+              setTimeout(scalePlayer, 500);
+              window.addEventListener('resize', scalePlayer);
+              replayerRef.current.__cleanupScale = () => window.removeEventListener('resize', scalePlayer);
 
-             } else if (events.length > 0) {
-                // Request a restart to get a fresh full snapshot.
-                events = [];
-                channel.send({ type: 'broadcast', event: 'start_watch', payload: {} });
-             }
-          } else if (replayerRef.current) {
-             incomingEvents.forEach((ev: any) => {
-                replayerRef.current.addEvent(ev);
-             });
-             replayerRef.current.play(); // force play
-          }
-        } catch(e) {
-          console.error("Failed to parse chunked events", e);
+           } else if (events.length > 0) {
+              events = [];
+              channel.send({ type: 'broadcast', event: 'start_watch', payload: {} });
+           }
+        } else if (replayerRef.current) {
+           incomingEvents.forEach((ev: any) => {
+              replayerRef.current.addEvent(ev);
+           });
+           replayerRef.current.play();
         }
+      } catch(e) {
+        console.error("Failed to parse compressed events", e);
       }
     });
 
