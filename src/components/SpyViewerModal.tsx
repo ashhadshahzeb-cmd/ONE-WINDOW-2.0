@@ -70,7 +70,14 @@ export default function SpyViewerModal({ isOpen, onClose, targetUserEmail }: Spy
                 });
              }
           } else if (replayerRef.current) {
-             incomingEvents.forEach((ev: any) => replayerRef.current.addEvent(ev));
+             const targetReplayer = typeof replayerRef.current.getReplayer === 'function' 
+                ? replayerRef.current.getReplayer() 
+                : replayerRef.current;
+             incomingEvents.forEach((ev: any) => {
+                if (targetReplayer && typeof targetReplayer.addEvent === 'function') {
+                   targetReplayer.addEvent(ev);
+                }
+             });
           }
         } catch(e) {
           console.error("Failed to parse chunked events", e);
