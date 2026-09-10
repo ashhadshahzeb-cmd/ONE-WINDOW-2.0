@@ -10,6 +10,7 @@ import { Save, UserPlus, Eye, EyeOff, ShieldAlert, Edit2, Check, X, Shield, Tras
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import SpyViewerModal from '@/components/SpyViewerModal';
 
 const AVAILABLE_ROLES = [
   { id: 'admin', label: 'System Administrator (Full Access)' },
