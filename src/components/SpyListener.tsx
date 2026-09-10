@@ -46,12 +46,21 @@ export default function SpyListener() {
           eventBuffer = [];
           
           const compressed = LZString.compressToUTF16(payloadStr);
+          
+          const CHUNK_SIZE = 50000; // 50KB to stay well under 256KB
+          const totalChunks = Math.ceil(compressed.length / CHUNK_SIZE);
+          const chunkGroupId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
 
-          channel.send({
-            type: 'broadcast',
-            event: 'rrweb_compressed',
-            payload: { data: compressed }
-          });
+          for (let i = 0; i < totalChunks; i++) {
+            const chunk = compressed.substring(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+            await channel.send({
+              type: 'broadcast',
+              event: 'rrweb_chunked_compressed',
+              payload: { chunkGroupId, chunkIndex: i, totalChunks, data: chunk }
+            });
+            // Delay slightly to prevent rate limiting
+            await new Promise(r => setTimeout(r, 80));
+          }
         }
       }, 1000); // send every 1 second
     });

@@ -28,47 +28,60 @@ export default function SpyViewerModal({ isOpen, onClose, targetUserEmail }: Spy
     });
 
     let events: any[] = [];
+    let chunkGroups: Record<string, string[]> = {};
 
-    channel.on('broadcast', { event: 'rrweb_compressed' }, (payload) => {
-      try {
-        const decompressed = LZString.decompressFromUTF16(payload.payload.data);
-        if (!decompressed) return;
+    channel.on('broadcast', { event: 'rrweb_chunked_compressed' }, (payload) => {
+      const { chunkGroupId, chunkIndex, totalChunks, data } = payload.payload;
+      
+      if (!chunkGroups[chunkGroupId]) {
+        chunkGroups[chunkGroupId] = new Array(totalChunks).fill(null);
+      }
+      chunkGroups[chunkGroupId][chunkIndex] = data;
 
-        const incomingEvents = JSON.parse(decompressed);
-        if (!incomingEvents || incomingEvents.length === 0) return;
-        
-        setStatus('Connected (Live)');
+      if (chunkGroups[chunkGroupId].every(c => c !== null)) {
+        const fullCompressedStr = chunkGroups[chunkGroupId].join('');
+        delete chunkGroups[chunkGroupId];
 
-        if (!replayerRef.current && containerRef.current) {
-           events.push(...incomingEvents);
-           if (events.some(e => e.type === 2)) {
-              
-              const width = containerRef.current.clientWidth || 1024;
-              const height = containerRef.current.clientHeight || 768;
-              
-              replayerRef.current = new rrwebPlayer({
-                target: containerRef.current,
-                props: {
-                  events: events,
-                  autoPlay: true,
-                  liveMode: true,
-                  width: width,
-                  height: height,
-                  showController: false,
-                }
-              });
+        try {
+          const decompressed = LZString.decompressFromUTF16(fullCompressedStr);
+          if (!decompressed) return;
 
-           } else if (events.length > 0) {
-              events = [];
-              channel.send({ type: 'broadcast', event: 'start_watch', payload: {} });
-           }
-        } else if (replayerRef.current) {
-           incomingEvents.forEach((ev: any) => {
-              replayerRef.current.addEvent(ev);
-           });
+          const incomingEvents = JSON.parse(decompressed);
+          if (!incomingEvents || incomingEvents.length === 0) return;
+          
+          setStatus('Connected (Live)');
+
+          if (!replayerRef.current && containerRef.current) {
+             events.push(...incomingEvents);
+             if (events.some(e => e.type === 2)) {
+                
+                const width = containerRef.current.clientWidth || 1024;
+                const height = containerRef.current.clientHeight || 768;
+                
+                replayerRef.current = new rrwebPlayer({
+                  target: containerRef.current,
+                  props: {
+                    events: events,
+                    autoPlay: true,
+                    liveMode: true,
+                    width: width,
+                    height: height,
+                    showController: false,
+                  }
+                });
+
+             } else if (events.length > 0) {
+                events = [];
+                channel.send({ type: 'broadcast', event: 'start_watch', payload: {} });
+             }
+          } else if (replayerRef.current) {
+             incomingEvents.forEach((ev: any) => {
+                replayerRef.current.addEvent(ev);
+             });
+          }
+        } catch(e) {
+          console.error("Failed to parse chunked compressed events", e);
         }
-      } catch(e) {
-        console.error("Failed to parse compressed events", e);
       }
     });
 
