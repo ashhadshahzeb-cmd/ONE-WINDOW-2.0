@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import * as rrweb from 'rrweb';
+import rrwebPlayer from 'rrweb-player';
+import 'rrweb-player/dist/style.css';
 import { Loader2 } from 'lucide-react';
 
 interface SpyViewerModalProps {
@@ -52,11 +53,21 @@ export default function SpyViewerModal({ isOpen, onClose, targetUserEmail }: Spy
           if (!replayerRef.current && containerRef.current) {
              events.push(...incomingEvents);
              if (events.some(e => e.type === 2)) {
-                replayerRef.current = new rrweb.Replayer(events, {
-                  root: containerRef.current,
-                  liveMode: true,
+                // Ensure container has dimensions
+                const width = containerRef.current.clientWidth || 1024;
+                const height = containerRef.current.clientHeight || 768;
+                
+                replayerRef.current = new rrwebPlayer({
+                  target: containerRef.current,
+                  props: {
+                    events: events,
+                    autoPlay: true,
+                    liveMode: true,
+                    width: width,
+                    height: height,
+                    showController: false,
+                  }
                 });
-                replayerRef.current.play();
              }
           } else if (replayerRef.current) {
              incomingEvents.forEach((ev: any) => replayerRef.current.addEvent(ev));
@@ -70,7 +81,6 @@ export default function SpyViewerModal({ isOpen, onClose, targetUserEmail }: Spy
     channel.subscribe((subStatus) => {
       if (subStatus === 'SUBSCRIBED') {
         setStatus('Waiting for screen data...');
-        // Request the target to start watching
         channel.send({
           type: 'broadcast',
           event: 'start_watch',
@@ -83,8 +93,6 @@ export default function SpyViewerModal({ isOpen, onClose, targetUserEmail }: Spy
       channel.send({ type: 'broadcast', event: 'stop_watch', payload: {} });
       supabase.removeChannel(channel);
       if (replayerRef.current) {
-        // Cleanup if possible, rrwebPlayer doesn't have a direct destroy method sometimes, 
-        // but removing it from DOM is handled by React unmount.
         containerRef.current!.innerHTML = '';
         replayerRef.current = null;
       }
@@ -103,9 +111,9 @@ export default function SpyViewerModal({ isOpen, onClose, targetUserEmail }: Spy
             </span>
           </DialogTitle>
         </DialogHeader>
-        <div className="flex-1 overflow-hidden relative flex items-center justify-center" ref={containerRef}>
+        <div className="flex-1 overflow-hidden relative block bg-black" ref={containerRef}>
           {status !== 'Connected (Live)' && (
-            <div className="flex flex-col items-center text-zinc-500 gap-4">
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-zinc-500 gap-4">
               <Loader2 className="w-12 h-12 animate-spin text-zinc-700" />
               <p>Connecting to user's screen stream...</p>
             </div>
