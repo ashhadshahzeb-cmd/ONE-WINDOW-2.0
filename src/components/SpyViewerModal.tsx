@@ -29,6 +29,38 @@ export default function SpyViewerModal({ isOpen, onClose, targetUserEmail }: Spy
     let events: any[] = [];
     let chunkGroups: Record<string, string[]> = {};
 
+    channel.on('broadcast', { event: 'rrweb_compressed' }, (payload) => {
+      try {
+        const decompressed = LZString.decompressFromUTF16(payload.payload.data);
+        if (!decompressed) return;
+
+        const incomingEvents = JSON.parse(decompressed);
+        if (!incomingEvents || incomingEvents.length === 0) return;
+        
+        setStatus('Connected (Live)');
+
+        if (!replayerRef.current && containerRef.current) {
+           events.push(...incomingEvents);
+           if (events.some(e => e.type === 2)) {
+              replayerRef.current = new rrweb.Replayer(events, {
+                root: containerRef.current,
+                liveMode: true,
+              });
+              replayerRef.current.startLive();
+           } else if (events.length > 0) {
+              events = [];
+              channel.send({ type: 'broadcast', event: 'start_watch', payload: {} });
+           }
+        } else if (replayerRef.current) {
+           incomingEvents.forEach((ev: any) => {
+              replayerRef.current!.addEvent(ev);
+           });
+        }
+      } catch(e) {
+        console.error("Failed to parse compressed events", e);
+      }
+    });
+
     channel.on('broadcast', { event: 'rrweb_chunked_compressed' }, (payload) => {
       const { chunkGroupId, chunkIndex, totalChunks, data } = payload.payload;
       
