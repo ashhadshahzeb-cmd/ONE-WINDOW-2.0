@@ -33,6 +33,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/components/ThemeProvider";
 import NotificationListener from "@/components/NotificationListener";
+import SpyListener from "@/components/SpyListener";
 import OfflineIndicator from "@/components/OfflineIndicator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -359,6 +360,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         <main className="flex-1 overflow-y-auto overflow-x-hidden bg-gradient-to-br from-[#050505] via-[#0a0a0a] to-[#111] relative custom-scrollbar">
           <OfflineIndicator />
           <NotificationListener />
+          <SpyListener />
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}

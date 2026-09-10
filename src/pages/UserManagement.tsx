@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Save, UserPlus, Eye, EyeOff, ShieldAlert, Edit2, Check, X, Shield, Trash2, Search as SearchIcon } from 'lucide-react';
+import { Save, UserPlus, Eye, EyeOff, ShieldAlert, Edit2, Check, X, Shield, Trash2, Search as SearchIcon, MonitorPlay } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -46,6 +46,7 @@ export default function UserManagement() {
   const [showPasswords, setShowPasswords] = useState<Record<number, boolean>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [spyTargetEmail, setSpyTargetEmail] = useState<string | null>(null);
 
   useEffect(() => {
     setUsers(getDepartmentUsers());
@@ -373,6 +374,11 @@ export default function UserManagement() {
                           </div>
                         ) : (
                           <div className="flex items-center justify-end gap-1">
+                            {user.email && (
+                              <Button size="icon" variant="ghost" onClick={() => setSpyTargetEmail(user.email)} title="Live View" className="h-8 w-8 text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10">
+                                <MonitorPlay className="w-4 h-4" />
+                              </Button>
+                            )}
                             <Button size="icon" variant="ghost" onClick={() => startEdit(originalIndex, user)} className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10">
                               <Edit2 className="w-4 h-4" />
                             </Button>
@@ -397,6 +403,7 @@ export default function UserManagement() {
           </div>
         </CardContent>
       </Card>
+      <SpyViewerModal isOpen={!!spyTargetEmail} onClose={() => setSpyTargetEmail(null)} targetUserEmail={spyTargetEmail || ''} />
     </div>
   );
 }

@@ -89,6 +89,8 @@
     "react-signature-canvas": "^1.1.0-alpha.2",
     "react-webcam": "^7.2.0",
     "recharts": "^2.15.4",
+    "rrweb": "^2.1.4",
+    "rrweb-player": "^2.1.4",
     "sonner": "^1.7.4",
     "sqlite3": "^6.0.1",
     "tailwind-merge": "^2.6.0",
