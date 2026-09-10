@@ -58,7 +58,7 @@ export default function SpyViewerModal({ isOpen, onClose, targetUserEmail }: Spy
                   root: containerRef.current,
                   liveMode: true,
                 });
-                replayerRef.current.play();
+                replayerRef.current.startLive();
 
              } else if (events.length > 0) {
                 events = [];
@@ -68,8 +68,8 @@ export default function SpyViewerModal({ isOpen, onClose, targetUserEmail }: Spy
              incomingEvents.forEach((ev: any) => {
                 replayerRef.current!.addEvent(ev);
              });
-             // force play so it never gets stuck!
-             replayerRef.current.play();
+             // Use startLive for liveMode
+             replayerRef.current.startLive();
           }
         } catch(e) {
           console.error("Failed to parse chunked compressed events", e);
