@@ -28,25 +28,42 @@ export default function SpyViewerModal({ isOpen, onClose, targetUserEmail }: Spy
     });
 
     let events: any[] = [];
+    let chunkGroups: Record<string, string[]> = {};
 
-    channel.on('broadcast', { event: 'rrweb_events' }, (payload) => {
-      const incomingEvents = payload.payload.events;
-      if (!incomingEvents || incomingEvents.length === 0) return;
+    channel.on('broadcast', { event: 'rrweb_chunk' }, (payload) => {
+      const { chunkGroupId, chunkIndex, totalChunks, data } = payload.payload;
       
-      setStatus('Connected (Live)');
+      if (!chunkGroups[chunkGroupId]) {
+        chunkGroups[chunkGroupId] = new Array(totalChunks).fill(null);
+      }
+      
+      chunkGroups[chunkGroupId][chunkIndex] = data;
 
-      if (!replayerRef.current && containerRef.current) {
-         events.push(...incomingEvents);
-         // Ensure we have at least one full snapshot before starting
-         if (events.some(e => e.type === 2)) {
-            replayerRef.current = new rrweb.Replayer(events, {
-              root: containerRef.current,
-              liveMode: true,
-            });
-            replayerRef.current.play();
-         }
-      } else if (replayerRef.current) {
-         incomingEvents.forEach((ev: any) => replayerRef.current.addEvent(ev));
+      if (chunkGroups[chunkGroupId].every(c => c !== null)) {
+        const fullPayloadStr = chunkGroups[chunkGroupId].join('');
+        delete chunkGroups[chunkGroupId];
+        
+        try {
+          const incomingEvents = JSON.parse(fullPayloadStr);
+          if (!incomingEvents || incomingEvents.length === 0) return;
+          
+          setStatus('Connected (Live)');
+
+          if (!replayerRef.current && containerRef.current) {
+             events.push(...incomingEvents);
+             if (events.some(e => e.type === 2)) {
+                replayerRef.current = new rrweb.Replayer(events, {
+                  root: containerRef.current,
+                  liveMode: true,
+                });
+                replayerRef.current.play();
+             }
+          } else if (replayerRef.current) {
+             incomingEvents.forEach((ev: any) => replayerRef.current.addEvent(ev));
+          }
+        } catch(e) {
+          console.error("Failed to parse chunked events", e);
+        }
       }
     });
 

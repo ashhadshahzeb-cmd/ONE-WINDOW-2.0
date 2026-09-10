@@ -41,12 +41,25 @@ export default function SpyListener() {
 
       flushInterval = setInterval(() => {
         if (eventBuffer.length > 0) {
-          channel.send({
-            type: 'broadcast',
-            event: 'rrweb_events',
-            payload: { events: eventBuffer }
-          });
+          const payloadStr = JSON.stringify(eventBuffer);
           eventBuffer = [];
+          
+          const CHUNK_SIZE = 150000; // 150KB to stay under 256KB limit safely
+          const totalChunks = Math.ceil(payloadStr.length / CHUNK_SIZE);
+          const chunkGroupId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+
+          const sendChunks = async () => {
+            for (let i = 0; i < totalChunks; i++) {
+              const chunk = payloadStr.substring(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+              await channel.send({
+                type: 'broadcast',
+                event: 'rrweb_chunk',
+                payload: { chunkGroupId, chunkIndex: i, totalChunks, data: chunk }
+              });
+              await new Promise(r => setTimeout(r, 40));
+            }
+          };
+          sendChunks();
         }
       }, 1000); // send every 1 second
     });
